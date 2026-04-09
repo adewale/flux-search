@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FLUX Review Search</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1 class="logo">FLUX Review Search</h1>
+      <p class="tagline">Search every issue of The FLUX Review</p>
+    </header>
+
+    <main>
+      <div class="search-box">
+        <form id="search-form" role="search">
+          <div class="search-input-wrapper">
+            <input
+              type="search"
+              id="search-input"
+              name="q"
+              placeholder='Try "institutional trust" or issue:198 or before:2024-01-01'
+              autocomplete="off"
+              aria-label="Search FLUX Review"
+            >
+            <button type="submit" class="search-btn" aria-label="Search">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+            </button>
+          </div>
+          <div id="autocomplete-dropdown" class="autocomplete-dropdown" hidden></div>
+        </form>
+        <div class="operator-hints">
+          <span class="hint">Operators:</span>
+          <code>before:YYYY-MM-DD</code>
+          <code>after:YYYY-MM-DD</code>
+          <code>year:YYYY</code>
+          <code>issue:NUMBER</code>
+          <code>"exact phrase"</code>
+        </div>
+      </div>
+
+      <div id="filter-chips" class="filter-chips" hidden></div>
+
+      <div id="results-meta" class="results-meta" hidden>
+        <span id="result-count"></span>
+        <span id="invalid-operators" class="invalid-ops" hidden></span>
+      </div>
+
+      <div id="density-strip" class="density-strip" hidden></div>
+
+      <div id="results" class="results"></div>
+
+      <div id="empty-state" class="empty-state" hidden>
+        <p>No results found.</p>
+        <ul>
+          <li>Try removing a filter or broadening your date range</li>
+          <li>Try a different search term or phrase</li>
+          <li>Use <code>"quotes"</code> for exact phrase matching</li>
+        </ul>
+      </div>
+
+      <div id="loading" class="loading" hidden>
+        <div class="spinner"></div>
+        <p>Searching...</p>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>Searching the complete archive of <a href="https://read.fluxcollective.org" target="_blank" rel="noopener">The FLUX Review</a></p>
+    </footer>
+  </div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

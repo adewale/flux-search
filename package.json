@@ -1,0 +1,24 @@
+{
+  "name": "flux-search",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "cf-typegen": "wrangler types",
+    "db:migrate:local": "wrangler d1 migrations apply flux-search-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply flux-search-db --remote",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "hono": "^4.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.2",
+    "fast-check": "^4.6.0",
+    "typescript": "^5.8.0",
+    "vitest": "^4.1.2",
+    "wrangler": "^4.10.0"
+  }
+}

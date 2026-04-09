@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Issue — FLUX Review Search</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <a href="/" class="logo-link">
+        <h1 class="logo">FLUX Review Search</h1>
+      </a>
+    </header>
+
+    <main>
+      <div id="issue-loading" class="loading">
+        <div class="spinner"></div>
+        <p>Loading issue...</p>
+      </div>
+
+      <article id="issue-content" class="issue-detail" hidden>
+        <div class="issue-meta">
+          <span id="issue-number" class="issue-badge"></span>
+          <span id="issue-date" class="issue-date"></span>
+        </div>
+        <h1 id="issue-title" class="issue-title"></h1>
+        <p id="issue-subtitle" class="issue-subtitle"></p>
+
+        <div class="issue-actions">
+          <a id="issue-canonical-link" href="#" target="_blank" rel="noopener" class="btn-secondary">
+            Read on Substack
+          </a>
+        </div>
+
+        <div id="issue-body" class="issue-body"></div>
+
+        <div class="issue-footer">
+          <p id="issue-word-count" class="word-count"></p>
+        </div>
+      </article>
+
+      <div id="issue-error" class="empty-state" hidden>
+        <p>Issue not found.</p>
+        <a href="/">Back to search</a>
+      </div>
+    </main>
+  </div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
