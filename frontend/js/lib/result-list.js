@@ -1,17 +1,14 @@
 // Result List Pattern
 // Renders search results with density strip, confidence tiers,
-// and progressive disclosure. Pure rendering — no data fetching.
+// progressive disclosure, and inline expansion.
 
 import { escapeHtml, formatDate, cleanTitle, cleanSnippet } from './utils.js';
 
 export function renderResults(container, metaEl, countEl, invalidOpsEl, filterChipsEl, data) {
-  // Result count
   countEl.textContent = data.total_hits + ' result' + (data.total_hits !== 1 ? 's' : '');
   metaEl.hidden = false;
-
   invalidOpsEl.hidden = true;
 
-  // Filter chips
   if (data.applied_filters && data.applied_filters.length > 0) {
     filterChipsEl.innerHTML = data.applied_filters.map(function (f) {
       return '<span class="chip">' + escapeHtml(f) + '</span>';
@@ -21,33 +18,65 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
     filterChipsEl.hidden = true;
   }
 
-  // Density strip
   if (data.year_distribution && Object.keys(data.year_distribution).length > 0) {
     renderDensityStrip(data.year_distribution);
   }
 
-  // Result cards
-  container.innerHTML = data.results.map(function (r) {
-    var issueUrl = r.issue_number
-      ? '/issues/issue/' + r.issue_number
-      : '/issues/' + r.issue_id;
-
+  container.innerHTML = data.results.map(function (r, i) {
     var dateStr = r.published_at ? formatDate(r.published_at) : '';
     var snippet = cleanSnippet(r.snippet || '');
     var displayTitle = cleanTitle(r.title || '');
     var confidenceCls = r.confidence || 'medium';
+    var summary = cleanSnippet(r.summary || '');
 
-    return '<div class="result-card confidence-' + confidenceCls + '">' +
-      '<a href="' + issueUrl + '">' +
+    return '<div class="result-card confidence-' + confidenceCls + '" data-index="' + i + '">' +
+      '<div class="result-collapsed">' +
         '<div class="result-meta">' +
           (r.issue_number ? '<span class="result-number">#' + r.issue_number + '</span>' : '') +
           (dateStr ? '<span class="result-date">' + dateStr + '</span>' : '') +
         '</div>' +
         '<div class="result-title">' + escapeHtml(displayTitle) + '</div>' +
         (snippet ? '<p class="result-snippet">' + escapeHtml(snippet) + '</p>' : '') +
-      '</a>' +
+      '</div>' +
+      '<div class="result-expanded" hidden>' +
+        '<div class="result-meta">' +
+          (r.issue_number ? '<span class="result-number">#' + r.issue_number + '</span>' : '') +
+          (dateStr ? '<span class="result-date">' + dateStr + '</span>' : '') +
+        '</div>' +
+        '<div class="result-title">' + escapeHtml(displayTitle) + '</div>' +
+        (summary ? '<p class="result-summary">' + escapeHtml(summary) + '</p>' : '') +
+        '<div class="result-actions">' +
+          '<a href="' + escapeHtml(r.canonical_url || '') + '" target="_blank" rel="noopener" class="btn-read">' +
+            'Read on Substack' +
+          '</a>' +
+        '</div>' +
+      '</div>' +
     '</div>';
   }).join('');
+
+  // Bind click-to-expand
+  container.querySelectorAll('.result-card').forEach(function (card) {
+    card.addEventListener('click', function (e) {
+      // Don't intercept clicks on the Substack link
+      if (e.target.closest('.btn-read')) return;
+
+      var collapsed = card.querySelector('.result-collapsed');
+      var expanded = card.querySelector('.result-expanded');
+      var isOpen = !expanded.hidden;
+
+      // Close all other expanded cards
+      container.querySelectorAll('.result-expanded').forEach(function (el) {
+        el.hidden = true;
+      });
+      container.querySelectorAll('.result-collapsed').forEach(function (el) {
+        el.hidden = false;
+      });
+
+      // Toggle this card
+      collapsed.hidden = !isOpen;
+      expanded.hidden = isOpen;
+    });
+  });
 }
 
 export function clearResults(container, metaEl, filterChipsEl, emptyStateEl) {

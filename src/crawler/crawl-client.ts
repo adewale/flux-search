@@ -83,13 +83,23 @@ function htmlToSimpleMarkdown(html: string): string {
   // Remove remaining HTML tags
   text = text.replace(/<[^>]+>/g, '');
 
-  // Decode common HTML entities
+  // Decode HTML entities — named and numeric
+  text = text.replace(/&nbsp;/g, ' ');
+  text = text.replace(/&mdash;/g, '\u2014');
+  text = text.replace(/&ndash;/g, '\u2013');
+  text = text.replace(/&lsquo;/g, '\u2018');
+  text = text.replace(/&rsquo;/g, '\u2019');
+  text = text.replace(/&ldquo;/g, '\u201C');
+  text = text.replace(/&rdquo;/g, '\u201D');
+  text = text.replace(/&hellip;/g, '\u2026');
+  text = text.replace(/&bull;/g, '\u2022');
+  text = text.replace(/&#(\d+);/g, (_m, code) => String.fromCharCode(parseInt(code)));
+  text = text.replace(/&#x([0-9a-fA-F]+);/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)));
   text = text.replace(/&amp;/g, '&');
   text = text.replace(/&lt;/g, '<');
   text = text.replace(/&gt;/g, '>');
   text = text.replace(/&quot;/g, '"');
   text = text.replace(/&#039;/g, "'");
-  text = text.replace(/&nbsp;/g, ' ');
 
   // Normalize whitespace
   text = text.replace(/\n{3,}/g, '\n\n');

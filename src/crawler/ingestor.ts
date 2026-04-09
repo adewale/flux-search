@@ -54,6 +54,11 @@ export async function ingestPage(
 }
 
 async function rechunkAndEmbed(env: Env, issue: IssueRow): Promise<void> {
+  // Get old chunk IDs before deleting so we can clean up Vectorize
+  const oldChunks = await env.DB.prepare('SELECT id FROM issue_chunks WHERE issue_id = ?')
+    .bind(issue.id).all<{ id: string }>();
+  const oldChunkIds = oldChunks.results.map(r => r.id);
+
   await deleteChunksByIssueId(env.DB, issue.id);
 
   const chunks = chunkIssue(
@@ -78,6 +83,14 @@ async function rechunkAndEmbed(env: Env, issue: IssueRow): Promise<void> {
       published_at: issue.published_at,
       title: issue.title,
     });
+
+    // Delete orphan vectors (old chunks that no longer exist after re-chunking)
+    const newChunkIds = new Set(chunks.map(c => c.id));
+    const orphanIds = oldChunkIds.filter(id => !newChunkIds.has(id));
+    if (orphanIds.length > 0) {
+      await env.VECTORIZE.deleteByIds(orphanIds);
+    }
+
     await env.DB.prepare('UPDATE issues SET has_semantic_chunks = 1 WHERE id = ?')
       .bind(issue.id)
       .run();

@@ -17,6 +17,7 @@ export function normalizePage(page: CrawlPageResult, crawlRunId: string): Normal
   const publishedAt = extractPublishDate(page.markdown, page.metadata);
   const summary = extractSummary(page.markdown);
   const { cleanMarkdown, plainText } = cleanContent(page.markdown);
+  const headings = extractHeadings(cleanMarkdown);
   const authors = page.metadata?.['author'] || null;
 
   const year = publishedAt ? new Date(publishedAt).getFullYear() : null;
@@ -36,6 +37,7 @@ export function normalizePage(page: CrawlPageResult, crawlRunId: string): Normal
       authors,
       contributors: authors,
       summary,
+      headings,
       full_text_markdown: cleanMarkdown,
       full_text_plain: plainText,
       crawl_run_id: crawlRunId,
@@ -149,6 +151,8 @@ function extractSummary(markdown: string): string | null {
       continue;
     }
     if (trimmed.length === 0 && summaryParts.length > 0) break;
+    // Skip obvious metadata/boilerplate lines
+    if (isMetadataLine(trimmed)) continue;
     if (trimmed.length > 0 && !trimmed.startsWith('#') && !trimmed.startsWith('![')) {
       summaryParts.push(trimmed);
     }
@@ -157,6 +161,30 @@ function extractSummary(markdown: string): string | null {
 
   const summary = summaryParts.join(' ').trim();
   return summary.length > 20 ? summary.slice(0, 500) : null;
+}
+
+function extractHeadings(markdown: string): string | null {
+  const headings: string[] = [];
+  const regex = /^#{1,3}\s+(.+)$/gm;
+  let match;
+  while ((match = regex.exec(markdown)) !== null) {
+    headings.push(match[1].trim());
+  }
+  return headings.length > 0 ? headings.join(' | ') : null;
+}
+
+function isMetadataLine(line: string): boolean {
+  // Substack byline/date patterns
+  if (/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d/i.test(line)) return true;
+  // Share/subscribe cruft
+  if (/^\d+\s*Share$/i.test(line)) return true;
+  if (/^Share\s*this/i.test(line)) return true;
+  if (/^Subscribe/i.test(line)) return true;
+  // Markdown links that are just navigation
+  if (/^\[.*\]\(https?:\/\/substack\.com/i.test(line)) return true;
+  // Very short lines that are likely UI elements
+  if (line.length < 15 && /^(Share|Like|Comment|Reply)$/i.test(line)) return true;
+  return false;
 }
 
 

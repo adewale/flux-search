@@ -96,7 +96,8 @@ export function rankResults(
         matchedBy.push('phrase');
         appliedBoosts.push('phrase_title');
       }
-      if (issue.subtitle?.toLowerCase().includes(lowerPhrase)) {
+      if (issue.subtitle?.toLowerCase().includes(lowerPhrase) ||
+          issue.headings?.toLowerCase().includes(lowerPhrase)) {
         score += BOOSTS.phraseHeading;
         appliedBoosts.push('phrase_heading');
       }

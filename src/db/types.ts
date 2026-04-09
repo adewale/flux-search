@@ -9,6 +9,7 @@ export interface IssueRow {
   authors: string | null;
   contributors: string | null;
   summary: string | null;
+  headings: string | null;
   full_text_markdown: string | null;
   full_text_plain: string | null;
   crawl_run_id: string | null;

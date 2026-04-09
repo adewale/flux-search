@@ -76,6 +76,7 @@ searchRoutes.get('/search', async (c) => {
       issue_number: r.issue.issue_number,
       published_at: r.issue.published_at,
       snippet: r.snippet,
+      summary: r.issue.summary || '',
       confidence: r.confidence,
       canonical_url: r.issue.canonical_url || r.issue.source_url,
       matched_by: r.matchedBy,

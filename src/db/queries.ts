@@ -6,10 +6,10 @@ export async function upsertIssue(db: D1Database, issue: IssueRow): Promise<void
   await db.prepare(`
     INSERT INTO issues (
       id, issue_number, title, subtitle, published_at, source_url, canonical_url,
-      authors, contributors, summary, full_text_markdown, full_text_plain,
+      authors, contributors, summary, headings, full_text_markdown, full_text_plain,
       crawl_run_id, content_hash, ingested_at, word_count, status,
       year, month, has_semantic_chunks
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       issue_number = excluded.issue_number,
       title = excluded.title,
@@ -19,6 +19,7 @@ export async function upsertIssue(db: D1Database, issue: IssueRow): Promise<void
       authors = excluded.authors,
       contributors = excluded.contributors,
       summary = excluded.summary,
+      headings = excluded.headings,
       full_text_markdown = excluded.full_text_markdown,
       full_text_plain = excluded.full_text_plain,
       content_hash = excluded.content_hash,
@@ -28,7 +29,7 @@ export async function upsertIssue(db: D1Database, issue: IssueRow): Promise<void
     issue.id, issue.issue_number, issue.title, issue.subtitle,
     issue.published_at, issue.source_url, issue.canonical_url,
     issue.authors, issue.contributors,
-    issue.summary, issue.full_text_markdown, issue.full_text_plain,
+    issue.summary, issue.headings, issue.full_text_markdown, issue.full_text_plain,
     issue.crawl_run_id, issue.content_hash,
     issue.ingested_at, issue.word_count, issue.status,
     issue.year, issue.month, issue.has_semantic_chunks
@@ -174,7 +175,7 @@ export async function searchFts(
   if (!ftsQuery.trim()) return [];
 
   let sql = `
-    SELECT issues.*, bm25(issues_fts, 16.0, 8.0, 4.0, 1.0, 2.0) as bm25_score
+    SELECT issues.*, bm25(issues_fts, 16.0, 8.0, 8.0, 4.0, 1.0, 2.0) as bm25_score
     FROM issues_fts
     JOIN issues ON issues.rowid = issues_fts.rowid
     WHERE issues_fts MATCH ?

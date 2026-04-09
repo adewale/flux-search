@@ -1,20 +1,12 @@
 // FLUX Review Search — Pattern composition layer
 //
-// Alexander's insight: each pattern resolves forces in a specific context.
-// This file is the "courtyard" that connects them — it doesn't contain
-// behavior, only routing and wiring.
+// The search app is a lens, not a destination.
+// Results expand inline; reading happens on Substack.
 
 import { initAutocomplete } from './lib/autocomplete.js';
 import { renderResults, clearResults } from './lib/result-list.js';
-import { initIssueReader } from './lib/issue-reader.js';
 
-var path = window.location.pathname;
-
-if (path.startsWith('/issues/issue/')) {
-  initIssueReader();
-} else {
-  initSearchPage();
-}
+initSearchPage();
 
 function initSearchPage() {
   var form = document.getElementById('search-form');
@@ -30,7 +22,6 @@ function initSearchPage() {
 
   if (!form || !input) return;
 
-  // Wire the Autocomplete Pattern
   initAutocomplete(input, dropdown, {
     fetchSuggestions: async function (q) {
       var resp = await fetch('/autocomplete?q=' + encodeURIComponent(q));
@@ -44,7 +35,6 @@ function initSearchPage() {
     },
   });
 
-  // Restore query from URL
   var params = new URLSearchParams(window.location.search);
   var initialQ = params.get('q');
   if (initialQ) {
@@ -52,7 +42,6 @@ function initSearchPage() {
     performSearch(initialQ);
   }
 
-  // Form submit
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     var q = input.value.trim();
@@ -62,6 +51,13 @@ function initSearchPage() {
       history.pushState(null, '', url);
       performSearch(q);
     }
+  });
+
+  window.addEventListener('popstate', function () {
+    var q = new URLSearchParams(window.location.search).get('q') || '';
+    input.value = q;
+    if (q) performSearch(q);
+    else clearResults(resultsEl, resultsMeta, filterChips, emptyState);
   });
 
   async function performSearch(q) {
