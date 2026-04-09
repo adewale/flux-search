@@ -154,13 +154,7 @@ export function rankResults(
   return candidates.map((c, rank): RankedResult => {
     const snippetLen = rank < 3 ? SNIPPET_LEN_TOP : SNIPPET_LEN_DEFAULT;
     const snippet = generateSnippet(c.issue, c.semantic, snippetLen);
-    const confidence = classifyConfidence({
-      issue: c.issue,
-      snippet,
-      matchedBy: c.matchedBy,
-      confidence: 'medium', // placeholder
-      debugMeta: c.debugMeta,
-    });
+    const confidence = classifyConfidence(c.debugMeta);
 
     return {
       issue: c.issue,
@@ -187,9 +181,9 @@ export function computeYearDistribution(results: RankedResult[]): Record<number,
 
 // --- Confidence tiers (Robin Williams: contrast as hierarchy) ---
 
-export function classifyConfidence(result: RankedResult): 'high' | 'medium' | 'low' {
-  const boosts = result.debugMeta.applied_boosts;
-  const penalties = result.debugMeta.applied_penalties;
+export function classifyConfidence(meta: DebugMeta): 'high' | 'medium' | 'low' {
+  const boosts = meta.applied_boosts;
+  const penalties = meta.applied_penalties;
 
   // High: exact issue match, phrase match in title, or phrase match in body
   if (boosts.includes('exact_issue') || boosts.includes('phrase_title') || boosts.includes('phrase_body')) {

@@ -1,8 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../env';
 import { parseQuery } from '../lib/query-parser';
-import { searchFts, autocompleteTerms, autocompleteIssueNumbers } from '../db/queries';
-import { getIssueByNumber } from '../db/queries';
+import { searchFts, autocompleteTerms, autocompleteIssueNumbers, getIssueByNumber } from '../db/queries';
 import { searchVectorize } from '../lib/vector-search';
 import { rankResults, computeYearDistribution } from '../lib/hybrid-ranker';
 

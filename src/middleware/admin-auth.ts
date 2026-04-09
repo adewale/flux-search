@@ -12,7 +12,7 @@ export const adminAuth = createMiddleware<{ Bindings: Env }>(async (c, next) => 
     return c.json({ error: 'Unauthorized' }, 401);
   }
 
-  const valid = timingSafeEqual(token, c.env.ADMIN_TOKEN);
+  const valid = await timingSafeEqual(token, c.env.ADMIN_TOKEN);
   if (!valid) {
     return c.json({ error: 'Forbidden' }, 403);
   }
@@ -20,13 +20,21 @@ export const adminAuth = createMiddleware<{ Bindings: Env }>(async (c, next) => 
   await next();
 });
 
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
+async function timingSafeEqual(a: string, b: string): Promise<boolean> {
+  // Hash both inputs to fixed-length digests before comparing.
+  // This prevents leaking the token length through timing.
+  const encoder = new TextEncoder();
+  const [hashA, hashB] = await Promise.all([
+    crypto.subtle.digest('SHA-256', encoder.encode(a)),
+    crypto.subtle.digest('SHA-256', encoder.encode(b)),
+  ]);
 
-  // Use constant-time comparison via XOR
+  const bufA = new Uint8Array(hashA);
+  const bufB = new Uint8Array(hashB);
+
   let mismatch = 0;
-  for (let i = 0; i < a.length; i++) {
-    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  for (let i = 0; i < bufA.length; i++) {
+    mismatch |= bufA[i] ^ bufB[i];
   }
   return mismatch === 0;
 }

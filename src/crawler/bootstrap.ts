@@ -6,7 +6,7 @@ import { createCrawlRun, updateCrawlRun, getAllSourceUrls } from '../db/queries'
 
 const CONCURRENCY = 5;
 const DELAY_BETWEEN_FETCHES_MS = 500;
-const BATCH_SIZE = 50; // Process at most 50 issues per invocation
+const BOOTSTRAP_BATCH_SIZE = 50;
 
 export interface BatchPlan {
   toProcess: string[];
@@ -14,31 +14,17 @@ export interface BatchPlan {
   done: boolean;
 }
 
-/**
- * Pure function: compute which URLs to process in this batch.
- * Testable without any Cloudflare bindings.
- */
 export function computeBatchPlan(
   discovered: string[],
   existing: Set<string>,
   batchSize: number
 ): BatchPlan {
   const missing = discovered.filter(url => !existing.has(url));
-
-  if (missing.length === 0) {
-    return { toProcess: [], remaining: 0, done: true };
-  }
-
+  if (missing.length === 0) return { toProcess: [], remaining: 0, done: true };
   const toProcess = missing.slice(0, batchSize);
-  const remaining = missing.length - toProcess.length;
-
-  return { toProcess, remaining, done: false };
+  return { toProcess, remaining: missing.length - toProcess.length, done: false };
 }
 
-/**
- * Self-continuing bootstrap: processes one batch, then calls itself
- * for the next batch if work remains. No manual re-triggering needed.
- */
 export async function runBootstrap(env: Env, crawlRunId: string): Promise<void> {
   console.log(`Starting bootstrap crawl: ${crawlRunId}`);
 
@@ -57,86 +43,68 @@ export async function runBootstrap(env: Env, crawlRunId: string): Promise<void> 
   });
 
   try {
+    // Discover once, iterate in batches
     const entries = await discoverAllIssueUrls();
     const discoveredUrls = entries.map(e => e.loc);
     console.log(`Discovered ${entries.length} issue URLs`);
 
     await updateCrawlRun(env.DB, crawlRunId, { records_found: entries.length });
 
-    // Determine what to process this batch
-    const existingUrls = new Set(await getAllSourceUrls(env.DB));
-    const plan = computeBatchPlan(discoveredUrls, existingUrls, BATCH_SIZE);
-
-    if (plan.done) {
-      await updateCrawlRun(env.DB, crawlRunId, {
-        completed_at: new Date().toISOString(),
-        status: 'completed',
-        notes: 'All issues already ingested',
-      });
-      console.log('Bootstrap: nothing to do, all issues ingested');
-      return;
-    }
-
-    console.log(`Processing batch of ${plan.toProcess.length}, ${plan.remaining} remaining after this batch`);
-
-    // Process this batch
-    let created = 0;
-    let updated = 0;
-    let skipped = 0;
-    let failed = 0;
+    let totalCreated = 0;
+    let totalFailed = 0;
     const errors: string[] = [];
 
-    for (let i = 0; i < plan.toProcess.length; i += CONCURRENCY) {
-      const batch = plan.toProcess.slice(i, i + CONCURRENCY);
+    // Iterative batch loop — no recursion
+    while (true) {
+      const existingUrls = new Set(await getAllSourceUrls(env.DB));
+      const plan = computeBatchPlan(discoveredUrls, existingUrls, BOOTSTRAP_BATCH_SIZE);
 
-      const results = await Promise.allSettled(
-        batch.map(async (url) => {
-          const page = await fetchPage(url);
-          if (!page) return { url, status: 'failed' as const };
-          const result = await ingestPage(env, page, crawlRunId);
-          return { url, status: result };
-        })
-      );
+      if (plan.done) break;
 
-      for (const result of results) {
-        if (result.status === 'rejected') {
-          failed++;
-          errors.push(String(result.reason));
-          continue;
+      console.log(`Processing batch of ${plan.toProcess.length}, ${plan.remaining} remaining`);
+
+      for (let i = 0; i < plan.toProcess.length; i += CONCURRENCY) {
+        const batch = plan.toProcess.slice(i, i + CONCURRENCY);
+
+        const results = await Promise.allSettled(
+          batch.map(async (url) => {
+            const page = await fetchPage(url);
+            if (!page) return { url, status: 'failed' as const };
+            return { url, status: await ingestPage(env, page, crawlRunId) };
+          })
+        );
+
+        for (const result of results) {
+          if (result.status === 'rejected') {
+            totalFailed++;
+            errors.push(String(result.reason));
+          } else if (result.value.status === 'created') {
+            totalCreated++;
+          } else if (result.value.status === 'failed') {
+            totalFailed++;
+            errors.push(`Failed: ${result.value.url}`);
+          }
         }
-        switch (result.value.status) {
-          case 'created': created++; break;
-          case 'updated': updated++; break;
-          case 'skipped': skipped++; break;
-          case 'failed': failed++; errors.push(`Failed: ${result.value.url}`); break;
+
+        if (i + CONCURRENCY < plan.toProcess.length) {
+          await new Promise(r => setTimeout(r, DELAY_BETWEEN_FETCHES_MS));
         }
       }
 
-      if (i + CONCURRENCY < plan.toProcess.length) {
-        await new Promise(r => setTimeout(r, DELAY_BETWEEN_FETCHES_MS));
-      }
+      await updateCrawlRun(env.DB, crawlRunId, {
+        issues_created: totalCreated,
+        notes: `In progress: ${totalCreated} created, ${plan.remaining} URLs remaining`,
+      });
     }
 
-    const batchDone = plan.remaining === 0;
     await updateCrawlRun(env.DB, crawlRunId, {
-      completed_at: batchDone ? new Date().toISOString() : null,
-      status: batchDone ? (failed > 0 ? 'partial' : 'completed') : 'running',
-      issues_created: created,
-      issues_updated: updated,
-      issues_skipped: skipped,
-      notes: batchDone
-        ? (errors.length > 0 ? `Errors: ${errors.slice(0, 10).join('; ')}` : null)
-        : `Batch done: ${created} created. ${plan.remaining} URLs remaining — continuing...`,
+      completed_at: new Date().toISOString(),
+      status: totalFailed > 0 ? 'partial' : 'completed',
+      issues_created: totalCreated,
+      notes: errors.length > 0 ? `Errors: ${errors.slice(0, 10).join('; ')}` : null,
     });
 
-    console.log(`Batch complete: ${created} created, ${failed} failed. ${plan.remaining} remaining.`);
-
-    // Self-continue: if there's more work, kick off next batch
-    if (!batchDone) {
-      const nextRunId = crypto.randomUUID();
-      console.log(`Continuing with next batch: ${nextRunId}`);
-      await runBootstrap(env, nextRunId);
-    }
+    console.log(`Bootstrap complete: ${totalCreated} created, ${totalFailed} failed`);
   } catch (err) {
     console.error('Bootstrap failed:', err);
     await updateCrawlRun(env.DB, crawlRunId, {

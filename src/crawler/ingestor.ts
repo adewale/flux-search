@@ -18,10 +18,7 @@ export async function ingestPage(
   page: CrawlPageResult,
   crawlRunId: string
 ): Promise<'created' | 'updated' | 'skipped' | 'failed'> {
-  const normalized = normalizePage(
-    { url: page.url, markdown: page.markdown, metadata: page.metadata },
-    crawlRunId
-  );
+  const normalized = normalizePage(page, crawlRunId);
 
   if (normalized.contentType !== 'issue') {
     return 'skipped';

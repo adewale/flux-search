@@ -71,48 +71,38 @@ describe('computeYearDistribution', () => {
 // ========================
 describe('classifyConfidence', () => {
   it('classifies high confidence for exact issue match', () => {
-    const result: RankedResult = {
-      issue: makeIssue(), snippet: '', matchedBy: ['fts', 'issue_number'],
-      debugMeta: { matched_by: ['fts', 'issue_number'], lexical_rank: 1, semantic_rank: null,
-        top_chunk_section: null, applied_boosts: ['exact_issue'], applied_penalties: [], final_score: 10.5 },
-    };
-    expect(classifyConfidence(result)).toBe('high');
+    expect(classifyConfidence({
+      matched_by: ['fts', 'issue_number'], lexical_rank: 1, semantic_rank: null,
+      top_chunk_section: null, applied_boosts: ['exact_issue'], applied_penalties: [], final_score: 10.5,
+    })).toBe('high');
   });
 
   it('classifies high confidence for phrase match in title', () => {
-    const result: RankedResult = {
-      issue: makeIssue(), snippet: '', matchedBy: ['fts', 'phrase'],
-      debugMeta: { matched_by: ['fts', 'phrase'], lexical_rank: 1, semantic_rank: null,
-        top_chunk_section: null, applied_boosts: ['phrase_title'], applied_penalties: [], final_score: 6.5 },
-    };
-    expect(classifyConfidence(result)).toBe('high');
+    expect(classifyConfidence({
+      matched_by: ['fts', 'phrase'], lexical_rank: 1, semantic_rank: null,
+      top_chunk_section: null, applied_boosts: ['phrase_title'], applied_penalties: [], final_score: 6.5,
+    })).toBe('high');
   });
 
   it('classifies medium for lexical+semantic agreement', () => {
-    const result: RankedResult = {
-      issue: makeIssue(), snippet: '', matchedBy: ['fts', 'vector'],
-      debugMeta: { matched_by: ['fts', 'vector'], lexical_rank: 2, semantic_rank: 3,
-        top_chunk_section: null, applied_boosts: ['lexical_semantic_agreement'], applied_penalties: [], final_score: 1.5 },
-    };
-    expect(classifyConfidence(result)).toBe('medium');
+    expect(classifyConfidence({
+      matched_by: ['fts', 'vector'], lexical_rank: 2, semantic_rank: 3,
+      top_chunk_section: null, applied_boosts: ['lexical_semantic_agreement'], applied_penalties: [], final_score: 1.5,
+    })).toBe('medium');
   });
 
   it('classifies low for semantic-only with penalty', () => {
-    const result: RankedResult = {
-      issue: makeIssue(), snippet: '', matchedBy: ['vector'],
-      debugMeta: { matched_by: ['vector'], lexical_rank: null, semantic_rank: 5,
-        top_chunk_section: null, applied_boosts: [], applied_penalties: ['semantic_only_penalty'], final_score: 0.005 },
-    };
-    expect(classifyConfidence(result)).toBe('low');
+    expect(classifyConfidence({
+      matched_by: ['vector'], lexical_rank: null, semantic_rank: 5,
+      top_chunk_section: null, applied_boosts: [], applied_penalties: ['semantic_only_penalty'], final_score: 0.005,
+    })).toBe('low');
   });
 
   it('classifies medium for plain lexical match without boosts', () => {
-    const result: RankedResult = {
-      issue: makeIssue(), snippet: '', matchedBy: ['fts'],
-      debugMeta: { matched_by: ['fts'], lexical_rank: 3, semantic_rank: null,
-        top_chunk_section: null, applied_boosts: [], applied_penalties: [], final_score: 0.02 },
-    };
-    expect(classifyConfidence(result)).toBe('medium');
+    expect(classifyConfidence({
+      matched_by: ['fts'], lexical_rank: 3, semantic_rank: null,
+      top_chunk_section: null, applied_boosts: [], applied_penalties: [], final_score: 0.02,
+    })).toBe('medium');
   });
 });
 

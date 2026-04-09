@@ -48,8 +48,8 @@ export async function getIssueByNumber(db: D1Database, issueNumber: number): Pro
 }
 
 export async function getIssueBySourceUrl(db: D1Database, url: string): Promise<IssueRow | null> {
-  return db.prepare('SELECT * FROM issues WHERE source_url = ?')
-    .bind(url)
+  return db.prepare('SELECT * FROM issues WHERE source_url = ? AND status = ?')
+    .bind(url, 'active')
     .first<IssueRow>();
 }
 
@@ -60,7 +60,7 @@ export async function getIssueByContentHash(db: D1Database, hash: string): Promi
 }
 
 export async function getAllSourceUrls(db: D1Database): Promise<string[]> {
-  const results = await db.prepare('SELECT source_url FROM issues').all<{ source_url: string }>();
+  const results = await db.prepare('SELECT source_url FROM issues WHERE status = ?').bind('active').all<{ source_url: string }>();
   return results.results.map(r => r.source_url);
 }
 

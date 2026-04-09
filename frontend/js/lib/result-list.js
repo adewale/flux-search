@@ -9,13 +9,7 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
   countEl.textContent = data.total_hits + ' result' + (data.total_hits !== 1 ? 's' : '');
   metaEl.hidden = false;
 
-  // Invalid operators
-  if (data.parsed_query && data.parsed_query.invalidOperators && data.parsed_query.invalidOperators.length > 0) {
-    invalidOpsEl.textContent = 'Unknown: ' + data.parsed_query.invalidOperators.join(', ');
-    invalidOpsEl.hidden = false;
-  } else {
-    invalidOpsEl.hidden = true;
-  }
+  invalidOpsEl.hidden = true;
 
   // Filter chips
   if (data.applied_filters && data.applied_filters.length > 0) {

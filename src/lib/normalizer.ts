@@ -1,19 +1,14 @@
 import type { IssueRow } from '../db/types';
+import type { CrawlPageResult } from '../crawler/crawl-client';
 
-export interface CrawledPage {
-  url: string;
-  markdown: string;
-  metadata?: Record<string, string>;
-}
+type ContentType = 'issue' | 'non_issue_post' | 'junk';
 
-export type ContentType = 'issue' | 'non_issue_post' | 'junk';
-
-export interface NormalizedIssue {
+interface NormalizedIssue {
   contentType: ContentType;
   issue: IssueRow;
 }
 
-export function normalizePage(page: CrawledPage, crawlRunId: string): NormalizedIssue {
+export function normalizePage(page: CrawlPageResult, crawlRunId: string): NormalizedIssue {
   const contentType = classifyPage(page.url, page.markdown);
 
   const issueNumber = extractIssueNumber(page.url, page.markdown);
