@@ -42,7 +42,7 @@ async function doVectorSearch(
 
   const matches = await env.VECTORIZE.query(queryVector, {
     topK,
-    returnMetadata: 'indexed',
+    returnMetadata: 'all',
   });
 
   if (!matches.matches || matches.matches.length === 0) return [];
