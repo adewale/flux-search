@@ -219,13 +219,12 @@ body {
 }
 
 /*
- * Density strip — Tufte sparkline
- * A compact bar showing which years have results. Gives temporal
- * orientation without navigation chrome.
+ * Density strip — SVG area silhouette (inspired by Atlas PhaseLandscape)
+ * A mountain-like shape showing which years have results.
  */
 .density-strip {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 0.375rem;
   margin-bottom: 0.75rem;
 }
@@ -235,21 +234,23 @@ body {
   font-size: 0.5625rem;
   color: var(--text-tertiary);
   letter-spacing: -0.02em;
+  line-height: 1;
+  padding-bottom: 1px;
 }
 
-.density-cells {
-  display: flex;
+.density-svg {
   flex: 1;
-  gap: 1px;
-  height: 12px;
-  align-items: stretch;
+  height: 24px;
 }
 
-.density-cell {
-  flex: 1;
-  background: var(--accent);
-  border-radius: 1px;
-  min-width: 3px;
+.density-svg path {
+  fill: var(--accent);
+  opacity: 0.18;
+}
+
+.density-svg line {
+  stroke: var(--text-tertiary);
+  stroke-width: 0.5;
 }
 
 /*

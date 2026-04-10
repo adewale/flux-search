@@ -92,24 +92,38 @@ function renderDensityStrip(yearDist) {
   var years = Object.keys(yearDist).map(Number).sort();
   if (years.length === 0) return;
 
-  var minYear = years[0];
-  var maxYear = years[years.length - 1];
-  var maxCount = Math.max.apply(null, Object.values(yearDist));
-
   var el = document.getElementById('density-strip');
   if (!el) return;
 
-  var cells = '';
+  var minYear = years[0];
+  var maxYear = years[years.length - 1];
+  var span = maxYear - minYear || 1;
+  var maxCount = Math.max.apply(null, Object.values(yearDist));
+  if (maxCount === 0) return;
+
+  // Build SVG area path — mountain silhouette like Atlas PhaseLandscape
+  var W = 300;
+  var H = 24;
+  var points = [];
   for (var y = minYear; y <= maxYear; y++) {
+    var x = ((y - minYear) / span) * W;
     var count = yearDist[y] || 0;
-    var opacity = count > 0 ? (0.2 + 0.8 * (count / maxCount)) : 0;
-    var title = count > 0 ? y + ': ' + count + ' result' + (count !== 1 ? 's' : '') : y + ': none';
-    cells += '<span class="density-cell" style="opacity:' + opacity.toFixed(2) + '" title="' + title + '"></span>';
+    var py = H - (count / maxCount) * H;
+    points.push(x + ',' + py);
   }
+  var path = 'M0,' + H + ' L' + points.join(' L') + ' L' + W + ',' + H + ' Z';
 
   el.innerHTML =
     '<span class="density-label">' + minYear + '</span>' +
-    '<span class="density-cells">' + cells + '</span>' +
+    '<svg class="density-svg" viewBox="0 0 ' + W + ' ' + (H + 2) + '" preserveAspectRatio="none">' +
+      '<path d="' + path + '" />' +
+      '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" />' +
+    '</svg>' +
     '<span class="density-label">' + maxYear + '</span>';
+
+  // Add tooltips via title on the SVG
+  el.querySelector('svg').setAttribute('aria-label',
+    years.map(function (y) { return y + ': ' + (yearDist[y] || 0); }).join(', '));
+
   el.hidden = false;
 }
