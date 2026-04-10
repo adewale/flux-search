@@ -2,7 +2,7 @@
 // Renders search results with density strip, confidence tiers,
 // progressive disclosure, and inline expansion.
 
-import { escapeHtml, formatDate, cleanTitle, cleanSnippet } from './utils.js';
+import { escapeHtml, escapeHtmlPreserveMark, formatDate, cleanTitle, cleanSnippet } from './utils.js';
 
 export function renderResults(container, metaEl, countEl, invalidOpsEl, filterChipsEl, data) {
   countEl.textContent = data.total_hits + ' result' + (data.total_hits !== 1 ? 's' : '');
@@ -36,7 +36,7 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
           (dateStr ? '<span class="result-date">' + dateStr + '</span>' : '') +
         '</div>' +
         '<div class="result-title">' + escapeHtml(displayTitle) + '</div>' +
-        (snippet ? '<p class="result-snippet">' + escapeHtml(snippet) + '</p>' : '') +
+        (snippet ? '<p class="result-snippet">' + escapeHtmlPreserveMark(snippet) + '</p>' : '') +
       '</div>' +
       '<div class="result-expanded" hidden>' +
         '<div class="result-meta">' +

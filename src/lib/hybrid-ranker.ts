@@ -61,7 +61,7 @@ export function rankResults(
   const allIds = new Set([...lexicalMap.keys(), ...semanticMap.keys()]);
   const hasStrongLexical = lexicalResults.length >= 3;
 
-  const candidates: Array<Omit<RankedResult, 'snippet' | 'confidence'> & { score: number; semantic?: SemanticCandidate }> = [];
+  const candidates: Array<Omit<RankedResult, 'snippet' | 'confidence'> & { score: number; semantic?: SemanticCandidate; highlightSnippet?: string | null }> = [];
 
   for (const issueId of allIds) {
     const lexical = lexicalMap.get(issueId);
@@ -146,15 +146,16 @@ export function rankResults(
       },
       score,
       semantic,
+      highlightSnippet: lexical?.highlightSnippet,
     });
   }
 
   candidates.sort((a, b) => b.score - a.score);
 
-  // Generate snippets with progressive disclosure: top 3 get longer snippets
+  // Generate snippets: prefer FTS highlight (shows WHY it matched), then progressive disclosure
   return candidates.map((c, rank): RankedResult => {
     const snippetLen = rank < 3 ? SNIPPET_LEN_TOP : SNIPPET_LEN_DEFAULT;
-    const snippet = generateSnippet(c.issue, c.semantic, snippetLen);
+    const snippet = c.highlightSnippet || generateSnippet(c.issue, c.semantic, snippetLen);
     const confidence = classifyConfidence(c.debugMeta);
 
     return {

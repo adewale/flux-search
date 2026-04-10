@@ -360,9 +360,16 @@ body {
   color: var(--text-secondary);
   line-height: 1.5;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.result-snippet mark {
+  background: #fef08a;
+  color: var(--text);
+  padding: 0.05em 0.15em;
+  border-radius: 2px;
 }
 
 /* Match indicators — minimal, Tufte "show the data not the frame" */

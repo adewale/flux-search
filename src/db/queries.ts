@@ -164,6 +164,7 @@ export interface FtsSearchResult {
   issue: IssueRow;
   bm25Score: number;
   rank: number;
+  highlightSnippet: string | null;
 }
 
 export async function searchFts(
@@ -174,8 +175,11 @@ export async function searchFts(
 ): Promise<FtsSearchResult[]> {
   if (!ftsQuery.trim()) return [];
 
+  // snippet() col 4 = full_text_plain; marks matches with <mark>...</mark>
   let sql = `
-    SELECT issues.*, bm25(issues_fts, 16.0, 8.0, 8.0, 4.0, 1.0, 2.0) as bm25_score
+    SELECT issues.*,
+      bm25(issues_fts, 16.0, 8.0, 8.0, 4.0, 1.0, 2.0) as bm25_score,
+      snippet(issues_fts, 4, '<mark>', '</mark>', '...', 24) as highlight_snippet
     FROM issues_fts
     JOIN issues ON issues.rowid = issues_fts.rowid
     WHERE issues_fts MATCH ?
@@ -199,12 +203,13 @@ export async function searchFts(
   sql += ' ORDER BY bm25_score LIMIT ?';
   params.push(limit);
 
-  const results = await db.prepare(sql).bind(...params).all<IssueRow & { bm25_score: number }>();
+  const results = await db.prepare(sql).bind(...params).all<IssueRow & { bm25_score: number; highlight_snippet: string | null }>();
 
   return results.results.map((row, index) => ({
     issue: row,
     bm25Score: row.bm25_score,
     rank: index + 1,
+    highlightSnippet: row.highlight_snippet || null,
   }));
 }
 

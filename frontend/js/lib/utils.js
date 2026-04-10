@@ -6,6 +6,18 @@ export function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// Escape HTML but preserve <mark>...</mark> tags from FTS highlighting
+export function escapeHtmlPreserveMark(str) {
+  // Replace <mark>/<\/mark> with placeholders, escape, then restore
+  var text = str
+    .replace(/<mark>/g, '\x00MARK_OPEN\x00')
+    .replace(/<\/mark>/g, '\x00MARK_CLOSE\x00');
+  text = escapeHtml(text);
+  return text
+    .replace(/\x00MARK_OPEN\x00/g, '<mark>')
+    .replace(/\x00MARK_CLOSE\x00/g, '</mark>');
+}
+
 export function formatDate(dateStr) {
   try {
     var d = new Date(dateStr + 'T00:00:00');
