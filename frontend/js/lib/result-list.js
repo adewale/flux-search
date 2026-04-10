@@ -88,6 +88,14 @@ export function clearResults(container, metaEl, filterChipsEl, emptyStateEl) {
   if (densityEl) densityEl.hidden = true;
 }
 
+// Archive landmarks — story beats that give temporal orientation
+var LANDMARKS = [
+  { year: 2021, label: '#1' },
+  { year: 2022, label: '#50' },
+  { year: 2023, label: '#100' },
+  { year: 2025, label: '#200' },
+];
+
 function renderDensityStrip(yearDist) {
   var years = Object.keys(yearDist).map(Number).sort();
   if (years.length === 0) return;
@@ -101,7 +109,7 @@ function renderDensityStrip(yearDist) {
   var maxCount = Math.max.apply(null, Object.values(yearDist));
   if (maxCount === 0) return;
 
-  // Build SVG area path — mountain silhouette like Atlas PhaseLandscape
+  // SVG area path — mountain silhouette
   var W = 300;
   var H = 24;
   var points = [];
@@ -113,15 +121,34 @@ function renderDensityStrip(yearDist) {
   }
   var path = 'M0,' + H + ' L' + points.join(' L') + ' L' + W + ',' + H + ' Z';
 
+  // Landmark markers — small diamonds on the baseline
+  var marks = '';
+  var visibleLandmarks = LANDMARKS.filter(function (lm) {
+    return lm.year >= minYear && lm.year <= maxYear;
+  });
+  for (var i = 0; i < visibleLandmarks.length; i++) {
+    var lm = visibleLandmarks[i];
+    var lx = ((lm.year - minYear) / span) * W;
+    marks += '<rect x="' + (lx - 2) + '" y="' + (H - 2) + '" width="4" height="4" class="density-mark" />';
+  }
+
   el.innerHTML =
     '<span class="density-label">' + minYear + '</span>' +
-    '<svg class="density-svg" viewBox="0 0 ' + W + ' ' + (H + 2) + '" preserveAspectRatio="none">' +
-      '<path d="' + path + '" />' +
-      '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" />' +
-    '</svg>' +
+    '<div class="density-chart">' +
+      '<svg class="density-svg" viewBox="0 0 ' + W + ' ' + (H + 2) + '" preserveAspectRatio="none">' +
+        '<path d="' + path + '" />' +
+        '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" />' +
+        marks +
+      '</svg>' +
+      '<div class="density-landmarks">' +
+        visibleLandmarks.map(function (lm) {
+          var pct = ((lm.year - minYear) / span) * 100;
+          return '<span class="density-landmark" style="left:' + pct.toFixed(1) + '%">' + lm.label + '</span>';
+        }).join('') +
+      '</div>' +
+    '</div>' +
     '<span class="density-label">' + maxYear + '</span>';
 
-  // Add tooltips via title on the SVG
   el.querySelector('svg').setAttribute('aria-label',
     years.map(function (y) { return y + ': ' + (yearDist[y] || 0); }).join(', '));
 
