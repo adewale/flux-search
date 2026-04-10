@@ -96,23 +96,29 @@ describe('normalizePage', () => {
     expect(result.issue.month).toBe(7);
   });
 
-  it('strips subscription prompts from content', () => {
+  it('strips subscription prompts from both markdown and plain text', () => {
     const result = normalizePage({
       url: 'https://read.fluxcollective.org/p/test',
       markdown: '# Title\n\nGood content.\n\nSubscribe to our newsletter\n\nThanks for reading!',
+      metadata: {},
     }, 'run-1');
 
     expect(result.issue.full_text_plain).not.toContain('Subscribe to');
     expect(result.issue.full_text_plain).not.toContain('Thanks for reading');
+    expect(result.issue.full_text_markdown).not.toContain('Subscribe to');
+    expect(result.issue.full_text_markdown).not.toContain('Thanks for reading');
   });
 
-  it('computes word count', () => {
+  it('computes word count accurately', () => {
     const result = normalizePage({
       url: 'https://read.fluxcollective.org/p/test',
       markdown: '# Title\n\none two three four five',
+      metadata: {},
     }, 'run-1');
 
-    expect(result.issue.word_count).toBeGreaterThan(0);
+    // "Title" + "one two three four five" = 6 words
+    expect(result.issue.word_count).toBeGreaterThanOrEqual(5);
+    expect(result.issue.word_count).toBeLessThanOrEqual(7);
   });
 
   it('sets source_url and canonical_url to page URL', () => {

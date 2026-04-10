@@ -70,8 +70,12 @@ export function parseQuery(raw: string): ParsedQuery {
 
 function parseDate(value: string): string | null {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const d = new Date(value);
-    if (!isNaN(d.getTime())) return value;
+    // Roundtrip through Date to reject impossible dates like Feb 30
+    const d = new Date(value + 'T00:00:00Z');
+    if (isNaN(d.getTime())) return null;
+    const roundtrip = d.toISOString().split('T')[0];
+    if (roundtrip === value) return value;
+    return null;
   }
   if (/^\d{4}-\d{2}$/.test(value)) {
     const month = parseInt(value.split('-')[1]);

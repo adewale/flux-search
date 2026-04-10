@@ -294,8 +294,10 @@ function cleanContent(markdown: string): { cleanMarkdown: string; plainText: str
 
   // Generate plain text by stripping markdown
   let plain = clean;
-  plain = plain.replace(/!\[.*?\]\(.*?\)/g, '');
-  plain = plain.replace(/\[([^\]]+)\]\(.*?\)/g, '$1');
+  plain = plain.replace(/!\[.*?\]\(.*?\)/g, ''); // images
+  plain = plain.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1'); // standard links
+  // Catch any remaining ](url) fragments from malformed/nested links
+  plain = plain.replace(/\]\(https?:\/\/[^)]*\)/g, '');
   plain = plain.replace(/#{1,6}\s+/g, '');
   plain = plain.replace(/[*_]{1,3}(.+?)[*_]{1,3}/g, '$1');
   plain = plain.replace(/`{1,3}[^`]*`{1,3}/g, '');

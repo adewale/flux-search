@@ -85,3 +85,46 @@ This led to the biggest changes: extracting the lead essay structure from each i
 4. **A relevance evaluation harness.** The spec (section 21) calls for a hand-labeled evaluation set. We never built one. A simple JSON file of `{ query, expected_top_3_issue_numbers }` tested against the live API after each deploy would have caught the title pollution problem (every issue matching "FLUX" with high title weight) and the zero-semantic-results problem.
 
 5. **Wrangler's `--remote` flag for `dev` mode.** The local dev server can't use Vectorize or AI bindings, which meant we couldn't test semantic search locally. Running `wrangler dev --remote` with a test database would have let us verify the full hybrid search path before deploying.
+
+## What we learned about testing (the hard way)
+
+### PBT finds bugs that example tests miss — every time
+
+We ran three rounds of property-based testing with fast-check. Every round found real bugs:
+
+| Round | Counterexample | Bug |
+|---|---|---|
+| 1 | `"\"     "` | Opening quote not stripping inner `"` characters |
+| 1 | `">     "` | Opening quote not stripping `>` in text |
+| 2 | `[2000, 0]` → `before:2000-00` | Invalid month (00) accepted by parseDate |
+| 2 | `[1, "a"]` → `/p/1-a` | Issue number regex fails on number-slug URLs |
+| 3 | `[2000, 9, 31]` → `before:2000-09-31` | Sept 31 accepted (Date silently rolls to Oct 1) |
+| 3 | `["", ""]` → `[](url)` | Empty link text not stripped from plain text |
+| 3 | `["]", ""]` → `[]](url)` | Nested bracket in link text breaks regex |
+
+These are not contrived edge cases. Empty link text `[]()` appears in real Substack content. URLs like `/p/198-title-slug` are actual Substack URL patterns. Sept 31 is a date a user could plausibly type.
+
+The pattern: every regex-based string transformation has edge cases that example tests don't cover. PBT generates the counterexamples automatically. The cost is ~50 lines of test code per function. The value is catching bugs before users do.
+
+### Audit-test-fix cycles compound
+
+We ran the test audit three times. Each time it found new issues:
+
+- **Round 1**: Found that 16/20 source files had no tests. Added tests for the core logic modules.
+- **Round 2**: Found wrong tests (makeFtsResult missing `highlightSnippet`, weak word count assertion), untested pure functions (`extractSubtitle`, `extractHeadings`, `buildFtsQuery`), and PBT opportunities. PBT found 2 bugs.
+- **Round 3**: Found that the round-2 fixes introduced no tests for 5 more functions, that `phrase_heading` boost was completely untested, and that `parseDate` still had a roundtrip bug. PBT found 3 more bugs.
+
+Each round raised the bar. The first round went from 0 to "core logic tested." The second went from "tested" to "tested correctly." The third went from "tested correctly" to "tested with adversarial inputs." We went from 0 to 173 tests, and more importantly, from 0 real bugs found to 7.
+
+### Don't skip testing under shipping pressure
+
+Between commits 4 and 8 (lead essay extraction, semantic search fix, density strip changes), we shipped 5 features with zero new tests. The lessons-learned doc — written in that same session — says "write the test before the code." We violated it within the hour. The round-2 audit caught this: `cleanContent` had a link-stripping bug that would have been caught by the 30-second PBT we wrote later.
+
+### "Wrong tests" are worse than missing tests
+
+Three tests gave false confidence:
+- `makeFtsResult` omitted `highlightSnippet` → FTS highlight path was never exercised, but the test claimed to test snippet generation
+- "computes word count" asserted `> 0` → would pass if counting characters instead of words
+- "strips subscription prompts" checked only `full_text_plain` → would pass if the markdown regex broke but the text conversion coincidentally removed the phrases
+
+A missing test is honest — you know you're not covered. A wrong test is dangerous — you believe you're covered when you're not.
