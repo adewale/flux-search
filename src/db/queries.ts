@@ -6,10 +6,11 @@ export async function upsertIssue(db: D1Database, issue: IssueRow): Promise<void
   await db.prepare(`
     INSERT INTO issues (
       id, issue_number, title, subtitle, published_at, source_url, canonical_url,
-      authors, contributors, summary, headings, full_text_markdown, full_text_plain,
+      authors, contributors, summary, headings, lead_essay_title, opening_quote,
+      full_text_markdown, full_text_plain,
       crawl_run_id, content_hash, ingested_at, word_count, status,
       year, month, has_semantic_chunks
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       issue_number = excluded.issue_number,
       title = excluded.title,
@@ -20,6 +21,8 @@ export async function upsertIssue(db: D1Database, issue: IssueRow): Promise<void
       contributors = excluded.contributors,
       summary = excluded.summary,
       headings = excluded.headings,
+      lead_essay_title = excluded.lead_essay_title,
+      opening_quote = excluded.opening_quote,
       full_text_markdown = excluded.full_text_markdown,
       full_text_plain = excluded.full_text_plain,
       content_hash = excluded.content_hash,
@@ -29,7 +32,8 @@ export async function upsertIssue(db: D1Database, issue: IssueRow): Promise<void
     issue.id, issue.issue_number, issue.title, issue.subtitle,
     issue.published_at, issue.source_url, issue.canonical_url,
     issue.authors, issue.contributors,
-    issue.summary, issue.headings, issue.full_text_markdown, issue.full_text_plain,
+    issue.summary, issue.headings, issue.lead_essay_title, issue.opening_quote,
+    issue.full_text_markdown, issue.full_text_plain,
     issue.crawl_run_id, issue.content_hash,
     issue.ingested_at, issue.word_count, issue.status,
     issue.year, issue.month, issue.has_semantic_chunks

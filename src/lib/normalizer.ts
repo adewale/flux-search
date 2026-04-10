@@ -12,13 +12,21 @@ export function normalizePage(page: CrawlPageResult, crawlRunId: string): Normal
   const contentType = classifyPage(page.url, page.markdown);
 
   const issueNumber = extractIssueNumber(page.url, page.markdown);
-  const title = extractTitle(page.markdown, page.metadata);
+  const rawTitle = extractTitle(page.markdown, page.metadata);
   const subtitle = extractSubtitle(page.markdown, page.metadata);
   const publishedAt = extractPublishDate(page.markdown, page.metadata);
-  const summary = extractSummary(page.markdown);
   const { cleanMarkdown, plainText } = cleanContent(page.markdown);
   const headings = extractHeadings(cleanMarkdown);
   const authors = page.metadata?.['author'] || null;
+
+  // Extract intrinsic issue structure
+  const { leadEssayTitle, openingQuote, leadEssaySummary } = extractIssueStructure(cleanMarkdown);
+
+  // Clean title: use lead essay heading if available, otherwise clean the Substack template
+  const title = leadEssayTitle || cleanIssueTitle(rawTitle, issueNumber);
+
+  // Summary: prefer lead essay first paragraph over generic extraction
+  const summary = leadEssaySummary || extractSummary(cleanMarkdown);
 
   const year = publishedAt ? new Date(publishedAt).getFullYear() : null;
   const month = publishedAt ? new Date(publishedAt).getMonth() + 1 : null;
@@ -38,6 +46,8 @@ export function normalizePage(page: CrawlPageResult, crawlRunId: string): Normal
       contributors: authors,
       summary,
       headings,
+      lead_essay_title: leadEssayTitle,
+      opening_quote: openingQuote,
       full_text_markdown: cleanMarkdown,
       full_text_plain: plainText,
       crawl_run_id: crawlRunId,
@@ -50,6 +60,83 @@ export function normalizePage(page: CrawlPageResult, crawlRunId: string): Normal
       has_semantic_chunks: 0,
     },
   };
+}
+
+// Strip Substack boilerplate from title at ingestion time
+function cleanIssueTitle(raw: string | null, issueNumber: number | null): string | null {
+  if (!raw) return null;
+  let title = raw
+    .replace(/^[\u{1F300}\u{1F5DE}\s]+/u, '')           // leading emoji
+    .replace(/\s*-\s*by\s+The\s+FLUX\s+Collective$/i, '') // author suffix
+    .trim();
+  // If what remains is just "The FLUX Review, Ep. N", it's not a real title
+  if (/^The\s+FLUX\s+Review,?\s*(Ep\.?\s*)?\d*$/i.test(title)) {
+    return issueNumber ? `FLUX Review #${issueNumber}` : title;
+  }
+  return title;
+}
+
+// Extract the intrinsic structure of a FLUX Review issue:
+// - Opening quote (the first > "..." blockquote)
+// - Lead essay title (the first ## heading, which is the issue's thesis)
+// - Lead essay body (paragraphs between the first ## and the second ##)
+function extractIssueStructure(markdown: string): {
+  leadEssayTitle: string | null;
+  openingQuote: string | null;
+  leadEssaySummary: string | null;
+} {
+  const lines = markdown.split('\n');
+
+  let openingQuote: string | null = null;
+  let leadEssayTitle: string | null = null;
+  let leadEssaySummary: string | null = null;
+
+  // Find opening quote: first line starting with > "
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('> \u201C') || trimmed.startsWith('> "')) {
+      // Grab the quote text, strip > and quotes
+      openingQuote = trimmed
+        .replace(/^>\s*/, '')
+        .replace(/^[""\u201C]/, '')
+        .replace(/[""\u201D]$/, '')
+        .trim();
+      break;
+    }
+  }
+
+  // Find first ## heading (the lead essay) and its body
+  let inLeadEssay = false;
+  const essayParts: string[] = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('## ') && !inLeadEssay) {
+      // First ## heading = lead essay title
+      leadEssayTitle = trimmed
+        .replace(/^##\s+/, '')
+        .replace(/^[\p{Emoji}\p{Emoji_Presentation}\uFE0F\s]+/u, '') // strip leading emoji
+        .trim();
+      inLeadEssay = true;
+      continue;
+    }
+
+    if (trimmed.startsWith('## ') && inLeadEssay) {
+      // Second ## heading = end of lead essay
+      break;
+    }
+
+    if (inLeadEssay && trimmed.length > 0 && !isMetadataLine(trimmed)) {
+      essayParts.push(trimmed);
+    }
+  }
+
+  if (essayParts.length > 0) {
+    leadEssaySummary = essayParts.join(' ').slice(0, 500).trim();
+  }
+
+  return { leadEssayTitle, openingQuote, leadEssaySummary };
 }
 
 function classifyPage(url: string, markdown: string): ContentType {

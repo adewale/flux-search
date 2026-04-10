@@ -2,7 +2,7 @@
 // Renders search results with density strip, confidence tiers,
 // progressive disclosure, and inline expansion.
 
-import { escapeHtml, escapeHtmlPreserveMark, formatDate, cleanTitle, cleanSnippet } from './utils.js';
+import { escapeHtml, escapeHtmlPreserveMark, formatDate, cleanSnippet } from './utils.js';
 
 export function renderResults(container, metaEl, countEl, invalidOpsEl, filterChipsEl, data) {
   countEl.textContent = data.total_hits + ' result' + (data.total_hits !== 1 ? 's' : '');
@@ -25,58 +25,25 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
   container.innerHTML = data.results.map(function (r, i) {
     var dateStr = r.published_at ? formatDate(r.published_at) : '';
     var snippet = cleanSnippet(r.snippet || '');
-    var displayTitle = cleanTitle(r.title || '');
+    var title = r.title || 'Untitled';
     var confidenceCls = r.confidence || 'medium';
     var summary = cleanSnippet(r.summary || '');
+    var quote = r.opening_quote || '';
+    var canonicalUrl = r.canonical_url || '';
 
-    return '<div class="result-card confidence-' + confidenceCls + '" data-index="' + i + '">' +
-      '<div class="result-collapsed">' +
+    return '<div class="result-card confidence-' + confidenceCls + '">' +
+      '<a href="' + escapeHtml(canonicalUrl) + '" target="_blank" rel="noopener">' +
         '<div class="result-meta">' +
           (r.issue_number ? '<span class="result-number">#' + r.issue_number + '</span>' : '') +
           (dateStr ? '<span class="result-date">' + dateStr + '</span>' : '') +
         '</div>' +
-        '<div class="result-title">' + escapeHtml(displayTitle) + '</div>' +
+        '<div class="result-title">' + escapeHtml(title) + '</div>' +
+        (quote ? '<p class="result-quote">' + escapeHtml(quote.length > 120 ? quote.slice(0, 120) + '...' : quote) + '</p>' : '') +
         (snippet ? '<p class="result-snippet">' + escapeHtmlPreserveMark(snippet) + '</p>' : '') +
-      '</div>' +
-      '<div class="result-expanded" hidden>' +
-        '<div class="result-meta">' +
-          (r.issue_number ? '<span class="result-number">#' + r.issue_number + '</span>' : '') +
-          (dateStr ? '<span class="result-date">' + dateStr + '</span>' : '') +
-        '</div>' +
-        '<div class="result-title">' + escapeHtml(displayTitle) + '</div>' +
-        (summary ? '<p class="result-summary">' + escapeHtml(summary) + '</p>' : '') +
-        '<div class="result-actions">' +
-          '<a href="' + escapeHtml(r.canonical_url || '') + '" target="_blank" rel="noopener" class="btn-read">' +
-            'Read on Substack' +
-          '</a>' +
-        '</div>' +
-      '</div>' +
+        (summary && summary !== snippet ? '<p class="result-summary">' + escapeHtml(summary.length > 200 ? summary.slice(0, 200) + '...' : summary) + '</p>' : '') +
+      '</a>' +
     '</div>';
   }).join('');
-
-  // Bind click-to-expand
-  container.querySelectorAll('.result-card').forEach(function (card) {
-    card.addEventListener('click', function (e) {
-      // Don't intercept clicks on the Substack link
-      if (e.target.closest('.btn-read')) return;
-
-      var collapsed = card.querySelector('.result-collapsed');
-      var expanded = card.querySelector('.result-expanded');
-      var isOpen = !expanded.hidden;
-
-      // Close all other expanded cards
-      container.querySelectorAll('.result-expanded').forEach(function (el) {
-        el.hidden = true;
-      });
-      container.querySelectorAll('.result-collapsed').forEach(function (el) {
-        el.hidden = false;
-      });
-
-      // Toggle this card
-      collapsed.hidden = !isOpen;
-      expanded.hidden = isOpen;
-    });
-  });
 }
 
 export function clearResults(container, metaEl, filterChipsEl, emptyStateEl) {
