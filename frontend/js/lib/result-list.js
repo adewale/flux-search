@@ -109,9 +109,10 @@ function renderDensityStrip(yearDist) {
   var maxCount = Math.max.apply(null, Object.values(yearDist));
   if (maxCount === 0) return;
 
-  // SVG area path — mountain silhouette
   var W = 300;
   var H = 24;
+
+  // Area path — mountain silhouette
   var points = [];
   for (var y = minYear; y <= maxYear; y++) {
     var x = ((y - minYear) / span) * W;
@@ -121,33 +122,47 @@ function renderDensityStrip(yearDist) {
   }
   var path = 'M0,' + H + ' L' + points.join(' L') + ' L' + W + ',' + H + ' Z';
 
-  // Landmark markers — small diamonds on the baseline
-  var marks = '';
+  // Year ticks — short lines rising into the silhouette from the baseline
+  var ticks = '';
+  for (var y = minYear; y <= maxYear; y++) {
+    var tx = ((y - minYear) / span) * W;
+    ticks += '<line x1="' + tx + '" y1="' + H + '" x2="' + tx + '" y2="' + (H - 4) + '" class="density-tick" />';
+  }
+
+  // Landmark markers — slightly taller ticks
   var visibleLandmarks = LANDMARKS.filter(function (lm) {
     return lm.year >= minYear && lm.year <= maxYear;
   });
+  var marks = '';
   for (var i = 0; i < visibleLandmarks.length; i++) {
     var lm = visibleLandmarks[i];
     var lx = ((lm.year - minYear) / span) * W;
-    marks += '<rect x="' + (lx - 2) + '" y="' + (H - 2) + '" width="4" height="4" class="density-mark" />';
+    marks += '<line x1="' + lx + '" y1="' + H + '" x2="' + lx + '" y2="' + (H - 7) + '" class="density-mark-line" />';
   }
 
   el.innerHTML =
-    '<span class="density-label">' + minYear + '</span>' +
     '<div class="density-chart">' +
-      '<svg class="density-svg" viewBox="0 0 ' + W + ' ' + (H + 2) + '" preserveAspectRatio="none">' +
+      '<svg class="density-svg" viewBox="0 0 ' + W + ' ' + (H + 1) + '" preserveAspectRatio="none">' +
         '<path d="' + path + '" />' +
-        '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" />' +
+        ticks +
         marks +
+        '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" class="density-baseline" />' +
       '</svg>' +
-      '<div class="density-landmarks">' +
-        visibleLandmarks.map(function (lm) {
-          var pct = ((lm.year - minYear) / span) * 100;
-          return '<span class="density-landmark" style="left:' + pct.toFixed(1) + '%">' + lm.label + '</span>';
+      '<div class="density-year-labels">' +
+        years.map(function (y) {
+          var pct = ((y - minYear) / span) * 100;
+          return '<span class="density-year" style="left:' + pct.toFixed(1) + '%">\u2019' + String(y).slice(2) + '</span>';
         }).join('') +
       '</div>' +
-    '</div>' +
-    '<span class="density-label">' + maxYear + '</span>';
+      (visibleLandmarks.length > 0 ?
+        '<div class="density-landmark-labels">' +
+          visibleLandmarks.map(function (lm) {
+            var pct = ((lm.year - minYear) / span) * 100;
+            return '<span class="density-landmark" style="left:' + pct.toFixed(1) + '%">' + lm.label + '</span>';
+          }).join('') +
+        '</div>'
+      : '') +
+    '</div>';
 
   el.querySelector('svg').setAttribute('aria-label',
     years.map(function (y) { return y + ': ' + (yearDist[y] || 0); }).join(', '));
