@@ -74,7 +74,8 @@ function parseDate(value: string): string | null {
     if (!isNaN(d.getTime())) return value;
   }
   if (/^\d{4}-\d{2}$/.test(value)) {
-    return `${value}-01`;
+    const month = parseInt(value.split('-')[1]);
+    if (month >= 1 && month <= 12) return `${value}-01`;
   }
   if (/^\d{4}$/.test(value)) {
     return `${value}-01-01`;

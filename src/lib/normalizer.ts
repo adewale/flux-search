@@ -152,8 +152,8 @@ function classifyPage(url: string, markdown: string): ContentType {
 }
 
 function extractIssueNumber(url: string, markdown: string): number | null {
-  // Try URL: /p/198 (bare number)
-  const bareNumberMatch = url.match(/\/p\/(\d+)$/);
+  // Try URL: /p/198 or /p/198-some-slug (number at start of path segment)
+  const bareNumberMatch = url.match(/\/p\/(\d+)(?:$|[^0-9])/);
   if (bareNumberMatch) return parseInt(bareNumberMatch[1]);
 
   // Try URL: /p/flux-review-198 or /p/the-flux-review-ep-198

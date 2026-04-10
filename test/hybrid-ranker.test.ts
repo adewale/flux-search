@@ -31,8 +31,8 @@ function makeIssue(overrides: Partial<IssueRow> = {}): IssueRow {
   };
 }
 
-function makeFtsResult(issue: IssueRow, rank: number): FtsSearchResult {
-  return { issue, bm25Score: -rank, rank };
+function makeFtsResult(issue: IssueRow, rank: number, highlightSnippet: string | null = null): FtsSearchResult {
+  return { issue, bm25Score: -rank, rank, highlightSnippet };
 }
 
 function makeSemanticCandidate(issue: IssueRow, rank: number): SemanticCandidate {
@@ -222,5 +222,19 @@ describe('rankResults', () => {
     );
 
     expect(ranked[0].snippet).toBe('A nice summary.');
+  });
+
+  it('prefers FTS highlight snippet over generated snippet', () => {
+    const issue = makeIssue({ title: 'Test', summary: 'Generic summary here.' });
+
+    const ranked = rankResults(
+      defaultParsed,
+      [makeFtsResult(issue, 1, '...the <mark>trust</mark> between institutions...')],
+      [],
+      defaultEnv,
+    );
+
+    expect(ranked[0].snippet).toContain('<mark>trust</mark>');
+    expect(ranked[0].snippet).not.toContain('Generic summary');
   });
 });
