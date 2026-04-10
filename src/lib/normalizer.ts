@@ -98,9 +98,10 @@ function extractIssueStructure(markdown: string): {
       // Grab the quote text, strip > and quotes
       openingQuote = trimmed
         .replace(/^>\s*/, '')
-        .replace(/^[""\u201C]/, '')
-        .replace(/[""\u201D]$/, '')
+        .replace(/^[""\u201C>]+/, '')
+        .replace(/[""\u201D]+$/, '')
         .trim();
+      if (!openingQuote) { openingQuote = null; continue; }
       break;
     }
   }
