@@ -1,57 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { rankResults } from '../src/lib/hybrid-ranker';
 import type { ParsedQuery } from '../src/lib/query-parser';
-import type { FtsSearchResult } from '../src/db/queries';
-import type { SemanticCandidate } from '../src/lib/vector-search';
-import type { IssueRow } from '../src/db/types';
-
-function makeIssue(overrides: Partial<IssueRow> = {}): IssueRow {
-  return {
-    id: crypto.randomUUID(),
-    issue_number: null,
-    title: 'Test Issue',
-    subtitle: null,
-    published_at: '2024-01-01',
-    source_url: 'https://example.com/p/test',
-    canonical_url: 'https://example.com/p/test',
-    authors: null,
-    contributors: null,
-    summary: null,
-    full_text_markdown: null,
-    full_text_plain: null,
-    crawl_run_id: null,
-    content_hash: null,
-    ingested_at: '2024-01-01',
-    word_count: null,
-    status: 'active',
-    year: 2024,
-    month: 1,
-    has_semantic_chunks: 1,
-    ...overrides,
-  };
-}
-
-function makeFtsResult(issue: IssueRow, rank: number, highlightSnippet: string | null = null): FtsSearchResult {
-  return { issue, bm25Score: -rank, rank, highlightSnippet };
-}
-
-function makeSemanticCandidate(issue: IssueRow, rank: number): SemanticCandidate {
-  return {
-    issueId: issue.id,
-    issue,
-    topScore: 1 - rank * 0.1,
-    topChunkSection: 'body',
-    topChunkText: 'Some matching chunk text',
-    chunkCount: 1,
-    rank,
-  };
-}
-
-const defaultEnv = {
-  LEXICAL_WEIGHT: '1.0',
-  SEMANTIC_WEIGHT: '0.55',
-  RRF_K: '40',
-} as any;
+import { makeIssue, makeFtsResult, makeSemanticCandidate, defaultEnv } from './helpers';
 
 const defaultParsed: ParsedQuery = {
   freeText: 'trust',

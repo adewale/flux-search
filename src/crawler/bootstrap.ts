@@ -2,7 +2,7 @@ import type { Env } from '../env';
 import { discoverAllIssueUrls } from './sitemap-parser';
 import { fetchPage } from './crawl-client';
 import { ingestPage } from './ingestor';
-import { createCrawlRun, updateCrawlRun, getAllSourceUrls } from '../db/queries';
+import { startCrawlRun, updateCrawlRun, getAllSourceUrls } from '../db/queries';
 
 const CONCURRENCY = 5;
 const DELAY_BETWEEN_FETCHES_MS = 500;
@@ -28,19 +28,7 @@ export function computeBatchPlan(
 export async function runBootstrap(env: Env, crawlRunId: string): Promise<void> {
   console.log(`Starting bootstrap crawl: ${crawlRunId}`);
 
-  await createCrawlRun(env.DB, {
-    id: crawlRunId,
-    seed_url: 'https://read.fluxcollective.org/sitemap.xml',
-    mode: 'bootstrap',
-    started_at: new Date().toISOString(),
-    completed_at: null,
-    status: 'running',
-    records_found: 0,
-    issues_created: 0,
-    issues_updated: 0,
-    issues_skipped: 0,
-    notes: null,
-  });
+  await startCrawlRun(env.DB, crawlRunId, 'bootstrap', 'https://read.fluxcollective.org/sitemap.xml');
 
   try {
     // Discover once, iterate in batches

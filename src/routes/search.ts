@@ -125,7 +125,7 @@ searchRoutes.get('/autocomplete', async (c) => {
   return c.json({ suggestions: suggestions.slice(0, 15) });
 });
 
-function buildFtsQuery(parsed: ReturnType<typeof parseQuery>): string {
+export function buildFtsQuery(parsed: ReturnType<typeof parseQuery>): string {
   const parts: string[] = [];
 
   for (const phrase of parsed.phrases) {

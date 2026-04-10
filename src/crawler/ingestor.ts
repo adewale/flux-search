@@ -8,7 +8,7 @@ import { embedChunks, upsertVectors } from '../lib/embedder';
 import {
   upsertIssue, insertChunks, deleteChunksByIssueId,
 } from '../db/queries';
-import { createCrawlRun, updateCrawlRun } from '../db/queries';
+import { startCrawlRun, updateCrawlRun } from '../db/queries';
 
 /**
  * Ingest a single crawled page into D1 and Vectorize.
@@ -103,19 +103,7 @@ async function rechunkAndEmbed(env: Env, issue: IssueRow): Promise<void> {
  * Re-chunk and re-embed all existing issues (for reindex operations).
  */
 export async function runReindex(env: Env, crawlRunId: string): Promise<void> {
-  await createCrawlRun(env.DB, {
-    id: crawlRunId,
-    seed_url: null,
-    mode: 'reindex',
-    started_at: new Date().toISOString(),
-    completed_at: null,
-    status: 'running',
-    records_found: 0,
-    issues_created: 0,
-    issues_updated: 0,
-    issues_skipped: 0,
-    notes: null,
-  });
+  await startCrawlRun(env.DB, crawlRunId, 'reindex');
 
   try {
     const allIssues = await env.DB.prepare('SELECT * FROM issues WHERE status = ?')

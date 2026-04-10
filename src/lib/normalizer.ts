@@ -220,7 +220,8 @@ function extractPublishDate(markdown: string, metadata?: Record<string, string>)
 
   const humanMatch = markdown.match(/((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2},?\s+\d{4})/i);
   if (humanMatch) {
-    const d = new Date(humanMatch[1]);
+    // Parse as UTC to avoid timezone shift
+    const d = new Date(humanMatch[1] + ' UTC');
     if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
   }
 

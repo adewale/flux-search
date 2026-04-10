@@ -137,6 +137,15 @@ export async function createCrawlRun(db: D1Database, run: CrawlRunRow): Promise<
   ).run();
 }
 
+export async function startCrawlRun(db: D1Database, id: string, mode: string, seedUrl: string | null = null): Promise<void> {
+  await createCrawlRun(db, {
+    id, seed_url: seedUrl, mode,
+    started_at: new Date().toISOString(), completed_at: null,
+    status: 'running', records_found: 0, issues_created: 0,
+    issues_updated: 0, issues_skipped: 0, notes: null,
+  });
+}
+
 export async function updateCrawlRun(db: D1Database, id: string, updates: Partial<CrawlRunRow>): Promise<void> {
   const fields: string[] = [];
   const values: unknown[] = [];

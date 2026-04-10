@@ -2,7 +2,7 @@ import type { Env } from '../env';
 import { discoverAllIssueUrls } from '../crawler/sitemap-parser';
 import { fetchPage } from '../crawler/crawl-client';
 import { ingestPage } from '../crawler/ingestor';
-import { getAllSourceUrls, createCrawlRun, updateCrawlRun } from '../db/queries';
+import { getAllSourceUrls, startCrawlRun, updateCrawlRun } from '../db/queries';
 
 const MAX_NEW_EPISODES_PER_RUN = 20;
 
@@ -10,19 +10,7 @@ export async function weeklySync(controller: ScheduledController, env: Env): Pro
   const runId = crypto.randomUUID();
   console.log(`Weekly sync started: ${runId} (cron: ${controller.cron})`);
 
-  await createCrawlRun(env.DB, {
-    id: runId,
-    seed_url: 'https://read.fluxcollective.org/sitemap.xml',
-    mode: 'weekly_sync',
-    started_at: new Date().toISOString(),
-    completed_at: null,
-    status: 'running',
-    records_found: 0,
-    issues_created: 0,
-    issues_updated: 0,
-    issues_skipped: 0,
-    notes: null,
-  });
+  await startCrawlRun(env.DB, runId, 'weekly_sync', 'https://read.fluxcollective.org/sitemap.xml');
 
   try {
     // Discover current sitemap URLs

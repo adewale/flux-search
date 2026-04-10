@@ -4,9 +4,7 @@ import { parseQuery } from '../src/lib/query-parser';
 import { chunkIssue } from '../src/lib/chunker';
 import { normalizePage } from '../src/lib/normalizer';
 import { rankResults } from '../src/lib/hybrid-ranker';
-import type { IssueRow } from '../src/db/types';
-import type { FtsSearchResult } from '../src/db/queries';
-import type { SemanticCandidate } from '../src/lib/vector-search';
+import { makeIssue, makeFtsResult, makeSemanticCandidate, defaultEnv } from './helpers';
 
 // ========================
 // Query Parser Properties
@@ -258,20 +256,7 @@ describe('normalizePage properties', () => {
 // Hybrid Ranker Properties
 // ========================
 
-function makeIssue(overrides: Partial<IssueRow> = {}): IssueRow {
-  return {
-    id: crypto.randomUUID(),
-    issue_number: null, title: 'Test', subtitle: null, published_at: '2024-01-01',
-    source_url: 'https://example.com/p/test', canonical_url: 'https://example.com/p/test',
-    authors: null, contributors: null, summary: null, full_text_markdown: null,
-    full_text_plain: null, crawl_run_id: null, content_hash: null,
-    ingested_at: '2024-01-01', word_count: null, status: 'active',
-    year: 2024, month: 1, has_semantic_chunks: 1,
-    ...overrides,
-  };
-}
-
-const defaultEnv = { LEXICAL_WEIGHT: '1.0', SEMANTIC_WEIGHT: '0.55', RRF_K: '40' } as any;
+// makeIssue, makeFtsResult, makeSemanticCandidate, defaultEnv imported from ./helpers
 
 describe('rankResults properties', () => {
   it('output length equals unique issues from both inputs', () => {
@@ -282,7 +267,7 @@ describe('rankResults properties', () => {
         (nLexical, nSemantic) => {
           const lexical: FtsSearchResult[] = Array.from({ length: nLexical }, (_, i) => {
             const issue = makeIssue({ title: `Lexical ${i}` });
-            return { issue, bm25Score: -(i + 1), rank: i + 1 };
+            return { issue, bm25Score: -(i + 1), rank: i + 1, highlightSnippet: null };
           });
           const semantic: SemanticCandidate[] = Array.from({ length: nSemantic }, (_, i) => {
             const issue = makeIssue({ title: `Semantic ${i}` });
@@ -306,7 +291,7 @@ describe('rankResults properties', () => {
         (n) => {
           const lexical: FtsSearchResult[] = Array.from({ length: n }, (_, i) => {
             const issue = makeIssue();
-            return { issue, bm25Score: -(i + 1), rank: i + 1 };
+            return { issue, bm25Score: -(i + 1), rank: i + 1, highlightSnippet: null };
           });
 
           const parsed = { freeText: 'test', phrases: [], filters: {}, operators: [] };
@@ -328,7 +313,7 @@ describe('rankResults properties', () => {
         (n) => {
           const lexical: FtsSearchResult[] = Array.from({ length: n }, (_, i) => {
             const issue = makeIssue();
-            return { issue, bm25Score: -(i + 1), rank: i + 1 };
+            return { issue, bm25Score: -(i + 1), rank: i + 1, highlightSnippet: null };
           });
 
           const parsed = { freeText: 'test', phrases: [], filters: {}, operators: [] };
@@ -352,8 +337,8 @@ describe('rankResults properties', () => {
           const otherIssue = makeIssue({ title: 'Other' });
 
           const lexical: FtsSearchResult[] = [
-            { issue: otherIssue, bm25Score: -1, rank: 1 },
-            { issue: targetIssue, bm25Score: -2, rank: 2 },
+            { issue: otherIssue, bm25Score: -1, rank: 1, highlightSnippet: null },
+            { issue: targetIssue, bm25Score: -2, rank: 2, highlightSnippet: null },
           ];
 
           const parsed = { freeText: '', phrases: [], filters: { issueNumber: num }, operators: [`issue:${num}`] };

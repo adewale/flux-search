@@ -15,23 +15,8 @@ import {
 } from '../src/lib/hybrid-ranker';
 import { computeBatchPlan } from '../src/crawler/bootstrap';
 import type { ParsedQuery } from '../src/lib/query-parser';
-import type { FtsSearchResult } from '../src/db/queries';
-import type { IssueRow } from '../src/db/types';
+import { makeIssue, makeFtsResult, defaultEnv } from './helpers';
 
-function makeIssue(overrides: Partial<IssueRow> = {}): IssueRow {
-  return {
-    id: crypto.randomUUID(),
-    issue_number: null, title: 'Test', subtitle: null, published_at: '2024-01-01',
-    source_url: 'https://example.com/p/test', canonical_url: 'https://example.com/p/test',
-    authors: null, contributors: null, summary: 'A test summary with some content here.',
-    full_text_markdown: null, full_text_plain: 'Full body text for the test issue with enough words to be meaningful.',
-    crawl_run_id: null, content_hash: null, ingested_at: '2024-01-01',
-    word_count: 100, status: 'active', year: 2024, month: 1, has_semantic_chunks: 1,
-    ...overrides,
-  };
-}
-
-const defaultEnv = { LEXICAL_WEIGHT: '1.0', SEMANTIC_WEIGHT: '0.55', RRF_K: '40' } as any;
 const defaultParsed: ParsedQuery = { freeText: 'test', phrases: [], filters: {}, operators: [] };
 
 // ========================
@@ -120,7 +105,7 @@ describe('progressive snippet length', () => {
     );
 
     const lexical: FtsSearchResult[] = issues.map((issue, i) => ({
-      issue, bm25Score: -(i + 1), rank: i + 1,
+      issue, bm25Score: -(i + 1), rank: i + 1, highlightSnippet: null,
     }));
 
     const ranked = rankResults(defaultParsed, lexical, [], defaultEnv);
@@ -138,7 +123,7 @@ describe('progressive snippet length', () => {
     );
 
     const lexical: FtsSearchResult[] = issues.map((issue, i) => ({
-      issue, bm25Score: -(i + 1), rank: i + 1,
+      issue, bm25Score: -(i + 1), rank: i + 1, highlightSnippet: null,
     }));
 
     const ranked = rankResults(defaultParsed, lexical, [], defaultEnv);
