@@ -956,7 +956,7 @@ body {
   margin-top: auto;
   padding-top: 2rem;
   text-align: center;
-  font-size: var(--size-xs);
+  font-size: 0.5625rem;
   color: var(--text-tertiary);
 }
 
@@ -970,8 +970,8 @@ body {
 }
 
 .footer-built {
-  margin-top: 0.25rem;
-  font-size: 0.625rem;
+  margin-top: 0.125rem;
+  font-size: 0.5rem;
 }
 
 .footer-built a {
