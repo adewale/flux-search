@@ -3,6 +3,7 @@
 // progressive disclosure, and inline expansion.
 
 import { escapeHtml, escapeHtmlPreserveMark, formatDate, cleanSnippet } from './utils.js';
+import { SECTION_LABELS, formatSectionLabel } from './section-labels.js';
 
 export function renderResults(container, metaEl, countEl, invalidOpsEl, filterChipsEl, data) {
   countEl.textContent = data.total_hits + ' result' + (data.total_hits !== 1 ? 's' : '');
@@ -174,29 +175,6 @@ function renderDensityStrip(yearDist) {
   el.hidden = false;
 }
 
-var SECTION_LABELS = {
-  lead_essay: 'Essay',
-  signposts: 'Signposts',
-  worth_your_time: 'Worth your time',
-  lens: 'Lens',
-  book: 'Book',
-  postcard: 'Postcard',
-  fluxers: 'FLUXers',
-  body: 'Body',
-  title_summary: 'Title',
-};
-
-function formatSectionLabel(section) {
-  if (!section) return null;
-  // Match against known section names (may be emoji-prefixed from chunk labels)
-  var lower = section.toLowerCase();
-  for (var key in SECTION_LABELS) {
-    if (lower.includes(key) || lower === key) return SECTION_LABELS[key];
-  }
-  // Try to clean up the raw label
-  if (section.length > 30) return null;
-  return section.replace(/^[\u{1F000}-\u{1FFFF}\uFE0F\u200D\s]+/u, '').trim() || null;
-}
 
 function renderSectionFacets(facets) {
   var el = document.getElementById('section-facets');

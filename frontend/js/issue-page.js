@@ -3,6 +3,7 @@
 // and prev/next issue links.
 
 import { formatDate, markdownToHtml } from './lib/utils.js';
+import { formatSectionLabel as formatSectionType } from './lib/section-labels.js';
 
 function renderMarkdown(md) {
   // Use marked if available (loaded async from CDN), otherwise use the
@@ -61,9 +62,10 @@ async function loadIssue(num, targetSection) {
 
     // Section navigation tabs
     var navEl = document.getElementById('section-nav');
+    navEl.setAttribute('role', 'tablist');
     navEl.innerHTML = data.sections.map(function (s) {
       var isActive = targetSection ? s.type === targetSection : s === data.sections[0];
-      return '<button class="section-tab' + (isActive ? ' active' : '') + '" data-type="' + s.type + '">' +
+      return '<button class="section-tab' + (isActive ? ' active' : '') + '" role="tab" aria-selected="' + isActive + '" data-type="' + s.type + '">' +
         formatSectionType(s.type) +
         '</button>';
     }).join('');
@@ -85,8 +87,12 @@ async function loadIssue(num, targetSection) {
         if (!section) return;
 
         // Update active tab
-        navEl.querySelectorAll('.section-tab').forEach(function (t) { t.classList.remove('active'); });
+        navEl.querySelectorAll('.section-tab').forEach(function (t) {
+          t.classList.remove('active');
+          t.setAttribute('aria-selected', 'false');
+        });
         tab.classList.add('active');
+        tab.setAttribute('aria-selected', 'true');
 
         // Update hash without reload
         history.replaceState(null, '', '#' + type);
@@ -128,17 +134,3 @@ function showError() {
   document.getElementById('issue-error').hidden = false;
 }
 
-var SECTION_TYPE_LABELS = {
-  lead_essay: 'Essay',
-  signposts: 'Signposts',
-  worth_your_time: 'Worth your time',
-  lens: 'Lens of the week',
-  book: 'Book',
-  postcard: 'Postcard from the future',
-  fluxers: 'More from FLUXers',
-  other: 'Other',
-};
-
-function formatSectionType(type) {
-  return SECTION_TYPE_LABELS[type] || type;
-}

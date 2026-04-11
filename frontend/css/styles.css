@@ -17,6 +17,11 @@
   display: none !important;
 }
 
+:focus-visible {
+  outline: 2px solid var(--text-tertiary);
+  outline-offset: 2px;
+}
+
 /*
  * Design principles applied:
  *
@@ -49,7 +54,10 @@
   --accent-line: #d6d3d1;
   --accent-hover: #b45309;
   --tag-bg: #f5f5f4;
-  --radius: 8px;
+  --highlight: #fef08a;
+  --shadow: rgba(28, 25, 23, 0.08);
+  --radius-sm: 3px;
+  --radius: 6px;
   --max-width: 640px;
 
   /* Type scale — major third */
@@ -58,7 +66,10 @@
   --size-base: 1rem;     /* 16px — body text */
   --size-lg: 1.25rem;    /* 20px — section headings */
   --size-xl: 1.5rem;     /* 24px — page titles */
-  --size-2xl: 2rem;      /* 32px — hero (unused currently) */
+  --size-2xl: 2rem;      /* 32px — not currently used */
+  --size-2xs: 0.6875rem; /* 11px — small labels, tips */
+  --size-3xs: 0.625rem;  /* 10px — tiny labels */
+  --size-hero: 4rem;     /* 64px — issue number hero */
 
   /* Fonts — system stack with intentional fallbacks */
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -130,7 +141,7 @@ body {
 }
 
 .logo {
-  font-size: 1.125rem;
+  font-size: var(--size-lg);
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--text);
@@ -143,7 +154,7 @@ body {
 
 .tagline {
   color: var(--text-tertiary);
-  font-size: 0.8125rem;
+  font-size: var(--size-sm);
   margin-top: 0.125rem;
 }
 
@@ -164,22 +175,21 @@ body {
   font-family: var(--font);
   font-size: var(--size-base);
   border: 1.5px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
   outline: none;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 #search-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 0 0 3px rgba(28, 25, 23, 0.06);
 }
 
 #search-input::placeholder {
   color: var(--text-tertiary);
-  font-size: 0.8125rem;
+  font-size: var(--size-sm);
 }
 
 .search-btn {
@@ -212,18 +222,18 @@ body {
 }
 
 .example-queries-label {
-  font-size: 0.6875rem;
+  font-size: var(--size-2xs);
   color: var(--text-tertiary);
   margin-right: 0.125rem;
 }
 
 .example-query {
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: var(--size-2xs);
   color: var(--text-secondary);
   background: var(--tag-bg);
   border: 1px solid transparent;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   padding: 0.125rem 0.5rem;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
@@ -237,14 +247,14 @@ body {
 
 .example-sep {
   color: var(--text-tertiary);
-  font-size: 0.625rem;
+  font-size: var(--size-3xs);
   user-select: none;
 }
 
 /* Refine hints — shown after results appear */
 .refine-hints {
   margin-top: 0.375rem;
-  font-size: 0.6875rem;
+  font-size: var(--size-2xs);
   color: var(--text-tertiary);
   display: flex;
   flex-wrap: wrap;
@@ -253,18 +263,18 @@ body {
 }
 
 .refine-label {
-  font-size: 0.625rem;
+  font-size: var(--size-3xs);
   color: var(--text-tertiary);
   margin-right: 0.125rem;
 }
 
 .refine-suggestion {
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: var(--size-3xs);
   color: var(--text-tertiary);
   background: none;
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   padding: 0.0625rem 0.375rem;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
@@ -281,7 +291,7 @@ body {
 }
 
 .search-tips summary {
-  font-size: 0.6875rem;
+  font-size: var(--size-2xs);
   color: var(--text-tertiary);
   cursor: pointer;
   user-select: none;
@@ -302,7 +312,7 @@ body {
   justify-content: center;
   width: 1rem;
   height: 1rem;
-  font-size: 0.625rem;
+  font-size: var(--size-3xs);
   font-weight: 600;
   border: 1px solid var(--border);
   border-radius: 50%;
@@ -322,8 +332,8 @@ body {
   margin-top: 0.375rem;
   padding: 0.5rem 0.625rem;
   background: var(--tag-bg);
-  border-radius: 4px;
-  font-size: 0.6875rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--size-2xs);
 }
 
 .tips-list {
@@ -344,14 +354,14 @@ body {
 
 .tip-row dt code {
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: var(--size-3xs);
   color: var(--text-secondary);
   letter-spacing: 0.01em;
 }
 
 .tip-row dd {
   color: var(--text-tertiary);
-  font-size: 0.625rem;
+  font-size: var(--size-3xs);
 }
 
 /* Autocomplete */
@@ -362,12 +372,12 @@ body {
   right: 0;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px var(--shadow);
   z-index: 100;
   max-height: 240px;
   overflow-y: auto;
-  margin-top: 2px;
+  margin-top: 0.125rem;
 }
 
 .autocomplete-item {
@@ -376,7 +386,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.625rem;
-  font-size: 0.8125rem;
+  font-size: var(--size-sm);
 }
 
 .autocomplete-item:hover,
@@ -394,11 +404,11 @@ body {
 
 .chip {
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
+  font-size: var(--size-2xs);
   color: var(--text-secondary);
   background: var(--tag-bg);
   padding: 0.125rem 0.5rem;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
 }
 
 /* Results meta */
@@ -414,7 +424,7 @@ body {
 }
 
 .invalid-ops {
-  color: #b45309;
+  color: var(--accent-hover);
 }
 
 /*
@@ -600,7 +610,7 @@ body {
 
 .result-section {
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: var(--size-3xs);
   font-weight: 300;
   color: var(--text-tertiary);
   letter-spacing: 0.02em;
@@ -625,11 +635,11 @@ body {
 
 .facet {
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: var(--size-3xs);
   color: var(--text-secondary);
   background: var(--tag-bg);
   padding: 0.125rem 0.5rem;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
   cursor: pointer;
 }
@@ -671,7 +681,7 @@ body {
 }
 
 .result-snippet mark {
-  background: #fef08a;
+  background: var(--highlight);
   color: var(--text);
   padding: 0.05em 0.15em;
   border-radius: 2px;
@@ -689,11 +699,11 @@ body {
 
 .page-btn {
   font-family: var(--font);
-  font-size: 0.8125rem;
+  font-size: var(--size-sm);
   color: var(--accent);
   background: none;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 0.375rem 0.75rem;
   cursor: pointer;
 }
@@ -712,11 +722,11 @@ body {
   display: inline-block;
   padding: 0.375rem 0.75rem;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
   text-decoration: none;
-  font-size: 0.8125rem;
-  transition: all 0.15s;
+  font-size: var(--size-sm);
+  transition: border-color 0.15s, color 0.15s;
 }
 
 .btn-secondary:hover {
@@ -764,7 +774,7 @@ body {
 /* Oversized issue number — the page's identity */
 .issue-number-hero {
   font-family: var(--font-mono);
-  font-size: 4rem;
+  font-size: var(--size-hero);
   font-weight: 200;
   color: var(--border);
   line-height: 1;
@@ -807,7 +817,7 @@ body {
   background: none;
   border: none;
   padding: 0.25rem 0.5rem;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
@@ -929,7 +939,7 @@ body {
   gap: 0.5rem;
   padding: 3rem;
   color: var(--text-tertiary);
-  font-size: 0.8125rem;
+  font-size: var(--size-sm);
   opacity: 0;
   animation: loading-appear 0.15s ease-out 200ms forwards;
 }
@@ -998,7 +1008,7 @@ body {
   }
 
   .search-tips-panel {
-    font-size: 0.625rem;
+    font-size: var(--size-3xs);
   }
 
   .tip-row {
@@ -1009,6 +1019,10 @@ body {
   .density-strip {
     display: none;
   }
+
+  .example-query { padding: 0.375rem 0.625rem; }
+  .refine-suggestion { padding: 0.25rem 0.5rem; }
+  .section-tab { padding: 0.5rem 0.75rem; }
 }
 
 /* Mobile landscape: compact examples */

@@ -144,7 +144,6 @@ function initSearchPage() {
         }
       } else {
         emptyState.hidden = false;
-        loadEmptyStateQuote();
       }
     } catch (err) {
       loadingEl.hidden = true;
@@ -187,15 +186,4 @@ function initSearchPage() {
     } catch (e) { /* silently degrade */ }
   }
 
-  async function loadEmptyStateQuote() {
-    try {
-      var resp = await fetch('/random-quote');
-      var data = await resp.json();
-      if (data.quote) {
-        var el = document.getElementById('empty-quote');
-        el.textContent = data.quote;
-        el.hidden = false;
-      }
-    } catch (e) { /* silently degrade */ }
-  }
 }

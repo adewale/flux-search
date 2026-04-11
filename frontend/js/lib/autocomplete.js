@@ -58,12 +58,15 @@ export function initAutocomplete(input, dropdownEl, { fetchSuggestions, onSelect
 
   function show(items) {
     activeIndex = -1;
+    dropdownEl.setAttribute('role', 'listbox');
     dropdownEl.innerHTML = items.map(function (item, i) {
-      return '<div class="autocomplete-item" data-index="' + i + '">' +
+      return '<div class="autocomplete-item" role="option" id="ac-item-' + i + '" data-index="' + i + '">' +
         escapeHtml(item.value) +
         '</div>';
     }).join('');
     dropdownEl.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+    input.setAttribute('aria-autocomplete', 'list');
 
     dropdownEl.querySelectorAll('.autocomplete-item').forEach(function (el) {
       el.addEventListener('click', function () {
@@ -77,12 +80,19 @@ export function initAutocomplete(input, dropdownEl, { fetchSuggestions, onSelect
     dropdownEl.innerHTML = '';
     activeIndex = -1;
     suggestions = [];
+    input.setAttribute('aria-expanded', 'false');
+    input.removeAttribute('aria-activedescendant');
   }
 
   function updateActive(items) {
     items.forEach(function (el, i) {
       el.classList.toggle('active', i === activeIndex);
     });
+    if (activeIndex >= 0) {
+      input.setAttribute('aria-activedescendant', 'ac-item-' + activeIndex);
+    } else {
+      input.removeAttribute('aria-activedescendant');
+    }
   }
 
   function select(suggestion) {
