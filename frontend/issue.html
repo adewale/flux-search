@@ -60,7 +60,7 @@
     import('https://cdn.jsdelivr.net/npm/marked@18/lib/marked.esm.js')
       .then(function (mod) {
         window.marked = mod.marked;
-        mod.marked.setOptions({ breaks: false, gfm: true });
+        mod.marked.setOptions({ breaks: false, gfm: true, silent: true });
       })
       .catch(function () { /* degrade gracefully — built-in fallback handles it */ });
   </script>
