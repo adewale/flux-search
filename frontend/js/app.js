@@ -1,10 +1,10 @@
 // FLUX Review Search — Pattern composition layer
 //
 // The search app is a lens, not a destination.
-// Results expand inline; reading happens on Substack.
+// Results link to Substack; reading happens there.
 
 import { initAutocomplete } from './lib/autocomplete.js';
-import { renderResults, clearResults } from './lib/result-list.js';
+import { renderResults, clearResults, renderPagination } from './lib/result-list.js';
 
 initSearchPage();
 
@@ -19,8 +19,13 @@ function initSearchPage() {
   var filterChips = document.getElementById('filter-chips');
   var emptyState = document.getElementById('empty-state');
   var loadingEl = document.getElementById('loading');
+  var paginationEl = document.getElementById('pagination');
 
   if (!form || !input) return;
+
+  var currentQuery = '';
+  var currentPage = 1;
+  var pageSize = 20;
 
   initAutocomplete(input, dropdown, {
     fetchSuggestions: async function (q) {
@@ -39,39 +44,53 @@ function initSearchPage() {
   var initialQ = params.get('q');
   if (initialQ) {
     input.value = initialQ;
-    performSearch(initialQ);
+    currentQuery = initialQ;
+    performSearch(initialQ, 1);
   }
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     var q = input.value.trim();
     if (q) {
-      var url = new URL(window.location);
-      url.searchParams.set('q', q);
-      history.pushState(null, '', url);
-      performSearch(q);
+      currentQuery = q;
+      currentPage = 1;
+      updateUrl(q, 1);
+      performSearch(q, 1);
     }
   });
 
   window.addEventListener('popstate', function () {
-    var q = new URLSearchParams(window.location.search).get('q') || '';
+    var p = new URLSearchParams(window.location.search);
+    var q = p.get('q') || '';
+    var page = parseInt(p.get('page') || '1') || 1;
     input.value = q;
-    if (q) performSearch(q);
-    else clearResults(resultsEl, resultsMeta, filterChips, emptyState);
+    if (q) performSearch(q, page);
+    else clearAll();
   });
 
-  async function performSearch(q) {
+  async function performSearch(q, page) {
     loadingEl.hidden = false;
-    clearResults(resultsEl, resultsMeta, filterChips, emptyState);
+    clearAll();
+    currentQuery = q;
+    currentPage = page;
 
     try {
-      var resp = await fetch('/search?q=' + encodeURIComponent(q));
+      var resp = await fetch('/search?q=' + encodeURIComponent(q) + '&page=' + page + '&limit=' + pageSize);
       var data = await resp.json();
 
       loadingEl.hidden = true;
 
       if (data.results && data.results.length > 0) {
         renderResults(resultsEl, resultsMeta, resultCount, invalidOps, filterChips, data);
+        var totalPages = Math.ceil(data.total_hits / pageSize);
+        if (totalPages > 1) {
+          renderPagination(paginationEl, page, totalPages, function (newPage) {
+            currentPage = newPage;
+            updateUrl(currentQuery, newPage);
+            performSearch(currentQuery, newPage);
+            window.scrollTo(0, 0);
+          });
+        }
       } else {
         emptyState.hidden = false;
       }
@@ -80,5 +99,18 @@ function initSearchPage() {
       emptyState.hidden = false;
       console.error('Search error:', err);
     }
+  }
+
+  function clearAll() {
+    clearResults(resultsEl, resultsMeta, filterChips, emptyState);
+    if (paginationEl) paginationEl.hidden = true;
+  }
+
+  function updateUrl(q, page) {
+    var url = new URL(window.location);
+    url.searchParams.set('q', q);
+    if (page > 1) url.searchParams.set('page', String(page));
+    else url.searchParams.delete('page');
+    history.pushState(null, '', url);
   }
 }

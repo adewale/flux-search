@@ -27,7 +27,6 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
     var snippet = cleanSnippet(r.snippet || '');
     var title = r.title || 'Untitled';
     var confidenceCls = r.confidence || 'medium';
-    var summary = cleanSnippet(r.summary || '');
     var quote = r.opening_quote || '';
     var canonicalUrl = r.canonical_url || '';
 
@@ -40,7 +39,6 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
         '<div class="result-title">' + escapeHtml(title) + '</div>' +
         (quote ? '<p class="result-quote">' + escapeHtml(quote.length > 120 ? quote.slice(0, 120) + '...' : quote) + '</p>' : '') +
         (snippet ? '<p class="result-snippet">' + escapeHtmlPreserveMark(snippet) + '</p>' : '') +
-        (summary && summary !== snippet ? '<p class="result-summary">' + escapeHtml(summary.length > 200 ? summary.slice(0, 200) + '...' : summary) + '</p>' : '') +
       '</a>' +
     '</div>';
   }).join('');
@@ -53,6 +51,31 @@ export function clearResults(container, metaEl, filterChipsEl, emptyStateEl) {
   emptyStateEl.hidden = true;
   var densityEl = document.getElementById('density-strip');
   if (densityEl) densityEl.hidden = true;
+}
+
+export function renderPagination(el, currentPage, totalPages, onPageChange) {
+  if (!el) return;
+
+  var buttons = [];
+
+  if (currentPage > 1) {
+    buttons.push('<button class="page-btn" data-page="' + (currentPage - 1) + '">\u2190 Prev</button>');
+  }
+
+  buttons.push('<span class="page-info">' + currentPage + ' / ' + totalPages + '</span>');
+
+  if (currentPage < totalPages) {
+    buttons.push('<button class="page-btn" data-page="' + (currentPage + 1) + '">Next \u2192</button>');
+  }
+
+  el.innerHTML = buttons.join('');
+  el.hidden = false;
+
+  el.querySelectorAll('.page-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      onPageChange(parseInt(btn.dataset.page));
+    });
+  });
 }
 
 // Archive landmarks — story beats that give temporal orientation
