@@ -30,7 +30,7 @@ function initSearchPage() {
   var currentPage = 1;
   var pageSize = 20;
 
-  initAutocomplete(input, dropdown, {
+  var autocomplete = initAutocomplete(input, dropdown, {
     fetchSuggestions: async function (q) {
       var resp = await fetch('/autocomplete?q=' + encodeURIComponent(q));
       var data = await resp.json();
@@ -113,6 +113,7 @@ function initSearchPage() {
   });
 
   async function performSearch(q, page) {
+    autocomplete.hide();
     loadingEl.hidden = false;
     clearAll();
     currentQuery = q;
