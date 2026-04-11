@@ -50,6 +50,11 @@
     </footer>
   </div>
 
+  <script type="module">
+    import { marked } from 'https://cdn.jsdelivr.net/npm/marked@18/lib/marked.esm.js';
+    window.marked = marked;
+    marked.setOptions({ breaks: false, gfm: true });
+  </script>
   <script type="module" src="/js/issue-page.js"></script>
 </body>
 </html>

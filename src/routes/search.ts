@@ -3,7 +3,8 @@ import type { Env } from '../env';
 import { parseQuery } from '../lib/query-parser';
 import { searchFts, autocompleteWords, getIssueByNumber } from '../db/queries';
 import { searchVectorize } from '../lib/vector-search';
-import { rankResults, computeYearDistribution, computeSectionFacets } from '../lib/hybrid-ranker';
+import { rankResults, computeYearDistribution, computeSectionFacets, detectSnippetSection } from '../lib/hybrid-ranker';
+import { parseSections } from '../lib/sections';
 
 export const searchRoutes = new Hono<{ Bindings: Env }>();
 
@@ -80,18 +81,27 @@ searchRoutes.get('/search', async (c) => {
     total_hits: ranked.length,
     year_distribution: computeYearDistribution(ranked),
     section_facets: computeSectionFacets(ranked),
-    results: paged.map(r => ({
-      issue_id: r.issue.id,
-      title: r.issue.title,
-      issue_number: r.issue.issue_number,
-      published_at: r.issue.published_at,
-      snippet: r.snippet,
-      snippet_section: r.snippetSection,
-      confidence: r.confidence,
-      canonical_url: r.issue.canonical_url || r.issue.source_url,
-      matched_by: r.matchedBy,
-      ...(debug ? { debug: r.debugMeta } : {}),
-    })),
+    results: paged.map(r => {
+      // Detect section for FTS results where snippetSection is null
+      let section = r.snippetSection;
+      if (!section && r.snippet && r.issue.full_text_markdown) {
+        const sections = parseSections(r.issue.full_text_markdown);
+        section = detectSnippetSection(r.snippet, sections);
+      }
+
+      return {
+        issue_id: r.issue.id,
+        title: r.issue.title,
+        issue_number: r.issue.issue_number,
+        published_at: r.issue.published_at,
+        snippet: r.snippet,
+        snippet_section: section,
+        confidence: r.confidence,
+        canonical_url: r.issue.canonical_url || r.issue.source_url,
+        matched_by: r.matchedBy,
+        ...(debug ? { debug: r.debugMeta } : {}),
+      };
+    }),
   });
 });
 

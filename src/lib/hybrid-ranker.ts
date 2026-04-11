@@ -182,6 +182,42 @@ export function computeSectionFacets(results: Array<{ snippetSection: string | n
   return facets;
 }
 
+// --- Snippet section detection ---
+
+/**
+ * Determine which section a FTS snippet came from by matching
+ * snippet text against parsed section bodies.
+ */
+export function detectSnippetSection(
+  snippet: string,
+  sections: Array<{ type: string; body: string }>
+): string | null {
+  if (!snippet) return null;
+
+  // Strip <mark> tags and take a clean text window
+  const cleanSnippet = snippet.replace(/<\/?mark>/g, '').replace(/\.\.\./g, '').trim();
+  if (cleanSnippet.length < 10) return null;
+
+  // Take a word sequence from the snippet as a search probe
+  const words = cleanSnippet.split(/\s+/).filter(w => w.length > 0);
+  if (words.length < 3) return null;
+  const probe = words.slice(0, 6).join(' ').toLowerCase();
+
+  for (const section of sections) {
+    if (section.body.toLowerCase().includes(probe)) {
+      return section.type;
+    }
+  }
+
+  // If the snippet matches the first section's title, it's from the lead essay
+  if (sections.length > 0 && sections[0].title.toLowerCase().includes(probe)) {
+    return sections[0].type;
+  }
+
+  // Default: if we have sections, the first one is the most likely match
+  return sections.length > 0 ? sections[0].type : null;
+}
+
 // --- Density strip: year distribution ---
 
 export function computeYearDistribution(results: RankedResult[]): Record<number, number> {

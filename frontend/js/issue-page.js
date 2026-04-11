@@ -2,7 +2,14 @@
 // Shows one section of an issue with navigation to other sections
 // and prev/next issue links.
 
-import { formatDate, markdownToHtml } from './lib/utils.js';
+import { formatDate } from './lib/utils.js';
+
+function renderMarkdown(md) {
+  // Use marked if available (loaded via CDN), fall back to basic rendering
+  if (window.marked) return window.marked(md);
+  // Fallback: basic paragraph wrapping
+  return md.split('\n\n').map(function (p) { return '<p>' + p + '</p>'; }).join('');
+}
 
 var match = window.location.pathname.match(/\/issues\/issue\/(\d+)/);
 if (!match) {
@@ -102,7 +109,7 @@ async function loadIssue(num, targetSection) {
 
 function renderSection(section) {
   var contentEl = document.getElementById('section-content');
-  var html = markdownToHtml(section.body);
+  var html = renderMarkdown(section.body);
   contentEl.innerHTML =
     '<div class="section-type-label">' + formatSectionType(section.type) + '</div>' +
     (section.title ? '<h2 class="section-heading">' + section.title + '</h2>' : '') +

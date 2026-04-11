@@ -289,6 +289,11 @@ function cleanContent(markdown: string): { cleanMarkdown: string; plainText: str
   // Strip navigation elements
   clean = clean.replace(/^\[.*?(Home|Archive|About|Subscribe).*?\]\(.*?\)\s*$/gm, '');
 
+  // Strip Substack image embeds: [](https://substackcdn.com/...) and ![...](https://substackcdn.com/...)
+  clean = clean.replace(/!?\[\]?\(https?:\/\/substackcdn\.com[^)]*\)/g, '');
+  // Strip other empty markdown links [](url)
+  clean = clean.replace(/\[\]\([^)]+\)/g, '');
+
   // Normalize whitespace
   clean = clean.replace(/\n{3,}/g, '\n\n');
   clean = clean.trim();
