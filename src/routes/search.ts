@@ -3,7 +3,7 @@ import type { Env } from '../env';
 import { parseQuery } from '../lib/query-parser';
 import { searchFts, autocompleteTerms, autocompleteIssueNumbers, getIssueByNumber } from '../db/queries';
 import { searchVectorize } from '../lib/vector-search';
-import { rankResults, computeYearDistribution } from '../lib/hybrid-ranker';
+import { rankResults, computeYearDistribution, computeSectionFacets } from '../lib/hybrid-ranker';
 
 export const searchRoutes = new Hono<{ Bindings: Env }>();
 
@@ -55,7 +55,16 @@ searchRoutes.get('/search', async (c) => {
     semanticQuery ? searchVectorize(c.env, semanticQuery, parsed.filters) : Promise.resolve([]),
   ]);
 
-  const ranked = rankResults(parsed, lexicalResults, semanticResults, c.env);
+  let ranked = rankResults(parsed, lexicalResults, semanticResults, c.env);
+
+  // Section filter — post-ranking filter on snippet section
+  if (parsed.filters.section) {
+    const sect = parsed.filters.section;
+    ranked = ranked.filter(r =>
+      r.snippetSection === sect ||
+      r.debugMeta.top_chunk_section?.toLowerCase().includes(sect)
+    );
+  }
 
   // Paginate
   const offset = (page - 1) * limit;
@@ -70,6 +79,7 @@ searchRoutes.get('/search', async (c) => {
     applied_filters: parsed.operators,
     total_hits: ranked.length,
     year_distribution: computeYearDistribution(ranked),
+    section_facets: computeSectionFacets(ranked),
     results: paged.map(r => ({
       issue_id: r.issue.id,
       title: r.issue.title,
@@ -78,6 +88,7 @@ searchRoutes.get('/search', async (c) => {
       issue_number: r.issue.issue_number,
       published_at: r.issue.published_at,
       snippet: r.snippet,
+      snippet_section: r.snippetSection,
       confidence: r.confidence,
       canonical_url: r.issue.canonical_url || r.issue.source_url,
       matched_by: r.matchedBy,
@@ -95,7 +106,7 @@ searchRoutes.get('/autocomplete', async (c) => {
   const suggestions: Array<{ type: string; value: string }> = [];
 
   // Operator suggestions
-  const operatorPrefixes = ['before:', 'after:', 'year:', 'issue:'];
+  const operatorPrefixes = ['before:', 'after:', 'year:', 'issue:', 'section:'];
   const lastToken = q.split(/\s+/).pop() || '';
   if (lastToken && !lastToken.includes(':')) {
     for (const op of operatorPrefixes) {

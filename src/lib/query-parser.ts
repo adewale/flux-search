@@ -10,7 +10,11 @@ export interface ParsedQuery {
 const MAX_QUERY_LENGTH = 500;
 
 const VALID_OPERATORS = new Set([
-  'before', 'after', 'year', 'issue',
+  'before', 'after', 'year', 'issue', 'section',
+]);
+
+const VALID_SECTIONS = new Set([
+  'lead_essay', 'signposts', 'worth_your_time', 'lens', 'book', 'postcard', 'fluxers',
 ]);
 
 export function parseQuery(raw: string): ParsedQuery {
@@ -56,6 +60,15 @@ export function parseQuery(raw: string): ParsedQuery {
       case 'issue': {
         const n = parseInt(value);
         if (!isNaN(n) && n > 0) filters.issueNumber = n;
+        break;
+      }
+      case 'section': {
+        if (VALID_SECTIONS.has(value.toLowerCase())) {
+          filters.section = value.toLowerCase();
+        } else {
+          // Unknown section — leave the whole operator as free text
+          return _match;
+        }
         break;
       }
     }

@@ -351,6 +351,34 @@ body {
   color: var(--text-tertiary);
 }
 
+.result-section {
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  color: var(--text-tertiary);
+  letter-spacing: 0.02em;
+}
+
+/* Section facets */
+.section-facets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 0.5rem;
+}
+
+.facet {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--text-secondary);
+  background: var(--tag-bg);
+  padding: 0.125rem 0.5rem;
+  border-radius: 3px;
+}
+
+.facet-count {
+  color: var(--text-tertiary);
+}
+
 /* Title — strongest contrast, per CRAP */
 .result-title {
   font-size: 0.9375rem;

@@ -7,6 +7,7 @@ import type { SemanticCandidate } from './vector-search';
 export interface RankedResult {
   issue: IssueRow;
   snippet: string;
+  snippetSection: string | null;
   matchedBy: string[];
   confidence: 'high' | 'medium' | 'low';
   debugMeta: DebugMeta;
@@ -61,7 +62,7 @@ export function rankResults(
   const allIds = new Set([...lexicalMap.keys(), ...semanticMap.keys()]);
   const hasStrongLexical = lexicalResults.length >= 3;
 
-  const candidates: Array<Omit<RankedResult, 'snippet' | 'confidence'> & { score: number; semantic?: SemanticCandidate; highlightSnippet?: string | null }> = [];
+  const candidates: Array<Omit<RankedResult, 'snippet' | 'confidence' | 'snippetSection'> & { score: number; semantic?: SemanticCandidate; highlightSnippet?: string | null }> = [];
 
   for (const issueId of allIds) {
     const lexical = lexicalMap.get(issueId);
@@ -161,11 +162,24 @@ export function rankResults(
     return {
       issue: c.issue,
       snippet,
+      snippetSection: c.debugMeta.top_chunk_section,
       matchedBy: c.matchedBy,
       confidence,
       debugMeta: c.debugMeta,
     };
   });
+}
+
+// --- Facets: section distribution ---
+
+export function computeSectionFacets(results: Array<{ snippetSection: string | null }>): Record<string, number> {
+  const facets: Record<string, number> = {};
+  for (const r of results) {
+    if (r.snippetSection) {
+      facets[r.snippetSection] = (facets[r.snippetSection] || 0) + 1;
+    }
+  }
+  return facets;
 }
 
 // --- Density strip: year distribution ---

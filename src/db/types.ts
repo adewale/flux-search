@@ -53,4 +53,5 @@ export interface SearchFilters {
   after?: string;
   year?: number;
   issueNumber?: number;
+  section?: string;
 }

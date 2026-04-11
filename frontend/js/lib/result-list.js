@@ -30,11 +30,14 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
     var quote = r.opening_quote || '';
     var canonicalUrl = r.canonical_url || '';
 
+    var sectionLabel = formatSectionLabel(r.snippet_section);
+
     return '<div class="result-card confidence-' + confidenceCls + '">' +
       '<a href="' + escapeHtml(canonicalUrl) + '" target="_blank" rel="noopener">' +
         '<div class="result-meta">' +
           (r.issue_number ? '<span class="result-number">#' + r.issue_number + '</span>' : '') +
           (dateStr ? '<span class="result-date">' + dateStr + '</span>' : '') +
+          (sectionLabel ? '<span class="result-section">' + sectionLabel + '</span>' : '') +
         '</div>' +
         '<div class="result-title">' + escapeHtml(title) + '</div>' +
         (quote ? '<p class="result-quote">' + escapeHtml(quote.length > 120 ? quote.slice(0, 120) + '...' : quote) + '</p>' : '') +
@@ -42,6 +45,11 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
       '</a>' +
     '</div>';
   }).join('');
+
+  // Render section facets if available
+  if (data.section_facets && Object.keys(data.section_facets).length > 0) {
+    renderSectionFacets(data.section_facets);
+  }
 }
 
 export function clearResults(container, metaEl, filterChipsEl, emptyStateEl) {
@@ -51,6 +59,8 @@ export function clearResults(container, metaEl, filterChipsEl, emptyStateEl) {
   emptyStateEl.hidden = true;
   var densityEl = document.getElementById('density-strip');
   if (densityEl) densityEl.hidden = true;
+  var facetsEl = document.getElementById('section-facets');
+  if (facetsEl) facetsEl.hidden = true;
 }
 
 export function renderPagination(el, currentPage, totalPages, onPageChange) {
@@ -158,4 +168,45 @@ function renderDensityStrip(yearDist) {
     years.map(function (y) { return y + ': ' + (yearDist[y] || 0); }).join(', '));
 
   el.hidden = false;
+}
+
+var SECTION_LABELS = {
+  lead_essay: 'Essay',
+  signposts: 'Signposts',
+  worth_your_time: 'Worth your time',
+  lens: 'Lens',
+  book: 'Book',
+  postcard: 'Postcard',
+  fluxers: 'FLUXers',
+  body: 'Body',
+  title_summary: 'Title',
+};
+
+function formatSectionLabel(section) {
+  if (!section) return null;
+  // Match against known section names (may be emoji-prefixed from chunk labels)
+  var lower = section.toLowerCase();
+  for (var key in SECTION_LABELS) {
+    if (lower.includes(key) || lower === key) return SECTION_LABELS[key];
+  }
+  // Try to clean up the raw label
+  if (section.length > 30) return null;
+  return section.replace(/^[\u{1F000}-\u{1FFFF}\uFE0F\u200D\s]+/u, '').trim() || null;
+}
+
+function renderSectionFacets(facets) {
+  var el = document.getElementById('section-facets');
+  if (!el) return;
+
+  var items = Object.entries(facets)
+    .sort(function (a, b) { return b[1] - a[1]; })
+    .map(function (pair) {
+      var label = SECTION_LABELS[pair[0]] || pair[0];
+      return '<span class="facet">' + label + ' <span class="facet-count">' + pair[1] + '</span></span>';
+    });
+
+  if (items.length > 0) {
+    el.innerHTML = items.join('');
+    el.hidden = false;
+  }
 }

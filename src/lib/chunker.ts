@@ -1,4 +1,5 @@
 import type { IssueChunkRow } from '../db/types';
+import { parseSections } from './sections';
 
 // Target ~300-800 tokens per chunk. Estimate: 1 token ≈ 4 chars
 const MIN_CHUNK_CHARS = 1200;  // ~300 tokens
@@ -20,8 +21,11 @@ export function chunkIssue(
 
   if (!markdownBody) return chunks;
 
-  // Split body into sections by headings
-  const sections = splitBySections(markdownBody);
+  // Split body into typed sections using the section parser
+  const sections = parseSections(markdownBody).map(s => ({
+    label: s.type,
+    text: s.body,
+  }));
 
   for (const section of sections) {
     const sectionChunks = splitSectionIntoChunks(section.text);
@@ -36,30 +40,6 @@ export function chunkIssue(
 interface Section {
   label: string;
   text: string;
-}
-
-function splitBySections(markdown: string): Section[] {
-  const lines = markdown.split('\n');
-  const sections: Section[] = [];
-  let currentLabel = 'body';
-  let currentLines: string[] = [];
-
-  for (const line of lines) {
-    const headingMatch = line.match(/^(#{1,3})\s+(.+)/);
-    if (headingMatch && currentLines.length > 0) {
-      sections.push({ label: currentLabel, text: currentLines.join('\n').trim() });
-      currentLabel = headingMatch[2].trim();
-      currentLines = [line];
-    } else {
-      currentLines.push(line);
-    }
-  }
-
-  if (currentLines.length > 0) {
-    sections.push({ label: currentLabel, text: currentLines.join('\n').trim() });
-  }
-
-  return sections.filter(s => s.text.length > 0);
 }
 
 function splitSectionIntoChunks(text: string): string[] {
