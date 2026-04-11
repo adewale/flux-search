@@ -158,7 +158,8 @@ describe('structure extraction properties', () => {
         const body = `## 🎯🌍 ${topic}\n\nSome essay content. ` + 'More. '.repeat(50);
         const result = normalizePage(makePage(body), 'run-1');
         if (result.issue.lead_essay_title) {
-          expect(result.issue.lead_essay_title).not.toMatch(/^[\p{Emoji}]/u);
+          // Check for supplementary emoji (U+1F000+), not ASCII digits/symbols which Unicode classifies as emoji
+          expect(result.issue.lead_essay_title).not.toMatch(/^[\u{1F000}-\u{1FFFF}]/u);
         }
       }),
       { numRuns: 50 }

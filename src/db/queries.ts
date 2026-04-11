@@ -241,6 +241,24 @@ export async function autocompleteTerms(db: D1Database, prefix: string, limit: n
   return result.results.map(r => r.term);
 }
 
+export async function autocompleteTitles(db: D1Database, prefix: string, limit: number = 5): Promise<Array<{ title: string; issue_number: number | null }>> {
+  if (!prefix || prefix.length < 2) return [];
+
+  const result = await db.prepare(`
+    SELECT title, lead_essay_title, issue_number FROM issues
+    WHERE status = 'active'
+      AND (title LIKE ? OR lead_essay_title LIKE ?)
+    ORDER BY published_at DESC
+    LIMIT ?
+  `).bind('%' + prefix + '%', '%' + prefix + '%', limit)
+    .all<{ title: string; lead_essay_title: string | null; issue_number: number | null }>();
+
+  return result.results.map(r => ({
+    title: r.lead_essay_title || r.title,
+    issue_number: r.issue_number,
+  }));
+}
+
 export async function autocompleteIssueNumbers(db: D1Database, prefix: string, limit: number = 5): Promise<number[]> {
   const result = await db.prepare(`
     SELECT DISTINCT issue_number FROM issues

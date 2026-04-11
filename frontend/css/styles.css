@@ -373,6 +373,13 @@ body {
   background: var(--tag-bg);
   padding: 0.125rem 0.5rem;
   border-radius: 3px;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.facet:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .facet-count {

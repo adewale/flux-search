@@ -1,5 +1,6 @@
 import type { IssueRow } from '../db/types';
 import type { CrawlPageResult } from '../crawler/crawl-client';
+import { stripEmoji } from './emoji';
 
 type ContentType = 'issue' | 'non_issue_post' | 'junk';
 
@@ -65,9 +66,8 @@ export function normalizePage(page: CrawlPageResult, crawlRunId: string): Normal
 // Strip Substack boilerplate from title at ingestion time
 function cleanIssueTitle(raw: string | null, issueNumber: number | null): string | null {
   if (!raw) return null;
-  let title = raw
-    .replace(/^[\u{1F300}\u{1F5DE}\s]+/u, '')           // leading emoji
-    .replace(/\s*-\s*by\s+The\s+FLUX\s+Collective$/i, '') // author suffix
+  let title = stripEmoji(raw)
+    .replace(/\s*-\s*by\s+The\s+FLUX\s+Collective$/i, '')
     .trim();
   // If what remains is just "The FLUX Review, Ep. N", it's not a real title
   if (/^The\s+FLUX\s+Review,?\s*(Ep\.?\s*)?\d*$/i.test(title)) {
@@ -115,10 +115,7 @@ function extractIssueStructure(markdown: string): {
 
     if (trimmed.startsWith('## ') && !inLeadEssay) {
       // First ## heading = lead essay title
-      leadEssayTitle = trimmed
-        .replace(/^##\s+/, '')
-        .replace(/^[\p{Emoji}\p{Emoji_Presentation}\uFE0F\s]+/u, '') // strip leading emoji
-        .trim();
+      leadEssayTitle = stripEmoji(trimmed.replace(/^##\s+/, '')).trim();
       inLeadEssay = true;
       continue;
     }

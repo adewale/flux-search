@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../env';
 import { parseQuery } from '../lib/query-parser';
-import { searchFts, autocompleteTerms, autocompleteIssueNumbers, getIssueByNumber } from '../db/queries';
+import { searchFts, autocompleteTerms, autocompleteTitles, autocompleteIssueNumbers, getIssueByNumber } from '../db/queries';
 import { searchVectorize } from '../lib/vector-search';
 import { rankResults, computeYearDistribution, computeSectionFacets } from '../lib/hybrid-ranker';
 
@@ -124,9 +124,31 @@ searchRoutes.get('/autocomplete', async (c) => {
     }
   }
 
-  // Term suggestions
+  // Section type suggestions after section:
+  if (lastToken.startsWith('section:')) {
+    const partial = lastToken.slice(8).toLowerCase();
+    const sectionTypes = ['lead_essay', 'signposts', 'lens', 'book', 'postcard', 'worth_your_time', 'fluxers'];
+    for (const st of sectionTypes) {
+      if (st.startsWith(partial)) {
+        suggestions.push({ type: 'section', value: `section:${st}` });
+      }
+    }
+  }
+
+  // Title and term suggestions
   if (lastToken.length >= 2 && !lastToken.includes(':')) {
-    const terms = await autocompleteTerms(c.env.DB, lastToken.toLowerCase());
+    const [titles, terms] = await Promise.all([
+      autocompleteTitles(c.env.DB, lastToken),
+      autocompleteTerms(c.env.DB, lastToken.toLowerCase()),
+    ]);
+
+    // Issue titles first — more useful than stems
+    for (const t of titles) {
+      const label = t.issue_number ? `#${t.issue_number}: ${t.title}` : t.title;
+      suggestions.push({ type: 'issue', value: label });
+    }
+
+    // Then corpus terms (full words where possible)
     for (const term of terms) {
       suggestions.push({ type: 'term', value: term });
     }

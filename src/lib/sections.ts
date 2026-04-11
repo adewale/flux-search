@@ -1,3 +1,5 @@
+import { stripEmoji } from './emoji';
+
 /**
  * Parse the intrinsic structure of FLUX Review issues into named sections.
  *
@@ -75,8 +77,7 @@ export function parseSections(markdown: string): ParsedSection[] {
 }
 
 function makeSection(rawTitle: string, body: string): ParsedSection {
-  // Strip emoji prefix from title
-  const cleanTitle = rawTitle.replace(/^[\p{Emoji}\p{Emoji_Presentation}\uFE0F\u200D\s]+/u, '').trim();
+  const cleanTitle = stripEmoji(rawTitle);
 
   // Check if this is a known recurring section
   for (const { type, pattern } of SECTION_PATTERNS) {

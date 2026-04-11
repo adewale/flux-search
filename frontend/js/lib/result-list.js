@@ -202,11 +202,22 @@ function renderSectionFacets(facets) {
     .sort(function (a, b) { return b[1] - a[1]; })
     .map(function (pair) {
       var label = SECTION_LABELS[pair[0]] || pair[0];
-      return '<span class="facet">' + label + ' <span class="facet-count">' + pair[1] + '</span></span>';
+      return '<button class="facet" data-section="' + pair[0] + '">' +
+        label + ' <span class="facet-count">' + pair[1] + '</span></button>';
     });
 
   if (items.length > 0) {
     el.innerHTML = items.join('');
     el.hidden = false;
+
+    // Clicking a facet dispatches a custom event for the app router to handle
+    el.querySelectorAll('.facet').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        el.dispatchEvent(new CustomEvent('facet-click', {
+          bubbles: true,
+          detail: { section: btn.dataset.section },
+        }));
+      });
+    });
   }
 }

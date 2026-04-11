@@ -22,10 +22,9 @@ export function chunkIssue(
   if (!markdownBody) return chunks;
 
   // Split body into typed sections using the section parser
-  const sections = parseSections(markdownBody).map(s => ({
-    label: s.type,
-    text: s.body,
-  }));
+  const sections = parseSections(markdownBody)
+    .map(s => ({ label: s.type, text: s.body }))
+    .filter(s => s.text.trim().length > 0);
 
   for (const section of sections) {
     const sectionChunks = splitSectionIntoChunks(section.text);

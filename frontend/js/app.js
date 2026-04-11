@@ -59,6 +59,19 @@ function initSearchPage() {
     }
   });
 
+  // Clickable section facets
+  document.addEventListener('facet-click', function (e) {
+    var section = e.detail.section;
+    // Remove any existing section: filter from the query
+    var q = currentQuery.replace(/\s*section:\S+/g, '').trim();
+    q = q + ' section:' + section;
+    input.value = q;
+    currentQuery = q;
+    currentPage = 1;
+    updateUrl(q, 1);
+    performSearch(q, 1);
+  });
+
   window.addEventListener('popstate', function () {
     var p = new URLSearchParams(window.location.search);
     var q = p.get('q') || '';
