@@ -23,7 +23,7 @@
 // Keycap sequences: digit + U+FE0F + U+20E3 (e.g., 2️⃣)
 const KEYCAP_RE_SRC = '(?:[0-9#*]\uFE0F?\u20E3)';
 // Core emoji characters and modifiers
-const EMOJI_CHAR_SRC = '[\u200D\uFE00-\uFE0F\u20E3\u2600-\u27BF\u2B05-\u2B55\u2934-\u2935\u3030\u303D\u3297\u3299\\u{1F000}-\\u{1FFFF}\\u{E0020}-\\u{E007F}]';
+const EMOJI_CHAR_SRC = '[\u200D\uFE00-\uFE0F\u20E3\u2300-\u27BF\u2B05-\u2B55\u2934-\u2935\u3030\u303D\u3297\u3299\\u{1F000}-\\u{1FFFF}\\u{E0020}-\\u{E007F}]';
 
 const LEADING_EMOJI_RE = new RegExp(`^(?:${KEYCAP_RE_SRC}|${EMOJI_CHAR_SRC}|\\s)+`, 'u');
 
