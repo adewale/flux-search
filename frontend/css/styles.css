@@ -143,9 +143,10 @@ body {
 }
 
 .logo {
+  font-family: 'Lora', var(--font-body);
   font-size: var(--size-lg);
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   color: var(--text);
 }
 
