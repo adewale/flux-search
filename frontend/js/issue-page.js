@@ -2,13 +2,14 @@
 // Shows one section of an issue with navigation to other sections
 // and prev/next issue links.
 
-import { formatDate } from './lib/utils.js';
+import { formatDate, markdownToHtml } from './lib/utils.js';
 
 function renderMarkdown(md) {
-  // Use marked if available (loaded via CDN), fall back to basic rendering
+  // Use marked if available (loaded async from CDN), otherwise use the
+  // built-in converter which handles headings, bold, italic, links,
+  // blockquotes, and lists — good enough for graceful degradation.
   if (window.marked) return window.marked(md);
-  // Fallback: basic paragraph wrapping
-  return md.split('\n\n').map(function (p) { return '<p>' + p + '</p>'; }).join('');
+  return markdownToHtml(md);
 }
 
 var match = window.location.pathname.match(/\/issues\/issue\/(\d+)/);

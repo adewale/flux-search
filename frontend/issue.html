@@ -52,11 +52,17 @@
     </footer>
   </div>
 
-  <script type="module">
-    import { marked } from 'https://cdn.jsdelivr.net/npm/marked@18/lib/marked.esm.js';
-    window.marked = marked;
-    marked.setOptions({ breaks: false, gfm: true });
-  </script>
   <script type="module" src="/js/issue-page.js"></script>
+  <script type="module">
+    // Load marked from CDN asynchronously — page renders immediately with
+    // the built-in markdown fallback in issue-page.js. If marked arrives
+    // later it will be used for subsequent section tab clicks.
+    import('https://cdn.jsdelivr.net/npm/marked@18/lib/marked.esm.js')
+      .then(function (mod) {
+        window.marked = mod.marked;
+        mod.marked.setOptions({ breaks: false, gfm: true });
+      })
+      .catch(function () { /* degrade gracefully — built-in fallback handles it */ });
+  </script>
 </body>
 </html>

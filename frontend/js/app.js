@@ -23,6 +23,9 @@ function initSearchPage() {
 
   if (!form || !input) return;
 
+  var refineHints = document.getElementById('refine-hints');
+  var exampleQueries = document.querySelector('.example-queries');
+
   var currentQuery = '';
   var currentPage = 1;
   var pageSize = 20;
@@ -84,6 +87,31 @@ function initSearchPage() {
     else clearAll();
   });
 
+  // Example query buttons — fill search box and submit
+  document.querySelectorAll('.example-query').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var q = btn.getAttribute('data-query');
+      input.value = q;
+      currentQuery = q;
+      currentPage = 1;
+      updateUrl(q, 1);
+      performSearch(q, 1);
+    });
+  });
+
+  // Refine suggestion buttons — append operator to current query and submit
+  document.querySelectorAll('.refine-suggestion').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var appendText = btn.getAttribute('data-query-append');
+      var q = (currentQuery + ' ' + appendText).trim();
+      input.value = q;
+      currentQuery = q;
+      currentPage = 1;
+      updateUrl(q, 1);
+      performSearch(q, 1);
+    });
+  });
+
   async function performSearch(q, page) {
     loadingEl.hidden = false;
     clearAll();
@@ -98,6 +126,9 @@ function initSearchPage() {
 
       if (data.results && data.results.length > 0) {
         renderResults(resultsEl, resultsMeta, resultCount, invalidOps, filterChips, data);
+        // Show refine hints, hide example queries after results appear
+        if (refineHints) refineHints.hidden = false;
+        if (exampleQueries) exampleQueries.hidden = true;
         var totalPages = Math.ceil(data.total_hits / pageSize);
         if (totalPages > 1) {
           renderPagination(paginationEl, page, totalPages, function (newPage) {
@@ -121,6 +152,9 @@ function initSearchPage() {
   function clearAll() {
     clearResults(resultsEl, resultsMeta, filterChips, emptyState);
     if (paginationEl) paginationEl.hidden = true;
+    // Hide refine hints and restore example queries when clearing
+    if (refineHints) refineHints.hidden = true;
+    if (exampleQueries) exampleQueries.hidden = false;
     // Hide landing quote when searching
     var lq = document.getElementById('landing-quote');
     if (lq) lq.hidden = true;
