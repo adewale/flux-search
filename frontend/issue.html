@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Issue — FLUX Review Search</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <a href="/" class="logo-link">
+        <h1 class="logo">FLUX Review Search</h1>
+      </a>
+    </header>
+
+    <main>
+      <div id="issue-loading" class="loading">
+        <div class="spinner"></div>
+      </div>
+
+      <div id="issue-page" hidden>
+        <div class="issue-header">
+          <div class="issue-nav-top">
+            <a id="prev-link" href="#" class="nav-link" hidden>&larr; Prev</a>
+            <span id="issue-meta" class="issue-meta-line"></span>
+            <a id="next-link" href="#" class="nav-link" hidden>Next &rarr;</a>
+          </div>
+          <h1 id="issue-title" class="issue-page-title"></h1>
+          <blockquote id="issue-quote" class="issue-page-quote" hidden></blockquote>
+        </div>
+
+        <nav id="section-nav" class="section-nav"></nav>
+
+        <div id="section-content" class="section-content"></div>
+
+        <div class="issue-footer-actions">
+          <a id="substack-link" href="#" target="_blank" rel="noopener" class="btn-secondary">Read on Substack</a>
+        </div>
+      </div>
+
+      <div id="issue-error" class="empty-state" hidden>
+        <p>Issue not found.</p>
+        <a href="/">Back to search</a>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>Searching the complete archive of <a href="https://read.fluxcollective.org" target="_blank" rel="noopener">The FLUX Review</a></p>
+    </footer>
+  </div>
+
+  <script type="module" src="/js/issue-page.js"></script>
+</body>
+</html>

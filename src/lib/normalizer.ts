@@ -277,11 +277,14 @@ function isMetadataLine(line: string): boolean {
 function cleanContent(markdown: string): { cleanMarkdown: string; plainText: string } {
   let clean = markdown;
 
-  // Strip subscription prompts
+  // Strip subscription prompts and Substack boilerplate
   clean = clean.replace(/Subscribe\s+to\s+.+?newsletter/gi, '');
   clean = clean.replace(/Thanks?\s+for\s+reading.*/gi, '');
   clean = clean.replace(/Share\s+this\s+post/gi, '');
   clean = clean.replace(/Leave\s+a\s+comment/gi, '');
+  clean = clean.replace(/This newsletter is a collection of patterns.*?weeks\./gi, '');
+  clean = clean.replace(/Ready for more\?/gi, '');
+  clean = clean.replace(/SubscribeSign in/gi, '');
 
   // Strip navigation elements
   clean = clean.replace(/^\[.*?(Home|Archive|About|Subscribe).*?\]\(.*?\)\s*$/gm, '');

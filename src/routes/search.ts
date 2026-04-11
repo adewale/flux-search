@@ -83,8 +83,6 @@ searchRoutes.get('/search', async (c) => {
     results: paged.map(r => ({
       issue_id: r.issue.id,
       title: r.issue.title,
-      lead_essay_title: r.issue.lead_essay_title || null,
-      opening_quote: r.issue.opening_quote || null,
       issue_number: r.issue.issue_number,
       published_at: r.issue.published_at,
       snippet: r.snippet,

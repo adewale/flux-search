@@ -27,20 +27,23 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
     var snippet = cleanSnippet(r.snippet || '');
     var title = r.title || 'Untitled';
     var confidenceCls = r.confidence || 'medium';
-    var quote = r.opening_quote || '';
     var canonicalUrl = r.canonical_url || '';
-
     var sectionLabel = formatSectionLabel(r.snippet_section);
+    var isSemanticOnly = r.matched_by && r.matched_by.length === 1 && r.matched_by[0] === 'vector';
+
+    var issueUrl = r.issue_number
+      ? '/issues/issue/' + r.issue_number + (r.snippet_section ? '#' + r.snippet_section : '')
+      : escapeHtml(canonicalUrl);
 
     return '<div class="result-card confidence-' + confidenceCls + '">' +
-      '<a href="' + escapeHtml(canonicalUrl) + '" target="_blank" rel="noopener">' +
+      '<a href="' + issueUrl + '">' +
         '<div class="result-meta">' +
           (r.issue_number ? '<span class="result-number">#' + r.issue_number + '</span>' : '') +
           (dateStr ? '<span class="result-date">' + dateStr + '</span>' : '') +
           (sectionLabel ? '<span class="result-section">' + sectionLabel + '</span>' : '') +
+          (isSemanticOnly ? '<span class="result-semantic">related</span>' : '') +
         '</div>' +
         '<div class="result-title">' + escapeHtml(title) + '</div>' +
-        (quote ? '<p class="result-quote">' + escapeHtml(quote.length > 120 ? quote.slice(0, 120) + '...' : quote) + '</p>' : '') +
         (snippet ? '<p class="result-snippet">' + escapeHtmlPreserveMark(snippet) + '</p>' : '') +
       '</a>' +
     '</div>';
