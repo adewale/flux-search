@@ -209,17 +209,24 @@ function extractPublishDate(markdown: string, metadata?: Record<string, string>)
     return metadata['article:published_time'].split('T')[0];
   }
 
-  const dateMatch = markdown.match(/(\d{4}-\d{2}-\d{2})/);
-  if (dateMatch) {
-    const d = new Date(dateMatch[1]);
-    if (!isNaN(d.getTime())) return dateMatch[1];
+  // Try human-readable date FIRST (more reliable — appears in heading area, not URLs)
+  const humanMatch = markdown.match(/((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4})/i);
+  if (humanMatch) {
+    // Strip ordinal suffixes (5th → 5, 1st → 1) before parsing
+    const cleaned = humanMatch[1].replace(/(\d+)(?:st|nd|rd|th)/i, '$1');
+    const d = new Date(cleaned + ' UTC');
+    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
   }
 
-  const humanMatch = markdown.match(/((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2},?\s+\d{4})/i);
-  if (humanMatch) {
-    // Parse as UTC to avoid timezone shift
-    const d = new Date(humanMatch[1] + ' UTC');
-    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+  // ISO date fallback — only match standalone dates (not inside URLs)
+  // Match dates at line start or after whitespace, not after = or / (URL params)
+  const dateMatch = markdown.match(/(?:^|[\s])(\d{4}-\d{2}-\d{2})(?:\s|$)/m);
+  if (dateMatch) {
+    const d = new Date(dateMatch[1] + 'T00:00:00Z');
+    if (!isNaN(d.getTime())) {
+      const roundtrip = d.toISOString().split('T')[0];
+      if (roundtrip === dateMatch[1]) return dateMatch[1];
+    }
   }
 
   return null;
