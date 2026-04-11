@@ -9,7 +9,11 @@
     "db:migrate:local": "wrangler d1 migrations apply flux-search-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply flux-search-db --remote",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "corpus:fetch": "bash scripts/fetch-corpus.sh",
+    "corpus:process": "npx tsx scripts/process-corpus.ts",
+    "corpus:validate": "npx tsx scripts/validate-corpus.ts",
+    "corpus:pipeline": "npm run corpus:fetch && npm run corpus:process && npm run corpus:validate"
   },
   "dependencies": {
     "hono": "^4.7.0"

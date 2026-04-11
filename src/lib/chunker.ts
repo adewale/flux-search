@@ -36,11 +36,6 @@ export function chunkIssue(
   return chunks;
 }
 
-interface Section {
-  label: string;
-  text: string;
-}
-
 function splitSectionIntoChunks(text: string): string[] {
   if (text.length <= MAX_CHUNK_CHARS) {
     return [text];

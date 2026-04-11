@@ -384,15 +384,6 @@ body {
   background: var(--tag-bg);
 }
 
-.autocomplete-type {
-  font-family: var(--font-mono);
-  font-size: 0.5625rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-tertiary);
-  min-width: 3.5rem;
-}
-
 /* Filter chips */
 .filter-chips {
   display: flex;
@@ -609,7 +600,6 @@ body {
   font-weight: 300;
   color: var(--text-tertiary);
   letter-spacing: 0.02em;
-  letter-spacing: 0.02em;
 }
 
 .result-semantic {
@@ -683,11 +673,6 @@ body {
   border-radius: 2px;
 }
 
-/* Match indicators — minimal, Tufte "show the data not the frame" */
-.result-matched-by {
-  display: none;
-}
-
 /* Pagination */
 .pagination {
   display: flex;
@@ -719,49 +704,6 @@ body {
   color: var(--text-tertiary);
 }
 
-/* Issue detail page */
-.issue-detail {
-  padding: 0;
-}
-
-.issue-meta {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-}
-
-.issue-badge {
-  font-family: var(--font-mono);
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--text);
-}
-
-.issue-date {
-  font-size: 0.8125rem;
-  color: var(--text-tertiary);
-}
-
-.issue-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-  margin-bottom: 0.375rem;
-}
-
-.issue-subtitle {
-  font-size: 1rem;
-  color: var(--text-secondary);
-  margin-bottom: 1.5rem;
-  line-height: 1.5;
-}
-
-.issue-actions {
-  margin-bottom: 2rem;
-}
-
 .btn-secondary {
   display: inline-block;
   padding: 0.375rem 0.75rem;
@@ -776,66 +718,6 @@ body {
 .btn-secondary:hover {
   border-color: var(--accent);
   color: var(--accent);
-}
-
-.issue-body {
-  line-height: 1.75;
-  font-size: 0.9375rem;
-}
-
-.issue-body h2 {
-  font-size: 1.25rem;
-  margin: 1.75rem 0 0.5rem;
-  letter-spacing: -0.01em;
-}
-
-.issue-body h3 {
-  font-size: 1.0625rem;
-  margin: 1.25rem 0 0.375rem;
-}
-
-.issue-body p {
-  margin-bottom: 0.875rem;
-}
-
-.issue-body blockquote {
-  border-left: 2px solid var(--text-tertiary);
-  padding-left: 1rem;
-  color: var(--text-secondary);
-  margin: 1rem 0;
-  font-style: italic;
-}
-
-.issue-body a {
-  color: var(--accent);
-  text-decoration: underline;
-  text-decoration-color: rgba(37, 99, 235, 0.3);
-  text-underline-offset: 2px;
-}
-
-.issue-body a:hover {
-  text-decoration-color: var(--accent);
-}
-
-.issue-body ul, .issue-body ol {
-  margin: 0.875rem 0;
-  padding-left: 1.25rem;
-}
-
-.issue-body li {
-  margin-bottom: 0.25rem;
-}
-
-.word-count {
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
-  margin-top: 2rem;
-}
-
-.issue-footer {
-  border-top: 1px solid var(--border);
-  margin-top: 2rem;
-  padding-top: 0.75rem;
 }
 
 /* Issue section landing page */
@@ -941,9 +823,8 @@ body {
   left: 0.25rem;
   right: 0.25rem;
   height: 2px;
-  background: var(--accent);
   border-radius: 1px;
-  background: var(--tag-bg);
+  background: var(--accent);
 }
 
 .section-content {
@@ -954,15 +835,6 @@ body {
 @keyframes section-fade {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-.section-type-label {
-  font-family: var(--font-mono);
-  font-size: 0.625rem;
-  color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 0.25rem;
 }
 
 .section-heading {
@@ -1111,10 +983,6 @@ body {
 @media (max-width: 640px) and (orientation: portrait) {
   .container {
     padding: 1.5rem 1rem;
-  }
-
-  .issue-title {
-    font-size: 1.25rem;
   }
 
   .example-queries {

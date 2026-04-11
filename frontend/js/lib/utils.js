@@ -27,14 +27,6 @@ export function formatDate(dateStr) {
   }
 }
 
-// Strip Substack boilerplate from titles
-export function cleanTitle(title) {
-  return title
-    .replace(/^[\s\u200D\uFE00-\uFE0F\u20E3\u2600-\u27BF\u2B05-\u2B55\u{1F000}-\u{1FFFF}]+/u, '')
-    .replace(/\s*-\s*by\s+The\s+FLUX\s+Collective$/i, '')
-    .trim();
-}
-
 // Strip Substack metadata junk from snippets
 export function cleanSnippet(snippet) {
   return snippet

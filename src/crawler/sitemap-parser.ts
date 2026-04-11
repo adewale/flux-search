@@ -23,7 +23,10 @@ export async function discoverAllIssueUrls(): Promise<SitemapEntry[]> {
     const fetchPromises = subSitemapUrls.map(async (url) => {
       try {
         const resp = await fetch(url);
-        if (!resp.ok) return [];
+        if (!resp.ok) {
+          console.error(`Sub-sitemap fetch failed for ${url}: ${resp.status}`);
+          return [];
+        }
         return extractUrlEntries(await resp.text());
       } catch (err) {
         console.error(`Error fetching sitemap ${url}:`, err);

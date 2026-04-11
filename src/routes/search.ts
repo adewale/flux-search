@@ -85,10 +85,10 @@ searchRoutes.get('/search', async (c) => {
 
   // Section filter — post-ranking filter on snippet section
   if (parsed.filters.section) {
-    const sect = parsed.filters.section;
+    const sectionFilter = parsed.filters.section;
     ranked = ranked.filter(r =>
-      r.snippetSection === sect ||
-      r.debugMeta.top_chunk_section?.toLowerCase().includes(sect)
+      r.snippetSection === sectionFilter ||
+      r.debugMeta.top_chunk_section?.toLowerCase().includes(sectionFilter)
     );
   }
 

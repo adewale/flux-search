@@ -280,7 +280,6 @@ function isMetadataLine(line: string): boolean {
   return false;
 }
 
-
 function cleanContent(markdown: string): { cleanMarkdown: string; plainText: string } {
   let clean = markdown;
 
