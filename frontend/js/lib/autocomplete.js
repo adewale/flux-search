@@ -57,8 +57,7 @@ export function initAutocomplete(input, dropdownEl, { fetchSuggestions, onSelect
     activeIndex = -1;
     dropdownEl.innerHTML = items.map(function (item, i) {
       return '<div class="autocomplete-item" data-index="' + i + '">' +
-        '<span class="autocomplete-type">' + escapeHtml(item.type) + '</span>' +
-        '<span>' + escapeHtml(item.value) + '</span>' +
+        escapeHtml(item.value) +
         '</div>';
     }).join('');
     dropdownEl.hidden = false;

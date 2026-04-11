@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../env';
 import { parseQuery } from '../lib/query-parser';
-import { searchFts, autocompleteTerms, autocompleteTitles, autocompleteIssueNumbers, getIssueByNumber } from '../db/queries';
+import { searchFts, autocompleteWords, getIssueByNumber } from '../db/queries';
 import { searchVectorize } from '../lib/vector-search';
 import { rankResults, computeYearDistribution, computeSectionFacets } from '../lib/hybrid-ranker';
 
@@ -99,62 +99,17 @@ searchRoutes.get('/search', async (c) => {
 
 searchRoutes.get('/autocomplete', async (c) => {
   const q = c.req.query('q') || '';
-  if (q.length < 2) {
+  const lastToken = q.split(/\s+/).pop() || '';
+
+  if (lastToken.length < 2) {
     return c.json({ suggestions: [] });
   }
 
-  const suggestions: Array<{ type: string; value: string }> = [];
+  const words = await autocompleteWords(c.env.DB, lastToken.toLowerCase());
 
-  // Operator suggestions
-  const operatorPrefixes = ['before:', 'after:', 'year:', 'issue:', 'section:'];
-  const lastToken = q.split(/\s+/).pop() || '';
-  if (lastToken && !lastToken.includes(':')) {
-    for (const op of operatorPrefixes) {
-      if (op.startsWith(lastToken.toLowerCase())) {
-        suggestions.push({ type: 'operator', value: op });
-      }
-    }
-  }
-
-  // Issue number match
-  if (/^\d+$/.test(lastToken)) {
-    const nums = await autocompleteIssueNumbers(c.env.DB, lastToken);
-    for (const n of nums) {
-      suggestions.push({ type: 'issue', value: `issue:${n}` });
-    }
-  }
-
-  // Section type suggestions after section:
-  if (lastToken.startsWith('section:')) {
-    const partial = lastToken.slice(8).toLowerCase();
-    const sectionTypes = ['lead_essay', 'signposts', 'lens', 'book', 'postcard', 'worth_your_time', 'fluxers'];
-    for (const st of sectionTypes) {
-      if (st.startsWith(partial)) {
-        suggestions.push({ type: 'section', value: `section:${st}` });
-      }
-    }
-  }
-
-  // Title and term suggestions
-  if (lastToken.length >= 2 && !lastToken.includes(':')) {
-    const [titles, terms] = await Promise.all([
-      autocompleteTitles(c.env.DB, lastToken),
-      autocompleteTerms(c.env.DB, lastToken.toLowerCase()),
-    ]);
-
-    // Issue titles first — more useful than stems
-    for (const t of titles) {
-      const label = t.issue_number ? `#${t.issue_number}: ${t.title}` : t.title;
-      suggestions.push({ type: 'issue', value: label });
-    }
-
-    // Then corpus terms (full words where possible)
-    for (const term of terms) {
-      suggestions.push({ type: 'term', value: term });
-    }
-  }
-
-  return c.json({ suggestions: suggestions.slice(0, 15) });
+  return c.json({
+    suggestions: words.map(w => ({ type: 'word', value: w })),
+  });
 });
 
 export function buildFtsQuery(parsed: ReturnType<typeof parseQuery>): string {

@@ -228,46 +228,38 @@ export async function searchFts(
 
 // --- Autocomplete ---
 
-export async function autocompleteTerms(db: D1Database, prefix: string, limit: number = 10): Promise<string[]> {
+/**
+ * Autocomplete real words from issue titles and headings.
+ * Returns full words (not FTS5 stems) that start with the given prefix.
+ * Sources: title, lead_essay_title, headings columns.
+ */
+export async function autocompleteWords(db: D1Database, prefix: string, limit: number = 10): Promise<string[]> {
   if (!prefix || prefix.length < 2) return [];
 
+  // Pull title and heading text from all active issues
   const result = await db.prepare(`
-    SELECT DISTINCT term FROM issues_fts_vocab
-    WHERE term LIKE ? AND col != '*'
-    ORDER BY doc DESC
-    LIMIT ?
-  `).bind(prefix + '%', limit).all<{ term: string }>();
-
-  return result.results.map(r => r.term);
-}
-
-export async function autocompleteTitles(db: D1Database, prefix: string, limit: number = 5): Promise<Array<{ title: string; issue_number: number | null }>> {
-  if (!prefix || prefix.length < 2) return [];
-
-  const result = await db.prepare(`
-    SELECT title, lead_essay_title, issue_number FROM issues
+    SELECT title, lead_essay_title, headings, summary FROM issues
     WHERE status = 'active'
-      AND (title LIKE ? OR lead_essay_title LIKE ?)
-    ORDER BY published_at DESC
-    LIMIT ?
-  `).bind('%' + prefix + '%', '%' + prefix + '%', limit)
-    .all<{ title: string; lead_essay_title: string | null; issue_number: number | null }>();
+  `).all<{ title: string; lead_essay_title: string | null; headings: string | null; summary: string | null }>();
 
-  return result.results.map(r => ({
-    title: r.lead_essay_title || r.title,
-    issue_number: r.issue_number,
-  }));
-}
+  // Extract distinct words that match the prefix
+  const lowerPrefix = prefix.toLowerCase();
+  const wordSet = new Set<string>();
 
-export async function autocompleteIssueNumbers(db: D1Database, prefix: string, limit: number = 5): Promise<number[]> {
-  const result = await db.prepare(`
-    SELECT DISTINCT issue_number FROM issues
-    WHERE issue_number IS NOT NULL
-      AND CAST(issue_number AS TEXT) LIKE ?
-      AND status = 'active'
-    ORDER BY issue_number DESC
-    LIMIT ?
-  `).bind(prefix + '%', limit).all<{ issue_number: number }>();
+  for (const row of result.results) {
+    const texts = [row.title, row.lead_essay_title, row.headings, row.summary].filter(Boolean) as string[];
+    for (const text of texts) {
+      for (const word of text.split(/[\s|,]+/)) {
+        const clean = word.toLowerCase().replace(/[^a-z'-]/g, '');
+        if (clean.length >= 3 && clean.startsWith(lowerPrefix) && clean !== lowerPrefix) {
+          wordSet.add(clean);
+        }
+      }
+    }
+  }
 
-  return result.results.map(r => r.issue_number);
+  // Sort by length (shorter = more likely what they're typing), then alphabetically
+  return [...wordSet]
+    .sort((a, b) => a.length - b.length || a.localeCompare(b))
+    .slice(0, limit);
 }
