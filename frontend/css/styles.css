@@ -817,7 +817,8 @@ body {
 .footer {
   margin-top: auto;
   padding-top: 2rem;
-  font-size: 0.6875rem;
+  text-align: center;
+  font-size: var(--size-xs);
   color: var(--text-tertiary);
 }
 
@@ -827,6 +828,19 @@ body {
 }
 
 .footer a:hover {
+  color: var(--accent);
+}
+
+.footer-built {
+  margin-top: 0.25rem;
+  font-size: 0.625rem;
+}
+
+.footer-built a {
+  color: var(--text-tertiary);
+}
+
+.footer-built a:hover {
   color: var(--accent);
 }
 
