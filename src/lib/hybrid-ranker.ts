@@ -39,6 +39,11 @@ const BOOSTS = {
 const SNIPPET_LEN_TOP = 400;    // top 3 results
 const SNIPPET_LEN_DEFAULT = 150; // rest
 
+// Minimum cosine similarity for semantic-only results to be shown.
+// Below this, results are noise — the embedding matched weakly and
+// no lexical evidence corroborates the match.
+const SEMANTIC_MIN_SCORE = 0.75;
+
 export function rankResults(
   parsed: ParsedQuery,
   lexicalResults: FtsSearchResult[],
@@ -67,6 +72,11 @@ export function rankResults(
   for (const issueId of allIds) {
     const lexical = lexicalMap.get(issueId);
     const semantic = semanticMap.get(issueId);
+
+    // Filter out semantic-only results with weak scores (noise)
+    if (!lexical && semantic && semantic.topScore < SEMANTIC_MIN_SCORE) {
+      continue;
+    }
     const issue = lexical?.issue || semantic?.issue;
     if (!issue) continue;
 
@@ -141,6 +151,7 @@ export function rankResults(
         lexical_rank: lexical?.rank ?? null,
         semantic_rank: semantic?.rank ?? null,
         top_chunk_section: semantic?.topChunkSection ?? null,
+        semantic_score: semantic?.topScore ?? null,
         applied_boosts: appliedBoosts,
         applied_penalties: appliedPenalties,
         final_score: score,

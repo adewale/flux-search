@@ -259,7 +259,7 @@ describe('normalizePage properties', () => {
 // makeIssue, makeFtsResult, makeSemanticCandidate, defaultEnv imported from ./helpers
 
 describe('rankResults properties', () => {
-  it('output length equals unique issues from both inputs', () => {
+  it('output includes all lexical results and strong semantic results', () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 0, max: 10 }),
@@ -277,7 +277,10 @@ describe('rankResults properties', () => {
           const parsed = { freeText: 'test', phrases: [], filters: {}, operators: [] };
           const ranked = rankResults(parsed, lexical, semantic, defaultEnv);
 
-          expect(ranked.length).toBe(nLexical + nSemantic);
+          // All lexical results always included
+          expect(ranked.length).toBeGreaterThanOrEqual(nLexical);
+          // Weak semantic-only results may be filtered
+          expect(ranked.length).toBeLessThanOrEqual(nLexical + nSemantic);
         }
       ),
       { numRuns: 100 }
