@@ -515,14 +515,18 @@ body {
   animation: result-enter 0.25s ease-out both;
 }
 
-/* Section-type color stripes — visual rhythm of content types */
-.result-card[data-section="lead_essay"] { border-left-color: #d97706; }
-.result-card[data-section="signposts"] { border-left-color: #2563eb; }
-.result-card[data-section="lens"] { border-left-color: #059669; }
-.result-card[data-section="book"] { border-left-color: #7c3aed; }
-.result-card[data-section="postcard"] { border-left-color: #db2777; }
-.result-card[data-section="worth_your_time"] { border-left-color: #0891b2; }
-.result-card[data-section="fluxers"] { border-left-color: #ea580c; }
+/*
+ * Section-type color stripes — harmonious muted palette.
+ * All derived from oklch(65% 0.08 H) — same lightness and chroma,
+ * varying only hue. Low chroma keeps them subtle at 3px width.
+ */
+.result-card[data-section="lead_essay"] { border-left-color: oklch(65% 0.08 60); }
+.result-card[data-section="signposts"] { border-left-color: oklch(65% 0.08 240); }
+.result-card[data-section="lens"] { border-left-color: oklch(65% 0.08 160); }
+.result-card[data-section="book"] { border-left-color: oklch(65% 0.08 300); }
+.result-card[data-section="postcard"] { border-left-color: oklch(65% 0.08 340); }
+.result-card[data-section="worth_your_time"] { border-left-color: oklch(65% 0.08 200); }
+.result-card[data-section="fluxers"] { border-left-color: oklch(65% 0.08 30); }
 
 /* Staggered entrance — each card enters 40ms after the previous */
 .result-card:nth-child(1) { animation-delay: 0ms; }

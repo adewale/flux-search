@@ -99,11 +99,14 @@ function initSearchPage() {
     });
   });
 
-  // Refine suggestion buttons — append operator to current query and submit
+  // Refine suggestion buttons — append/replace operator in current query
   document.querySelectorAll('.refine-suggestion').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var appendText = btn.getAttribute('data-query-append');
-      var q = (currentQuery + ' ' + appendText).trim();
+      var key = appendText.split(':')[0];
+      // Remove existing instance of this operator type to prevent duplication
+      var cleaned = currentQuery.replace(new RegExp('\\b' + key + ':\\S+', 'g'), '').replace(/\s+/g, ' ').trim();
+      var q = (cleaned + ' ' + appendText).trim();
       input.value = q;
       currentQuery = q;
       currentPage = 1;
