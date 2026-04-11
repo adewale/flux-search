@@ -109,6 +109,10 @@ async function loadIssue(num, targetSection) {
 
 function renderSection(section) {
   var contentEl = document.getElementById('section-content');
+  // Re-trigger the CSS fade animation by removing and re-adding the element content
+  contentEl.style.animation = 'none';
+  contentEl.offsetHeight; // force reflow
+  contentEl.style.animation = '';
   var html = renderMarkdown(section.body);
   contentEl.innerHTML =
     '<div class="section-type-label">' + formatSectionType(section.type) + '</div>' +
