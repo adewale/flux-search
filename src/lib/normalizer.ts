@@ -326,8 +326,13 @@ function cleanContent(markdown: string): { cleanMarkdown: string; plainText: str
   plain = plain.replace(/#{1,6}\s+/g, '');
   plain = plain.replace(/[*_]{1,3}(.+?)[*_]{1,3}/g, '$1');
   plain = plain.replace(/`{1,3}[^`]*`{1,3}/g, '');
-  plain = plain.replace(/>\s+/g, '');
+  // Strip entire blockquote lines (opening quotes are already in opening_quote field)
+  plain = plain.replace(/^>.*$/gm, '');
+  // Strip attribution lines: — Author, ― Author, — Author
+  plain = plain.replace(/^[\u2014\u2015\u2012\u2013—―]\s+.*$/gm, '');
   plain = plain.replace(/[-*+]\s+/g, '');
+  // Strip leading emoji from each line (section heading emoji, signpost emoji)
+  plain = plain.split('\n').map(line => stripEmoji(line)).join('\n');
   plain = plain.replace(/\n{2,}/g, '\n');
   plain = plain.trim();
 
