@@ -81,6 +81,11 @@ export function parseQuery(raw: string): ParsedQuery {
   return { freeText, phrases, filters, operators };
 }
 
+export function isFilterOnly(parsed: ParsedQuery): boolean {
+  return !parsed.freeText.trim() && parsed.phrases.length === 0 &&
+    Object.keys(parsed.filters).length > 0;
+}
+
 function parseDate(value: string): string | null {
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     // Roundtrip through Date to reject impossible dates like Feb 30

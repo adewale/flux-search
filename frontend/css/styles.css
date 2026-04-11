@@ -45,8 +45,9 @@
   --text-secondary: #57534e;
   --text-tertiary: #a8a29e;
   --border: #e7e5e4;
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
+  --accent: #1c1917;
+  --accent-line: #d6d3d1;
+  --accent-hover: #b45309;
   --tag-bg: #f5f5f4;
   --radius: 8px;
   --max-width: 640px;
@@ -121,15 +122,7 @@ body {
   color: var(--accent);
 }
 
-/* Empty state quote */
-.empty-quote {
-  font-style: italic;
-  color: var(--text-secondary);
-  font-size: var(--size-sm);
-  border-left: 2px solid var(--text-tertiary);
-  padding-left: 0.75rem;
-  margin-bottom: 1rem;
-}
+/* Empty state — clear hierarchy: heading → guidance */
 
 /* Header — left-aligned per CRAP alignment principle */
 .header {
@@ -667,7 +660,9 @@ body {
 }
 
 .result-card a:hover .result-title {
-  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-line);
+  text-underline-offset: 3px;
 }
 
 /* Snippet — recedes behind title, per Tufte layering */
@@ -985,7 +980,13 @@ body {
   margin: 1rem 0;
   font-style: italic;
 }
-.section-body a { color: var(--accent); }
+.section-body a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-line);
+  text-underline-offset: 2px;
+}
+.section-body a:hover { text-decoration-color: var(--accent-hover); }
 .section-body ul, .section-body ol { margin: 0.875rem 0; padding-left: 1.25rem; }
 .section-body li { margin-bottom: 0.25rem; }
 
@@ -995,31 +996,47 @@ body {
   margin-top: 1rem;
 }
 
-/* Empty state */
+/* Empty state — clear hierarchy */
 .empty-state {
-  text-align: center;
-  padding: 3rem 1rem;
-  color: var(--text-tertiary);
-}
-
-.empty-state p {
-  font-size: 0.9375rem;
-  margin-bottom: 0.75rem;
-}
-
-.empty-state ul {
-  list-style: none;
-  font-size: 0.8125rem;
+  padding: 2rem 0;
   color: var(--text-secondary);
 }
 
-.empty-state li {
+.empty-heading {
+  font-size: var(--size-base);
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.empty-guidance {
+  font-size: var(--size-sm);
+  color: var(--text-tertiary);
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.empty-guidance p {
+  font-size: var(--size-xs);
+  font-weight: 500;
+  color: var(--text-tertiary);
+  margin-bottom: 0.375rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.empty-guidance ul {
+  list-style: none;
+  font-size: var(--size-sm);
+}
+
+.empty-guidance li {
   margin-bottom: 0.25rem;
 }
 
-.empty-state code {
+.empty-guidance code {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--size-xs);
 }
 
 /* Loading — spinner is hidden for 200ms so fast loads never flash it.

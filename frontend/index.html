@@ -84,13 +84,15 @@
       <div id="pagination" class="pagination" hidden></div>
 
       <div id="empty-state" class="empty-state" hidden>
-        <blockquote id="empty-quote" class="empty-quote" hidden></blockquote>
-        <p>No results found.</p>
-        <ul>
-          <li>Try removing a filter or broadening your date range</li>
-          <li>Try a different search term or phrase</li>
-          <li>Use <code>"quotes"</code> for exact phrase matching</li>
-        </ul>
+        <p class="empty-heading">No results found</p>
+        <div class="empty-guidance">
+          <p>Suggestions:</p>
+          <ul>
+            <li>Remove a filter or broaden your date range</li>
+            <li>Try a different search term</li>
+            <li>Use <code>"quotes"</code> for exact phrase matching</li>
+          </ul>
+        </div>
       </div>
 
       <div id="loading" class="loading" hidden>

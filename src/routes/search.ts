@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from '../env';
-import { parseQuery } from '../lib/query-parser';
-import { searchFts, autocompleteWords, getIssueByNumber } from '../db/queries';
+import { parseQuery, isFilterOnly } from '../lib/query-parser';
+import { searchFts, searchFilterOnly, autocompleteWords, getIssueByNumber } from '../db/queries';
 import { searchVectorize } from '../lib/vector-search';
 import { rankResults, computeYearDistribution, computeSectionFacets, detectSnippetSection } from '../lib/hybrid-ranker';
 import { parseSections } from '../lib/sections';
@@ -45,6 +45,31 @@ searchRoutes.get('/search', async (c) => {
         }],
       });
     }
+  }
+
+  // Filter-only queries (e.g. "before:2024") — no search terms, just filters
+  if (isFilterOnly(parsed)) {
+    const filterResults = await searchFilterOnly(c.env.DB, parsed.filters, limit);
+    const offset = (page - 1) * limit;
+
+    return c.json({
+      parsed_query: { free_text: parsed.freeText, phrases: parsed.phrases, filters: parsed.filters },
+      applied_filters: parsed.operators,
+      total_hits: filterResults.total,
+      year_distribution: {},
+      section_facets: {},
+      results: filterResults.issues.slice(offset, offset + limit).map(issue => ({
+        issue_id: issue.id,
+        title: issue.title,
+        issue_number: issue.issue_number,
+        published_at: issue.published_at,
+        snippet: issue.summary || '',
+        snippet_section: null,
+        confidence: 'medium',
+        canonical_url: issue.canonical_url || issue.source_url,
+        matched_by: ['filter'],
+      })),
+    });
   }
 
   // Run lexical and semantic search in parallel
