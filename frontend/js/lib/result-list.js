@@ -35,7 +35,8 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
       ? '/issues/issue/' + r.issue_number + (r.snippet_section ? '#' + r.snippet_section : '')
       : escapeHtml(canonicalUrl);
 
-    return '<div class="result-card confidence-' + confidenceCls + '">' +
+    return '<div class="result-card confidence-' + confidenceCls + '"' +
+      (r.snippet_section ? ' data-section="' + r.snippet_section + '"' : '') + '>' +
       '<a href="' + issueUrl + '">' +
         '<div class="result-meta">' +
           (r.issue_number ? '<span class="result-number">#' + r.issue_number + '</span>' : '') +

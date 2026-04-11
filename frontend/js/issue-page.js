@@ -28,7 +28,10 @@ async function loadIssue(num, targetSection) {
 
     // Meta line
     var meta = document.getElementById('issue-meta');
-    meta.textContent = '#' + data.issue_number + ' · ' + formatDate(data.published_at);
+    meta.textContent = formatDate(data.published_at);
+
+    // Oversized issue number
+    document.getElementById('issue-number-hero').textContent = '#' + data.issue_number;
 
     // Title
     document.getElementById('issue-title').textContent = data.title;

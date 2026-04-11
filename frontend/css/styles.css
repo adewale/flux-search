@@ -84,8 +84,9 @@ body {
 
 /* Landing quote — shown when no query, different every visit */
 .landing-quote {
-  margin-bottom: 1.5rem;
-  padding: 1rem 0;
+  margin-bottom: 2rem;
+  padding: 2rem 0;
+  text-align: center;
   animation: fade-in 0.6s ease-out;
 }
 
@@ -95,19 +96,23 @@ body {
 }
 
 .landing-quote blockquote {
-  font-size: var(--size-base);
+  font-size: var(--size-lg);
   font-style: italic;
   color: var(--text-secondary);
-  line-height: 1.6;
-  border-left: 2px solid var(--text-tertiary);
-  padding-left: 0.75rem;
-  margin: 0 0 0.5rem;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  border: none;
+  padding: 0;
+  margin: 0 auto 0.75rem;
+  max-width: 50ch;
 }
 
 .landing-quote-source {
+  font-family: var(--font-mono);
   font-size: var(--size-xs);
   color: var(--text-tertiary);
   text-decoration: none;
+  letter-spacing: 0.02em;
 }
 
 .landing-quote-source:hover {
@@ -374,10 +379,20 @@ body {
 }
 
 .result-card {
-  padding: 0.75rem 0;
+  padding: 0.75rem 0 0.75rem 0.5rem;
   border-bottom: 1px solid var(--border);
+  border-left: 3px solid transparent;
   animation: result-enter 0.25s ease-out both;
 }
+
+/* Section-type color stripes — visual rhythm of content types */
+.result-card[data-section="lead_essay"] { border-left-color: #d97706; }
+.result-card[data-section="signposts"] { border-left-color: #2563eb; }
+.result-card[data-section="lens"] { border-left-color: #059669; }
+.result-card[data-section="book"] { border-left-color: #7c3aed; }
+.result-card[data-section="postcard"] { border-left-color: #db2777; }
+.result-card[data-section="worth_your_time"] { border-left-color: #0891b2; }
+.result-card[data-section="fluxers"] { border-left-color: #ea580c; }
 
 /* Staggered entrance — each card enters 40ms after the previous */
 .result-card:nth-child(1) { animation-delay: 0ms; }
@@ -434,21 +449,27 @@ body {
 
 .result-number {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--size-xs);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   color: var(--text);
   letter-spacing: -0.02em;
 }
 
 .result-date {
-  font-size: 0.6875rem;
+  font-size: var(--size-xs);
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
+  letter-spacing: 0.02em;
 }
 
 .result-section {
   font-family: var(--font-mono);
-  font-size: 0.5625rem;
+  font-size: 0.625rem;
+  font-weight: 300;
   color: var(--text-tertiary);
+  letter-spacing: 0.02em;
   letter-spacing: 0.02em;
 }
 
@@ -488,10 +509,11 @@ body {
   color: var(--text-tertiary);
 }
 
-/* Title — strongest contrast, per CRAP */
+/* Title — strongest contrast via weight ratio */
 .result-title {
   font-size: var(--size-base);
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--text);
   line-height: 1.35;
   margin-bottom: 0.125rem;
@@ -677,6 +699,7 @@ body {
 /* Issue section landing page */
 .issue-header {
   margin-bottom: 1.5rem;
+  position: relative;
 }
 
 .issue-nav-top {
@@ -687,9 +710,10 @@ body {
 }
 
 .nav-link {
-  font-size: 0.75rem;
+  font-size: var(--size-xs);
   color: var(--accent);
   text-decoration: none;
+  letter-spacing: 0.02em;
 }
 
 .nav-link:hover {
@@ -698,15 +722,29 @@ body {
 
 .issue-meta-line {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--size-xs);
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
+  letter-spacing: 0.02em;
+}
+
+/* Oversized issue number — the page's identity */
+.issue-number-hero {
+  font-family: var(--font-mono);
+  font-size: 4rem;
+  font-weight: 200;
+  color: var(--border);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  margin-bottom: -0.5rem;
 }
 
 .issue-page-title {
   font-size: var(--size-xl);
   font-weight: 700;
   line-height: 1.25;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   margin-bottom: 0.5rem;
 }
 
@@ -787,8 +825,9 @@ body {
 }
 
 .section-body {
-  line-height: 1.75;
+  line-height: 1.85;
   font-size: var(--size-base);
+  max-width: 60ch;
 }
 
 .section-body p { margin-bottom: 0.875rem; }
