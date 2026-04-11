@@ -24,6 +24,12 @@
  *   Layering — typography weight creates depth, not boxes or backgrounds
  */
 
+/*
+ * Typography: intentional scale, not arbitrary sizes.
+ * Scale: 12 / 14 / 16 / 20 / 24 / 32 (major third, rounded)
+ * Body: 16px for readability. Measure: 60-70ch at --max-width.
+ * Mono: used for metadata, not content.
+ */
 :root {
   --bg: #fafaf9;
   --surface: #ffffff;
@@ -36,12 +42,23 @@
   --tag-bg: #f5f5f4;
   --radius: 8px;
   --max-width: 640px;
+
+  /* Type scale — major third */
+  --size-xs: 0.75rem;    /* 12px — metadata, labels */
+  --size-sm: 0.875rem;   /* 14px — secondary text, snippets */
+  --size-base: 1rem;     /* 16px — body text */
+  --size-lg: 1.25rem;    /* 20px — section headings */
+  --size-xl: 1.5rem;     /* 24px — page titles */
+  --size-2xl: 2rem;      /* 32px — hero (unused currently) */
+
+  /* Fonts — system stack with intentional fallbacks */
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "SF Mono", "Fira Code", "Fira Mono", Menlo, monospace;
 }
 
 body {
   font-family: var(--font);
+  font-size: var(--size-base);
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
@@ -55,6 +72,42 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* Landing quote — shown when no query, different every visit */
+.landing-quote {
+  margin-bottom: 1.5rem;
+  padding: 1rem 0;
+}
+
+.landing-quote blockquote {
+  font-size: var(--size-base);
+  font-style: italic;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  border-left: 2px solid var(--text-tertiary);
+  padding-left: 0.75rem;
+  margin: 0 0 0.5rem;
+}
+
+.landing-quote-source {
+  font-size: var(--size-xs);
+  color: var(--text-tertiary);
+  text-decoration: none;
+}
+
+.landing-quote-source:hover {
+  color: var(--accent);
+}
+
+/* Empty state quote */
+.empty-quote {
+  font-style: italic;
+  color: var(--text-secondary);
+  font-size: var(--size-sm);
+  border-left: 2px solid var(--text-tertiary);
+  padding-left: 0.75rem;
+  margin-bottom: 1rem;
 }
 
 /* Header — left-aligned per CRAP alignment principle */
@@ -94,7 +147,7 @@ body {
   padding: 0.625rem 0.75rem;
   padding-right: 2.5rem;
   font-family: var(--font);
-  font-size: 0.9375rem;
+  font-size: var(--size-base);
   border: 1.5px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
@@ -240,6 +293,12 @@ body {
 .density-svg path {
   fill: var(--accent);
   opacity: 0.18;
+  animation: density-reveal 0.4s ease-out;
+}
+
+@keyframes density-reveal {
+  from { opacity: 0; transform: scaleY(0); transform-origin: bottom; }
+  to { opacity: 0.18; transform: scaleY(1); }
 }
 
 .density-baseline {
@@ -396,7 +455,7 @@ body {
 
 /* Title — strongest contrast, per CRAP */
 .result-title {
-  font-size: 0.9375rem;
+  font-size: var(--size-base);
   font-weight: 600;
   color: var(--text);
   line-height: 1.35;
@@ -409,7 +468,7 @@ body {
 
 /* Snippet — recedes behind title, per Tufte layering */
 .result-snippet {
-  font-size: 0.8125rem;
+  font-size: var(--size-sm);
   color: var(--text-secondary);
   line-height: 1.5;
   display: -webkit-box;
@@ -609,7 +668,7 @@ body {
 }
 
 .issue-page-title {
-  font-size: 1.5rem;
+  font-size: var(--size-xl);
   font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.01em;
@@ -657,6 +716,12 @@ body {
 
 .section-content {
   margin-bottom: 2rem;
+  animation: section-fade 0.2s ease-out;
+}
+
+@keyframes section-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .section-type-label {
@@ -669,14 +734,14 @@ body {
 }
 
 .section-heading {
-  font-size: 1.25rem;
+  font-size: var(--size-lg);
   font-weight: 600;
   margin-bottom: 0.75rem;
 }
 
 .section-body {
   line-height: 1.75;
-  font-size: 0.9375rem;
+  font-size: var(--size-base);
 }
 
 .section-body p { margin-bottom: 0.875rem; }

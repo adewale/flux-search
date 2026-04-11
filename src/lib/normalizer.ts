@@ -289,8 +289,20 @@ function cleanContent(markdown: string): { cleanMarkdown: string; plainText: str
   // Strip navigation elements
   clean = clean.replace(/^\[.*?(Home|Archive|About|Subscribe).*?\]\(.*?\)\s*$/gm, '');
 
-  // Strip Substack image embeds: [](https://substackcdn.com/...) and ![...](https://substackcdn.com/...)
-  clean = clean.replace(/!?\[\]?\(https?:\/\/substackcdn\.com[^)]*\)/g, '');
+  // Strip Substack image embeds: ![alt](https://substackcdn.com/...) and [](https://substackcdn.com/...)
+  clean = clean.replace(/!?\[[^\]]*\]\(https?:\/\/substackcdn\.com[^)]*\)/g, '');
+  // Strip Bucketeer S3 image embeds: ![alt](https://bucketeer-...s3.amazonaws.com/...)
+  clean = clean.replace(/!?\[[^\]]*\]\(https?:\/\/bucketeer-[a-f0-9-]+\.s3\.amazonaws\.com[^)]*\)/g, '');
+  // Strip substack-post-media S3 image embeds
+  clean = clean.replace(/!?\[[^\]]*\]\(https?:\/\/substack-post-media\.s3\.amazonaws\.com[^)]*\)/g, '');
+
+  // Strip Substack profile/byline links: [Name](https://substack.com/@handle)
+  clean = clean.replace(/\[[^\]]*\]\(https?:\/\/substack\.com\/@[^)]*\)/g, '');
+
+  // Strip share/like counters: "612Share", "51Share", standalone or merged with dates
+  // Date+share merged: "May 03, 2024612Share" or "Jul 18, 20251111Share"
+  clean = clean.replace(/^(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2},?\s+\d{4})?\d+Share\s*$/gim, '');
+
   // Strip other empty markdown links [](url)
   clean = clean.replace(/\[\]\([^)]+\)/g, '');
 

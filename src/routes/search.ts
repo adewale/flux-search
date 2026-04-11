@@ -134,3 +134,22 @@ export function buildFtsQuery(parsed: ReturnType<typeof parseQuery>): string {
 
   return parts.join(' ');
 }
+
+// Random quote for the landing page empty state
+searchRoutes.get('/random-quote', async (c) => {
+  const result = await c.env.DB.prepare(`
+    SELECT issue_number, title, opening_quote, lead_essay_title
+    FROM issues
+    WHERE status = 'active' AND opening_quote IS NOT NULL AND opening_quote != ''
+    ORDER BY RANDOM()
+    LIMIT 1
+  `).first<{ issue_number: number; title: string; opening_quote: string; lead_essay_title: string | null }>();
+
+  if (!result) return c.json({ quote: null });
+
+  return c.json({
+    quote: result.opening_quote,
+    title: result.lead_essay_title || result.title,
+    issue_number: result.issue_number,
+  });
+});

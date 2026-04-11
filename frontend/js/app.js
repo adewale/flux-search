@@ -46,6 +46,9 @@ function initSearchPage() {
     input.value = initialQ;
     currentQuery = initialQ;
     performSearch(initialQ, 1);
+  } else {
+    // No query — show landing quote
+    loadLandingQuote();
   }
 
   form.addEventListener('submit', function (e) {
@@ -106,6 +109,7 @@ function initSearchPage() {
         }
       } else {
         emptyState.hidden = false;
+        loadEmptyStateQuote();
       }
     } catch (err) {
       loadingEl.hidden = true;
@@ -117,6 +121,9 @@ function initSearchPage() {
   function clearAll() {
     clearResults(resultsEl, resultsMeta, filterChips, emptyState);
     if (paginationEl) paginationEl.hidden = true;
+    // Hide landing quote when searching
+    var lq = document.getElementById('landing-quote');
+    if (lq) lq.hidden = true;
   }
 
   function updateUrl(q, page) {
@@ -125,5 +132,32 @@ function initSearchPage() {
     if (page > 1) url.searchParams.set('page', String(page));
     else url.searchParams.delete('page');
     history.pushState(null, '', url);
+  }
+
+  async function loadLandingQuote() {
+    try {
+      var resp = await fetch('/random-quote');
+      var data = await resp.json();
+      if (data.quote) {
+        var el = document.getElementById('landing-quote');
+        document.getElementById('landing-quote-text').textContent = data.quote;
+        var link = document.getElementById('landing-quote-link');
+        link.textContent = '#' + data.issue_number + ': ' + data.title;
+        link.href = '/issues/issue/' + data.issue_number;
+        el.hidden = false;
+      }
+    } catch (e) { /* silently degrade */ }
+  }
+
+  async function loadEmptyStateQuote() {
+    try {
+      var resp = await fetch('/random-quote');
+      var data = await resp.json();
+      if (data.quote) {
+        var el = document.getElementById('empty-quote');
+        el.textContent = data.quote;
+        el.hidden = false;
+      }
+    } catch (e) { /* silently degrade */ }
   }
 }

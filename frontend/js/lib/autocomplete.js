@@ -34,6 +34,9 @@ export function initAutocomplete(input, dropdownEl, { fetchSuggestions, onSelect
     } else if (e.key === 'Enter' && activeIndex >= 0) {
       e.preventDefault();
       select(suggestions[activeIndex]);
+    } else if (e.key === 'Tab' && suggestions.length > 0) {
+      e.preventDefault();
+      select(suggestions[activeIndex >= 0 ? activeIndex : 0]);
     } else if (e.key === 'Escape') {
       hide();
     }

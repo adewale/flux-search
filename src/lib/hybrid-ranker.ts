@@ -190,7 +190,7 @@ export function computeSectionFacets(results: Array<{ snippetSection: string | n
  */
 export function detectSnippetSection(
   snippet: string,
-  sections: Array<{ type: string; body: string }>
+  sections: Array<{ type: string; title?: string; body: string }>
 ): string | null {
   if (!snippet) return null;
 
@@ -210,12 +210,11 @@ export function detectSnippetSection(
   }
 
   // If the snippet matches the first section's title, it's from the lead essay
-  if (sections.length > 0 && sections[0].title.toLowerCase().includes(probe)) {
+  if (sections.length > 0 && sections[0].title?.toLowerCase().includes(probe)) {
     return sections[0].type;
   }
 
-  // Default: if we have sections, the first one is the most likely match
-  return sections.length > 0 ? sections[0].type : null;
+  return null;
 }
 
 // --- Density strip: year distribution ---

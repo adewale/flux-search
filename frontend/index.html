@@ -14,6 +14,11 @@
     </header>
 
     <main>
+      <div id="landing-quote" class="landing-quote" hidden>
+        <blockquote id="landing-quote-text"></blockquote>
+        <a id="landing-quote-link" href="#" class="landing-quote-source"></a>
+      </div>
+
       <div class="search-box">
         <form id="search-form" role="search">
           <div class="search-input-wrapper">
@@ -60,6 +65,7 @@
       <div id="pagination" class="pagination" hidden></div>
 
       <div id="empty-state" class="empty-state" hidden>
+        <blockquote id="empty-quote" class="empty-quote" hidden></blockquote>
         <p>No results found.</p>
         <ul>
           <li>Try removing a filter or broadening your date range</li>
