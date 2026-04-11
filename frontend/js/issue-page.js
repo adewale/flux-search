@@ -64,7 +64,7 @@ async function loadIssue(num, targetSection) {
     navEl.innerHTML = data.sections.map(function (s) {
       var isActive = targetSection ? s.type === targetSection : s === data.sections[0];
       return '<button class="section-tab' + (isActive ? ' active' : '') + '" data-type="' + s.type + '">' +
-        (s.title || formatSectionType(s.type)) +
+        formatSectionType(s.type) +
         '</button>';
     }).join('');
 
@@ -119,7 +119,6 @@ function renderSection(section) {
   contentEl.style.animation = '';
   var html = renderMarkdown(section.body);
   contentEl.innerHTML =
-    '<div class="section-type-label">' + formatSectionType(section.type) + '</div>' +
     (section.title ? '<h2 class="section-heading">' + section.title + '</h2>' : '') +
     '<div class="section-body">' + html + '</div>';
 }

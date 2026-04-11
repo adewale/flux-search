@@ -17,6 +17,7 @@ export interface DebugMeta {
   matched_by: string[];
   lexical_rank: number | null;
   semantic_rank: number | null;
+  semantic_score: number | null;
   top_chunk_section: string | null;
   applied_boosts: string[];
   applied_penalties: string[];
