@@ -101,12 +101,12 @@ body {
   padding: 2rem 0;
   text-align: center;
   min-height: 7rem;
-  animation: fade-in 0.6s ease-out;
+  animation: fade-in 0.8s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .landing-quote blockquote {
@@ -179,12 +179,13 @@ body {
   background: var(--surface);
   color: var(--text);
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
 #search-input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(28, 25, 23, 0.06);
+  transform: scaleX(1.01);
 }
 
 #search-input::placeholder {
@@ -243,6 +244,10 @@ body {
 .example-query:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.example-query:active {
+  transform: scale(0.96);
 }
 
 .example-sep {
@@ -522,7 +527,7 @@ body {
   padding: 0.75rem 0 0.75rem 0.5rem;
   border-bottom: 1px solid var(--border);
   border-left: 3px solid transparent;
-  animation: result-enter 0.25s ease-out both;
+  animation: result-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /*
@@ -647,6 +652,10 @@ body {
 .facet:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.facet:active {
+  transform: scale(0.96);
 }
 
 .facet-count {
@@ -825,12 +834,7 @@ body {
   background: var(--tag-bg);
 }
 
-.section-tab.active {
-  font-weight: 600;
-  color: var(--text);
-}
-
-.section-tab.active::after {
+.section-tab::after {
   content: '';
   position: absolute;
   bottom: -3px;
@@ -839,11 +843,22 @@ body {
   height: 2px;
   border-radius: 1px;
   background: var(--accent);
+  transform: scaleX(0);
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.section-tab.active {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.section-tab.active::after {
+  transform: scaleX(1);
 }
 
 .section-content {
   margin-bottom: 2rem;
-  animation: section-fade 0.2s ease-out;
+  animation: section-fade 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @keyframes section-fade {
