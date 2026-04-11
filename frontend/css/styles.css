@@ -71,8 +71,9 @@
   --size-3xs: 0.625rem;  /* 10px — tiny labels */
   --size-hero: 4rem;     /* 64px — issue number hero */
 
-  /* Fonts — system stack with intentional fallbacks */
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Fonts — Literata for editorial body, DM Sans for UI, mono for metadata */
+  --font-body: 'Literata', 'Georgia', serif;
+  --font: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: "SF Mono", "Fira Code", "Fira Mono", Menlo, monospace;
 }
 
@@ -110,7 +111,8 @@ body {
 }
 
 .landing-quote blockquote {
-  font-size: var(--size-lg);
+  font-family: var(--font-body);
+  font-size: clamp(1.125rem, 2.5vw, var(--size-xl));
   font-style: italic;
   color: var(--text-secondary);
   line-height: 1.5;
@@ -608,7 +610,7 @@ body {
 .result-date {
   font-size: var(--size-xs);
   font-weight: 300;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: oldstyle-nums;
   color: var(--text-tertiary);
   letter-spacing: 0.02em;
 }
@@ -680,6 +682,7 @@ body {
 
 /* Snippet — recedes behind title, per Tufte layering */
 .result-snippet {
+  font-family: var(--font-body);
   font-size: var(--size-sm);
   color: var(--text-secondary);
   line-height: 1.5;
@@ -782,26 +785,27 @@ body {
 
 /* Oversized issue number — the page's identity */
 .issue-number-hero {
-  font-family: var(--font-mono);
+  font-family: var(--font);
   font-size: var(--size-hero);
   font-weight: 200;
   color: var(--border);
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
   margin-top: 0.25rem;
   margin-bottom: -0.25rem;
 }
 
 .issue-page-title {
-  font-size: var(--size-xl);
+  font-size: clamp(var(--size-lg), 3vw, var(--size-2xl));
   font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: -0.02em;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
   margin-bottom: 0.5rem;
 }
 
 .issue-page-quote {
-  font-size: 0.875rem;
+  font-family: var(--font-body);
+  font-size: var(--size-sm);
   font-style: italic;
   color: var(--text-secondary);
   border-left: 2px solid var(--text-tertiary);
@@ -873,6 +877,7 @@ body {
 }
 
 .section-body {
+  font-family: var(--font-body);
   line-height: 1.85;
   font-size: var(--size-base);
   max-width: 60ch;
