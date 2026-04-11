@@ -31,13 +31,45 @@ There is no separate pre-Substack archive. The original spec assumed one existed
 
 ## Issue structure
 
-Each FLUX Review issue has an intrinsic structure:
+The FLUX Review has published 234 issues since May 2021. The format evolved over time but settled into a consistent template by approximately issue #4.
 
-1. **Opening quote** — a blockquote before the first heading
-2. **Lead essay** — the first `##` section, with its own title (e.g., "Just enough structure", "Navigating the symmetry of trust")
-3. **Recurring sections** — Signposts (~80%), Worth your time (~60%), Lens of the week (~70%), More from FLUXers (~30%), Postcard from the future (~25%), Book for your shelf (~30%)
+### Header block (every issue)
 
-The lead essay title is used as the display title in search results. The Substack template title ("🌀🗞 The FLUX Review, Ep. N - by The FLUX Collective") is cleaned at ingestion time.
+```
+[site navigation]
+# 🌀🗞 The FLUX Review, Ep. N      ← Substack template title (not useful)
+### Date                             ← human-readable publish date
+[byline, share count, image]
+> "Opening quote..."                 ← blockquote, present in every issue
+— Attribution
+```
+
+The Substack template title is stripped at ingestion. The opening quote and its attribution are extracted as `opening_quote`.
+
+### Lead essay (issues #4+, ~98% of issues)
+
+The first `## ` heading after the header block. This is the unique intellectual content of the issue — a 3-5 paragraph argument about a concept (e.g., "Just enough structure", "The disappearing problem", "Navigating the symmetry of trust").
+
+The lead essay title is used as the display title in search results. Issues #1-3 lack a lead essay (they were Signposts-only); for these, the cleaned Substack title is used as a fallback.
+
+### Recurring sections
+
+These are the columns that recur across issues. Each has an emoji prefix and a consistent name.
+
+| Section | Frequency | Emoji | Content |
+|---|---|---|---|
+| **Signposts** | ~94% (47/50 sampled) | 🛣️🚩 | Curated links to news/articles with brief commentary |
+| **Lens of the week** | ~94% (47/50 sampled) | 🔍 or 🕵️‍♀️📆 | A mental model or framework for thinking |
+| **Book for your shelf** | ~90% (45/50 sampled) | 📚🌲 | Book recommendation with review |
+| **Postcard from the future** | ~80% (40/50 sampled) | 🔮📬 | Speculative fiction vignette |
+| **Worth your time** | ~66% (33/50 sampled) | 📖⏳ | Additional reading/watching/listening |
+| **More from FLUXers** | ~30% (15/50 sampled) | 🌀🖋 | Writing by FLUX Collective members |
+
+Special issues break the pattern: #3 is a book review, #80 is a year-in-review, #100 is a retrospective.
+
+### What this means for search
+
+A search result card shows: **lead essay title** (what the issue is about), **opening quote** (the issue's voice), and **highlighted snippet** (where the query matched). No separate "summary" field — the snippet does both jobs. The lead essay title is indexed at title weight (16.0) in FTS5, making it the strongest signal for relevance.
 
 ## Search operators
 
