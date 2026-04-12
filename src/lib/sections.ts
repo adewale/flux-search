@@ -16,6 +16,7 @@ export const SECTION_TYPES = [
   'book',
   'postcard',
   'fluxers',
+  'title_summary', // chunk-level: title + summary as first chunk
   'other',
 ] as const;
 

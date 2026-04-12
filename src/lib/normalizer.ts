@@ -328,11 +328,8 @@ function cleanContent(markdown: string): { cleanMarkdown: string; plainText: str
   clean = clean.replace(/This newsletter is a collection of patterns.*?weeks\./gi, '');
   clean = clean.replace(/Ready for more\?/gi, '');
   clean = clean.replace(/SubscribeSign in/gi, '');
-  // Standalone Subscribe lines (but not "subscribe to the idea" in prose)
-  // Handles Subscribe, Subscribe*, and Subscribe with surrounding whitespace
-  clean = clean.replace(/^\s*Subscribe\*?\s*$/gm, '');
-  // Subscribe* at end of text (may not have trailing newline)
-  clean = clean.replace(/\nSubscribe\*?\s*$/gi, '');
+  // Note: standalone "Subscribe" lines are stripped at the end of the pipeline,
+  // after all other stripping exposes them. See "Final Subscribe cleanup" below.
 
   // --- Substack footer boilerplate ---
   clean = clean.replace(/Privacy\s*[∙·•]\s*Terms\s*[∙·•]\s*Collection notice/gi, '');
@@ -398,8 +395,11 @@ function cleanContent(markdown: string): { cleanMarkdown: string; plainText: str
   // may now be line-anchored. Catch them here.
   clean = clean.replace(/^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2},?\s*\[.*?\].*$/gm, '');
 
-  // Final Subscribe cleanup — catches lines exposed by earlier stripping
+  // Final Subscribe cleanup — single pass after all other stripping.
+  // Catches standalone "Subscribe" and "Subscribe*" lines that only appear
+  // after profile links, engagement widgets, and footer are removed.
   clean = clean.replace(/^\s*Subscribe\*?\s*$/gm, '');
+  clean = clean.replace(/\nSubscribe\*?\s*$/gi, '');
 
   // Normalize whitespace
   clean = clean.replace(/\n{3,}/g, '\n\n');

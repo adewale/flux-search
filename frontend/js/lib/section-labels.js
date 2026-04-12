@@ -6,7 +6,6 @@ export var SECTION_LABELS = {
   book: 'Book',
   postcard: 'Postcard from the future',
   fluxers: 'More from FLUXers',
-  body: 'Body',
   title_summary: 'Title',
   other: 'Other',
 };

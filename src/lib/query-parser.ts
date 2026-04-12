@@ -14,7 +14,7 @@ const VALID_OPERATORS = new Set([
 ]);
 
 const VALID_SECTIONS = new Set([
-  'lead_essay', 'signposts', 'worth_your_time', 'lens', 'book', 'postcard', 'fluxers',
+  'lead_essay', 'signposts', 'worth_your_time', 'lens', 'book', 'postcard', 'fluxers', 'other',
 ]);
 
 export function parseQuery(raw: string): ParsedQuery {

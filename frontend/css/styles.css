@@ -84,6 +84,16 @@
   /* Tracking */
   --tracking-tight: -0.02em;
   --tracking-open: 0.02em;
+
+  /* Section colors — oklch(65% 0.08 H), varying only hue */
+  --section-lead-essay: oklch(65% 0.08 60);
+  --section-signposts: oklch(65% 0.08 240);
+  --section-lens: oklch(65% 0.08 160);
+  --section-book: oklch(65% 0.08 300);
+  --section-postcard: oklch(65% 0.08 340);
+  --section-worth-your-time: oklch(65% 0.08 200);
+  --section-fluxers: oklch(65% 0.08 30);
+  --section-other: var(--text-tertiary);
 }
 
 body {
@@ -526,15 +536,15 @@ body {
   animation: density-reveal 0.4s ease-out;
 }
 
-.density-section-lead_essay { fill: oklch(65% 0.08 60); }
-.density-section-signposts { fill: oklch(65% 0.08 240); }
-.density-section-lens { fill: oklch(65% 0.08 160); }
-.density-section-book { fill: oklch(65% 0.08 300); }
-.density-section-postcard { fill: oklch(65% 0.08 340); }
-.density-section-worth_your_time { fill: oklch(65% 0.08 200); }
-.density-section-fluxers { fill: oklch(65% 0.08 30); }
-.density-section-title_summary { fill: oklch(65% 0.08 60); }
-.density-section-other { fill: var(--text-tertiary); }
+.density-section-lead_essay { fill: var(--section-lead-essay); }
+.density-section-signposts { fill: var(--section-signposts); }
+.density-section-lens { fill: var(--section-lens); }
+.density-section-book { fill: var(--section-book); }
+.density-section-postcard { fill: var(--section-postcard); }
+.density-section-worth_your_time { fill: var(--section-worth-your-time); }
+.density-section-fluxers { fill: var(--section-fluxers); }
+.density-section-title_summary { fill: var(--section-lead-essay); }
+.density-section-other { fill: var(--section-other); }
 
 /* Year labels rendered inside the SVG at baseline */
 .density-year-text {
@@ -616,13 +626,13 @@ body {
  * All derived from oklch(65% 0.08 H) — same lightness and chroma,
  * varying only hue. Low chroma keeps them subtle at 3px width.
  */
-.result-card[data-section="lead_essay"] { border-left-color: oklch(65% 0.08 60); }
-.result-card[data-section="signposts"] { border-left-color: oklch(65% 0.08 240); }
-.result-card[data-section="lens"] { border-left-color: oklch(65% 0.08 160); }
-.result-card[data-section="book"] { border-left-color: oklch(65% 0.08 300); }
-.result-card[data-section="postcard"] { border-left-color: oklch(65% 0.08 340); }
-.result-card[data-section="worth_your_time"] { border-left-color: oklch(65% 0.08 200); }
-.result-card[data-section="fluxers"] { border-left-color: oklch(65% 0.08 30); }
+.result-card[data-section="lead_essay"] { border-left-color: var(--section-lead-essay); }
+.result-card[data-section="signposts"] { border-left-color: var(--section-signposts); }
+.result-card[data-section="lens"] { border-left-color: var(--section-lens); }
+.result-card[data-section="book"] { border-left-color: var(--section-book); }
+.result-card[data-section="postcard"] { border-left-color: var(--section-postcard); }
+.result-card[data-section="worth_your_time"] { border-left-color: var(--section-worth-your-time); }
+.result-card[data-section="fluxers"] { border-left-color: var(--section-fluxers); }
 
 /* Staggered entrance — each card enters 40ms after the previous */
 .result-card:nth-child(1) { animation-delay: 0ms; }
