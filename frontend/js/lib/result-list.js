@@ -104,7 +104,8 @@ var LANDMARKS = [
 ];
 
 function renderDensityStrip(dist) {
-  var el = document.getElementById('density-strip');
+  var panel = document.getElementById('density-strip');
+  var el = document.getElementById('density-content') || panel;
   if (!el) return;
 
   var W = 300;
@@ -144,7 +145,7 @@ function renderDensityStrip(dist) {
   el.querySelector('svg').setAttribute('aria-label',
     data.bars.map(function (b) { return b.key + ': ' + b.count; }).join(', '));
 
-  el.hidden = false;
+  if (panel) panel.hidden = false;
 }
 
 

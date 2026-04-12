@@ -487,6 +487,25 @@ body {
   contain: layout style;
 }
 
+.density-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+}
+
+.density-panel-header {
+  margin-bottom: 0.375rem;
+}
+
+.density-panel-title {
+  font-size: var(--size-sm);
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: var(--tracking-open);
+  text-transform: uppercase;
+}
+
 .density-chart {
   position: relative;
 }
