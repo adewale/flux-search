@@ -170,7 +170,7 @@ export async function updateCrawlRun(db: D1Database, id: string, updates: Partia
 export async function searchFilterOnly(
   db: D1Database,
   filters: SearchFilters,
-  limit: number = 50
+  limit: number = 500
 ): Promise<{ total: number; issues: IssueRow[] }> {
   let countSql = 'SELECT COUNT(*) as count FROM issues WHERE status = ?';
   let sql = 'SELECT * FROM issues WHERE status = ?';

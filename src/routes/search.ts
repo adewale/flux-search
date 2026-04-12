@@ -29,16 +29,38 @@ searchRoutes.get('/search', async (c) => {
   if (parsed.filters.issueNumber && !parsed.freeText.trim() && parsed.phrases.length === 0) {
     const issue = await getIssueByNumber(c.env.DB, parsed.filters.issueNumber);
     if (issue) {
+      // Detect section from summary snippet
+      let snippetSection: string | null = null;
+      if (issue.full_text_markdown) {
+        const sections = parseSections(issue.full_text_markdown);
+        if (sections.length > 0) snippetSection = sections[0].type;
+      }
+
+      const yearDist: Record<number, number> = {};
+      if (issue.year) yearDist[issue.year] = 1;
+
+      const qKey = issue.published_at
+        ? new Date(issue.published_at + 'T00:00:00Z').getUTCFullYear() + '-Q' +
+          (Math.floor(new Date(issue.published_at + 'T00:00:00Z').getUTCMonth() / 3) + 1)
+        : null;
+      const quarterDist: Record<string, Record<string, number>> = {};
+      if (qKey) quarterDist[qKey] = { [snippetSection || 'other']: 1 };
+
       return c.json({
         parsed_query: parsed,
         applied_filters: parsed.operators,
         total_hits: 1,
+        year_distribution: yearDist,
+        quarter_distribution: quarterDist,
+        section_facets: { [snippetSection || 'other']: 1 },
         results: [{
           issue_id: issue.id,
           title: issue.title,
           issue_number: issue.issue_number,
           published_at: issue.published_at,
           snippet: issue.summary || '',
+          snippet_section: snippetSection,
+          confidence: 'high',
           canonical_url: issue.canonical_url || issue.source_url,
           matched_by: ['issue_number'],
           ...(debug ? { debug: { final_score: 10, lexical_rank: null, semantic_rank: null } } : {}),
@@ -49,22 +71,50 @@ searchRoutes.get('/search', async (c) => {
 
   // Filter-only queries (e.g. "before:2024") — no search terms, just filters
   if (isFilterOnly(parsed)) {
-    const filterResults = await searchFilterOnly(c.env.DB, parsed.filters, limit);
+    const filterResults = await searchFilterOnly(c.env.DB, parsed.filters);
+
+    // Detect sections and compute aggregates for all filter results
+    const withSections = filterResults.issues.map(issue => {
+      let snippetSection: string | null = null;
+      if (issue.full_text_markdown) {
+        const sections = parseSections(issue.full_text_markdown);
+        if (sections.length > 0) snippetSection = sections[0].type;
+      }
+      return { issue, snippetSection };
+    });
+
+    const yearDist: Record<number, number> = {};
+    const quarterSectionDist: Record<string, Record<string, number>> = {};
+    const sectionFacets: Record<string, number> = {};
+
+    for (const { issue, snippetSection } of withSections) {
+      const section = snippetSection || 'other';
+      sectionFacets[section] = (sectionFacets[section] || 0) + 1;
+      if (issue.year) yearDist[issue.year] = (yearDist[issue.year] || 0) + 1;
+      if (issue.published_at) {
+        const d = new Date(issue.published_at + 'T00:00:00Z');
+        const qKey = d.getUTCFullYear() + '-Q' + (Math.floor(d.getUTCMonth() / 3) + 1);
+        if (!quarterSectionDist[qKey]) quarterSectionDist[qKey] = {};
+        quarterSectionDist[qKey][section] = (quarterSectionDist[qKey][section] || 0) + 1;
+      }
+    }
+
     const offset = (page - 1) * limit;
 
     return c.json({
       parsed_query: { free_text: parsed.freeText, phrases: parsed.phrases, filters: parsed.filters },
       applied_filters: parsed.operators,
       total_hits: filterResults.total,
-      year_distribution: {},
-      section_facets: {},
-      results: filterResults.issues.slice(offset, offset + limit).map(issue => ({
+      year_distribution: yearDist,
+      quarter_distribution: quarterSectionDist,
+      section_facets: sectionFacets,
+      results: withSections.slice(offset, offset + limit).map(({ issue, snippetSection }) => ({
         issue_id: issue.id,
         title: issue.title,
         issue_number: issue.issue_number,
         published_at: issue.published_at,
         snippet: issue.summary || '',
-        snippet_section: null,
+        snippet_section: snippetSection,
         confidence: 'medium',
         canonical_url: issue.canonical_url || issue.source_url,
         matched_by: ['filter'],
