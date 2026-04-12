@@ -261,7 +261,6 @@ body {
 
 /* Example queries — clickable landing invitations */
 .example-queries {
-  margin-top: 0.5rem;
   font-size: var(--size-sm);
   color: var(--text-tertiary);
   display: flex;
@@ -305,7 +304,6 @@ body {
 
 /* Refine hints — shown after results appear */
 .refine-hints {
-  margin-top: 0.375rem;
   font-size: var(--size-sm);
   color: var(--text-tertiary);
   display: flex;
@@ -336,53 +334,19 @@ body {
   color: var(--accent);
 }
 
-/* Search tips — standalone version (shown before results, hidden after) */
-.search-tips {
-  margin-top: 0.5rem;
-}
-
-.search-tips summary {
-  font-size: var(--size-sm);
-  color: var(--text-tertiary);
-  cursor: pointer;
-  user-select: none;
-  list-style: none;
-  display: inline-flex;
-  align-items: center;
+/* Sub-row beneath the search input: holds example queries OR refine hints, plus the ? icon */
+.search-sub-row {
+  display: flex;
+  align-items: flex-start;
   gap: 0.25rem;
-}
-
-.search-tips summary::-webkit-details-marker {
-  display: none;
-}
-
-.search-tips summary::before {
-  content: "?";
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1rem;
-  height: 1rem;
-  font-size: var(--size-sm);
-  font-weight: 600;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  color: var(--text-tertiary);
-  flex-shrink: 0;
-}
-
-.search-tips[open] summary::before {
-  background: var(--tag-bg);
-}
-
-.search-tips summary:hover {
-  color: var(--text-secondary);
-}
-
-/* Inline search tips — ? icon right-aligned on the refine hints row */
-.search-tips-inline {
-  margin-left: auto;
+  margin-top: 0.5rem;
   position: relative;
+}
+
+/* Search tips — single ? icon, always right-aligned in the sub-row */
+.search-tips {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .search-tips-trigger {
@@ -399,7 +363,7 @@ body {
   cursor: pointer;
   user-select: none;
   list-style: none;
-  transition: border-color 0.15s, color 0.15s;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 
 .search-tips-trigger::-webkit-details-marker {
@@ -411,27 +375,33 @@ body {
   color: var(--accent);
 }
 
-.search-tips-inline[open] .search-tips-trigger {
+.search-tips[open] .search-tips-trigger {
   background: var(--tag-bg);
+  border-color: var(--text-tertiary);
 }
 
-.search-tips-inline .search-tips-panel {
-  position: absolute;
-  right: 0;
-  top: 1.75rem;
-  z-index: 10;
-  min-width: 280px;
-  box-shadow: 0 4px 12px var(--shadow);
-  border: 1px solid var(--border);
-}
-
+/* Tips panel: renders inline below the sub-row, full width, with smooth reveal */
 .search-tips-panel {
   margin-top: 0.375rem;
   padding: 0.5rem 0.625rem;
   background: var(--tag-bg);
   border-radius: var(--radius-sm);
   font-size: var(--size-sm);
+  /* Full width: break out of the flex item and span the search-sub-row */
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 10;
+  animation: tips-reveal 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+@keyframes tips-reveal {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* (position: relative is on .search-sub-row above for panel anchoring) */
 
 .tips-list {
   display: flex;

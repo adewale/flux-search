@@ -46,22 +46,24 @@
             <div id="autocomplete-dropdown" class="autocomplete-dropdown" hidden></div>
           </div>
         </form>
-        <div class="example-queries">
-          <span class="example-queries-label">Try:</span>
-          <button class="example-query" data-query="&quot;institutional trust&quot;">"institutional trust"</button>
-          <span class="example-sep" aria-hidden="true">&middot;</span>
-          <button class="example-query" data-query="before:2024">before:2024</button>
-          <span class="example-sep" aria-hidden="true">&middot;</span>
-          <button class="example-query" data-query="issue:198">issue:198</button>
-          <span class="example-sep" aria-hidden="true">&middot;</span>
-          <button class="example-query" data-query="section:lens">section:lens</button>
-        </div>
-        <div id="refine-hints" class="refine-hints" hidden>
-          <span class="refine-label">Refine:</span>
-          <button class="refine-suggestion" data-query-append="section:lead_essay">section:lead_essay</button>
-          <button class="refine-suggestion" data-query-append="year:2023">year:2023</button>
-          <button class="refine-suggestion" data-query-append="&quot;exact phrase&quot;">"exact phrase"</button>
-          <details class="search-tips-inline">
+        <div class="search-sub-row">
+          <div class="example-queries">
+            <span class="example-queries-label">Try:</span>
+            <button class="example-query" data-query="&quot;institutional trust&quot;">"institutional trust"</button>
+            <span class="example-sep" aria-hidden="true">&middot;</span>
+            <button class="example-query" data-query="before:2024">before:2024</button>
+            <span class="example-sep" aria-hidden="true">&middot;</span>
+            <button class="example-query" data-query="issue:198">issue:198</button>
+            <span class="example-sep" aria-hidden="true">&middot;</span>
+            <button class="example-query" data-query="section:lens">section:lens</button>
+          </div>
+          <div id="refine-hints" class="refine-hints" hidden>
+            <span class="refine-label">Refine:</span>
+            <button class="refine-suggestion" data-query-append="section:lead_essay">section:lead_essay</button>
+            <button class="refine-suggestion" data-query-append="year:2023">year:2023</button>
+            <button class="refine-suggestion" data-query-append="&quot;exact phrase&quot;">"exact phrase"</button>
+          </div>
+          <details class="search-tips">
             <summary class="search-tips-trigger" aria-label="Search tips">?</summary>
             <div class="search-tips-panel">
               <dl class="tips-list">
@@ -74,18 +76,6 @@
             </div>
           </details>
         </div>
-        <details class="search-tips">
-          <summary>Search tips</summary>
-          <div class="search-tips-panel">
-            <dl class="tips-list">
-              <div class="tip-row"><dt><code>"exact phrase"</code></dt><dd>Find exact text matches</dd></div>
-              <div class="tip-row"><dt><code>before:YYYY-MM-DD</code> / <code>after:YYYY-MM-DD</code></dt><dd>Filter by date</dd></div>
-              <div class="tip-row"><dt><code>year:YYYY</code></dt><dd>Show issues from a specific year</dd></div>
-              <div class="tip-row"><dt><code>issue:NUMBER</code></dt><dd>Jump to a specific issue</dd></div>
-              <div class="tip-row"><dt><code>section:TYPE</code></dt><dd>Filter by section (lead_essay, signposts, lens, book, postcard, worth_your_time)</dd></div>
-            </dl>
-          </div>
-        </details>
       </div>
 
       <div id="filter-chips" class="filter-chips" hidden></div>
