@@ -27,6 +27,11 @@ const CRUD_PATTERNS = [
   { name: 'Liked by', pattern: /Liked by\s+\w/i },
   { name: 'Empty heading', pattern: /^#{1,6}\s*$/m },
   { name: 'Episode N dateline', pattern: /^Episode\s+\d+\s*[-–—]/m },
+  { name: 'FLUX Review site header', pattern: /^The FLUX Review$/m },
+  { name: 'FLUX Review Ep. line', pattern: /The FLUX Review,?\s*Ep\.\s*\d+/i },
+  { name: 'Photo credit', pattern: /\/\/\s*Photo:/i },
+  { name: 'FCP image prompt', pattern: /FCP-\d+/i },
+  { name: 'Byline orphan commas', pattern: /^[,\s]+and\s+\d+\s+others/m },
 ];
 
 describe('corpus crud validation', () => {

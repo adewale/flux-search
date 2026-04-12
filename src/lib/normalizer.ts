@@ -293,6 +293,21 @@ function isMetadataLine(line: string): boolean {
 function cleanContent(markdown: string): { cleanMarkdown: string; plainText: string } {
   let clean = markdown;
 
+  // --- Site header and episode title ---
+  // Raw format: "[](/)# [🌀🗞 The FLUX Review](/)" or "# [🌀🗞 The FLUX Review](/)"
+  clean = clean.replace(/^.*FLUX Review.*?\]\(\/\)\s*$/gm, '');
+  // "- SubscribeSign in# 🌀🗞 The FLUX Review, Ep. 230" or "- # 🌀🗞 The FLUX Review, Ep. N"
+  clean = clean.replace(/^.*FLUX Review,?\s*Ep\.?\s*\d+.*$/gm, '');
+  // Plain text remnants after markdown stripping
+  clean = clean.replace(/^The FLUX Review\s*$/gm, '');
+
+  // --- Photo credits and image prompt lines ---
+  // "Jun 10, Wind farms in suburbia... // Photo: Spencer Pitman, FLUX"
+  // "Apr 10, "FCP-230" // Photo:  with Midjourney"
+  clean = clean.replace(/^.*\/\/\s*Photo:.*$/gm, '');
+  // "May 19, "FCP-125" ..." without // Photo
+  clean = clean.replace(/^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2},?\s+[""\u201C]FCP-\d+[""\u201D].*$/gm, '');
+
   // --- Comment/engagement section: strip everything from ReplyShare or Subscribe+NShare onward ---
   // This catches user comments, Liked by, reply counts, TopLatest, etc.
   clean = clean.replace(/\n\s*ReplyShare[\s\S]*$/i, '');
@@ -365,6 +380,10 @@ function cleanContent(markdown: string): { cleanMarkdown: string; plainText: str
 
   // --- Empty markdown links ---
   clean = clean.replace(/\[\]\([^)]+\)/g, '');
+
+  // --- Byline remnants: orphaned commas from stripped profile links ---
+  // Must run AFTER profile link stripping leaves ", , , and N others"
+  clean = clean.replace(/(?:,\s*){2,}and\s+\d+\s+others\w*/gi, '');
 
   // --- Final Subscribe cleanup (after all other stripping) ---
   clean = clean.replace(/^\s*Subscribe\*?\s*$/gm, '');
