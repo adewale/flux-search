@@ -113,10 +113,21 @@ function renderDensityStrip(dist) {
   var el = document.getElementById('density-content') || panel;
   if (!el) return;
 
-  var W = 300;
-  var H = 48;
+  var W = 600;
+  var H = 80;
+  var LABEL_H = 14;
   var data = computeDensityBars(dist, W, H);
   if (data.bars.length === 0) return;
+
+  // Year-band stripes — alternating faint backgrounds per year
+  var yearBands = '';
+  for (var i = 0; i < data.yearTicks.length; i++) {
+    if (i % 2 === 0) continue; // only odd years get a band
+    var t = data.yearTicks[i];
+    var nextX = i + 1 < data.yearTicks.length ? data.yearTicks[i + 1].x : W;
+    yearBands += '<rect x="' + t.x + '" y="0" width="' + (nextX - t.x) +
+      '" height="' + H + '" class="density-year-band" />';
+  }
 
   // Stacked bars with section-type colors
   var barsSvg = data.bars.map(function (b) {
@@ -125,31 +136,32 @@ function renderDensityStrip(dist) {
     return b.segments.map(function (seg) {
       var segY = baseY - seg.y - seg.height;
       return '<rect x="' + bx + '" y="' + segY + '" width="' + data.barWidth +
-        '" height="' + seg.height + '" class="density-bar density-section-' + seg.section + '" />';
+        '" height="' + seg.height + '" class="density-bar density-section-' + seg.section +
+        '" rx="1" />';
     }).join('');
-  }).join('');
-
-  // Year tick lines
-  var ticks = data.yearTicks.map(function (t) {
-    return '<line x1="' + t.x + '" y1="' + H + '" x2="' + t.x + '" y2="' + (H - 4) + '" class="density-tick" />';
   }).join('');
 
   // Milestone annotations
   var milestones = LANDMARKS.filter(function (lm) {
-    var lmPos = lm.year;
     var minPos = data.yearTicks.length > 0 ? data.yearTicks[0].year : 0;
     var maxYear = data.yearTicks.length > 0 ? data.yearTicks[data.yearTicks.length - 1].year : 0;
-    return lmPos >= minPos && lmPos <= maxYear;
+    return lm.year >= minPos && lm.year <= maxYear;
   }).map(function (lm) {
     var minPos = data.yearTicks[0].year;
     var maxPos = new Date().getFullYear() + Math.floor(new Date().getMonth() / 3) * 0.25;
     var span = maxPos - minPos || 1;
     var lx = ((lm.year - minPos) / span) * W;
     return '<line x1="' + lx + '" y1="0" x2="' + lx + '" y2="' + H + '" class="density-milestone" />' +
-      '<text x="' + lx + '" y="-2" class="density-milestone-label">' + lm.label + '</text>';
+      '<text x="' + lx + '" y="-3" class="density-milestone-label">' + lm.label + '</text>';
   }).join('');
 
-  // Tooltip hit areas (invisible rects that show tooltips on hover)
+  // Year labels inside SVG at baseline
+  var yearLabels = data.yearTicks.map(function (t) {
+    return '<text x="' + t.x + '" y="' + (H + LABEL_H - 2) +
+      '" class="density-year-text">\u2019' + String(t.year).slice(2) + '</text>';
+  }).join('');
+
+  // Tooltip hit areas
   var tooltips = data.bars.map(function (b) {
     var bx = b.x - data.barWidth / 2 - 2;
     var parts = b.key.split('-Q');
@@ -157,28 +169,21 @@ function renderDensityStrip(dist) {
     var sectionList = b.segments.map(function (s) {
       return formatSectionLabel(s.section) + ': ' + s.count;
     }).join(', ');
-    var title = label + ' — ' + b.totalCount + ' result' + (b.totalCount !== 1 ? 's' : '') +
+    var title = label + ' \u2014 ' + b.totalCount + ' result' + (b.totalCount !== 1 ? 's' : '') +
       (b.segments.length > 1 ? ' (' + sectionList + ')' : '');
     return '<rect x="' + bx + '" y="0" width="' + (data.barWidth + 4) +
       '" height="' + H + '" class="density-tooltip-area"><title>' + title + '</title></rect>';
   }).join('');
 
   el.innerHTML =
-    '<div class="density-chart">' +
-      '<svg class="density-svg" viewBox="-5 -10 ' + (W + 10) + ' ' + (H + 11) + '">' +
-        milestones +
-        barsSvg +
-        tooltips +
-        ticks +
-        '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" class="density-baseline" />' +
-      '</svg>' +
-      '<div class="density-year-labels">' +
-        data.yearTicks.map(function (t) {
-          var pct = (t.x / W) * 100;
-          return '<span class="density-year" style="left:' + Math.max(0, Math.min(100, pct)).toFixed(1) + '%">\u2019' + String(t.year).slice(2) + '</span>';
-        }).join('') +
-      '</div>' +
-    '</div>';
+    '<svg class="density-svg" viewBox="0 -8 ' + W + ' ' + (H + LABEL_H + 8) + '">' +
+      yearBands +
+      milestones +
+      barsSvg +
+      tooltips +
+      '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" class="density-baseline" />' +
+      yearLabels +
+    '</svg>';
 
   el.querySelector('svg').setAttribute('aria-label',
     data.bars.map(function (b) { return b.key + ': ' + b.totalCount; }).join(', '));

@@ -61,6 +61,18 @@
           <button class="refine-suggestion" data-query-append="section:lead_essay">section:lead_essay</button>
           <button class="refine-suggestion" data-query-append="year:2023">year:2023</button>
           <button class="refine-suggestion" data-query-append="&quot;exact phrase&quot;">"exact phrase"</button>
+          <details class="search-tips-inline">
+            <summary class="search-tips-trigger" aria-label="Search tips">?</summary>
+            <div class="search-tips-panel">
+              <dl class="tips-list">
+                <div class="tip-row"><dt><code>"exact phrase"</code></dt><dd>Find exact text matches</dd></div>
+                <div class="tip-row"><dt><code>before:YYYY-MM-DD</code> / <code>after:YYYY-MM-DD</code></dt><dd>Filter by date</dd></div>
+                <div class="tip-row"><dt><code>year:YYYY</code></dt><dd>Show issues from a specific year</dd></div>
+                <div class="tip-row"><dt><code>issue:NUMBER</code></dt><dd>Jump to a specific issue</dd></div>
+                <div class="tip-row"><dt><code>section:TYPE</code></dt><dd>Filter by section (lead_essay, signposts, lens, book, postcard, worth_your_time)</dd></div>
+              </dl>
+            </div>
+          </details>
         </div>
         <details class="search-tips">
           <summary>Search tips</summary>
@@ -86,13 +98,7 @@
       <div id="section-facets" class="section-facets" hidden></div>
 
       <div id="density-strip" class="density-strip density-panel" hidden>
-        <div class="density-panel-header">
-          <span class="density-panel-title">Results over time</span>
-        </div>
-        <div class="density-body">
-          <span class="density-y-label">Issues</span>
-          <div id="density-content"></div>
-        </div>
+        <div id="density-content"></div>
       </div>
 
       <div id="results" class="results"></div>

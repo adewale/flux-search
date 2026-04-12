@@ -38,7 +38,7 @@ export function computeDensityBars(quarterSectionDist, width, height, now) {
   var maxCount = Math.max.apply(null, totals);
   var effectiveMax = Math.max(maxCount, MIN_SCALE);
 
-  var barWidth = Math.max(3, Math.min(20, (width / (span / 0.25 + 2)) * 0.6));
+  var barWidth = Math.max(4, Math.min(40, (width / (span / 0.25 + 2)) * 0.65));
 
   var bars = [];
   for (var i = 0; i < keys.length; i++) {
