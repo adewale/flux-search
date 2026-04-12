@@ -38,10 +38,14 @@
  */
 
 /*
- * Typography: intentional scale, not arbitrary sizes.
- * Scale: 12 / 14 / 16 / 20 / 24 / 32 (major third, rounded)
- * Body: 16px for readability. Measure: 60-70ch at --max-width.
- * Mono: used for metadata, not content.
+ * Typography: rationalised system.
+ *
+ * 5 sizes (1.5× ratio): sm / base / lg / xl / hero
+ * 4 weights: 300 (light) / 400 (regular) / 600 (emphasis) / 700 (title)
+ * 2 trackings: -0.02em (large text) / +0.02em (small text)
+ * 3 line-heights: 1 (display) / 1.4 (UI) / 1.8 (reading)
+ * 3 fonts: Lora (wordmark) / Literata (reading) / DM Sans (everything else)
+ * Mono only for: issue numbers (#82) and code syntax (before:YYYY-MM-DD)
  */
 :root {
   --bg: #fafaf9;
@@ -60,21 +64,26 @@
   --radius: 6px;
   --max-width: 640px;
 
-  /* Type scale — major third */
-  --size-xs: 0.75rem;    /* 12px — metadata, labels */
-  --size-sm: 0.875rem;   /* 14px — secondary text, snippets */
-  --size-base: 1rem;     /* 16px — body text */
-  --size-lg: 1.25rem;    /* 20px — section headings */
-  --size-xl: 1.5rem;     /* 24px — page titles */
-  --size-2xl: 2rem;      /* 32px — not currently used */
-  --size-2xs: 0.6875rem; /* 11px — small labels, tips */
-  --size-3xs: 0.625rem;  /* 10px — tiny labels */
+  /* Type scale — 1.5× ratio, 5 steps */
+  --size-sm: 0.6875rem;  /* 11px — all small text */
+  --size-base: 1rem;     /* 16px — body, titles, input */
+  --size-lg: 1.5rem;     /* 24px — headings, wordmark */
+  --size-xl: 2.25rem;    /* 36px — issue title max */
   --size-hero: 4rem;     /* 64px — issue number hero */
 
-  /* Fonts — Literata for editorial body, DM Sans for UI, mono for metadata */
+  /* Fonts */
   --font-body: 'Literata', 'Georgia', serif;
   --font: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: "SF Mono", "Fira Code", "Fira Mono", Menlo, monospace;
+
+  /* Line heights */
+  --lh-display: 1;
+  --lh-ui: 1.4;
+  --lh-reading: 1.8;
+
+  /* Tracking */
+  --tracking-tight: -0.02em;
+  --tracking-open: 0.02em;
 }
 
 body {
@@ -82,7 +91,7 @@ body {
   font-size: var(--size-base);
   background: var(--bg);
   color: var(--text);
-  line-height: 1.6;
+  line-height: var(--lh-ui);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -112,11 +121,11 @@ body {
 
 .landing-quote blockquote {
   font-family: var(--font-body);
-  font-size: clamp(1.125rem, 2.5vw, var(--size-xl));
+  font-size: clamp(var(--size-lg), 2.5vw, var(--size-xl));
   font-style: italic;
   color: var(--text-secondary);
-  line-height: 1.5;
-  letter-spacing: -0.01em;
+  line-height: var(--lh-reading);
+  letter-spacing: var(--tracking-tight);
   border: none;
   padding: 0;
   margin: 0 auto 0.75rem;
@@ -124,11 +133,10 @@ body {
 }
 
 .landing-quote-source {
-  font-family: var(--font-mono);
-  font-size: var(--size-xs);
+  font-size: var(--size-sm);
   color: var(--text-tertiary);
   text-decoration: none;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--tracking-open);
 }
 
 .landing-quote-source:hover {
@@ -146,7 +154,7 @@ body {
   font-family: 'Lora', var(--font-body);
   font-size: var(--size-lg);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-tight);
   color: var(--text);
 }
 
@@ -217,7 +225,7 @@ body {
 /* Example queries — clickable landing invitations */
 .example-queries {
   margin-top: 0.5rem;
-  font-size: 0.75rem;
+  font-size: var(--size-sm);
   color: var(--text-tertiary);
   display: flex;
   flex-wrap: wrap;
@@ -226,14 +234,13 @@ body {
 }
 
 .example-queries-label {
-  font-size: var(--size-2xs);
+  font-size: var(--size-sm);
   color: var(--text-tertiary);
   margin-right: 0.125rem;
 }
 
 .example-query {
-  font-family: var(--font-mono);
-  font-size: var(--size-2xs);
+  font-size: var(--size-sm);
   color: var(--text-secondary);
   background: var(--tag-bg);
   border: 1px solid transparent;
@@ -241,7 +248,7 @@ body {
   padding: 0.125rem 0.5rem;
   cursor: pointer;
   transition: border-color 0.15s, color 0.15s;
-  line-height: 1.4;
+  line-height: var(--lh-ui);
 }
 
 .example-query:hover {
@@ -255,14 +262,14 @@ body {
 
 .example-sep {
   color: var(--text-tertiary);
-  font-size: var(--size-3xs);
+  font-size: var(--size-sm);
   user-select: none;
 }
 
 /* Refine hints — shown after results appear */
 .refine-hints {
   margin-top: 0.375rem;
-  font-size: var(--size-2xs);
+  font-size: var(--size-sm);
   color: var(--text-tertiary);
   display: flex;
   flex-wrap: wrap;
@@ -271,14 +278,13 @@ body {
 }
 
 .refine-label {
-  font-size: var(--size-3xs);
+  font-size: var(--size-sm);
   color: var(--text-tertiary);
   margin-right: 0.125rem;
 }
 
 .refine-suggestion {
-  font-family: var(--font-mono);
-  font-size: var(--size-3xs);
+  font-size: var(--size-sm);
   color: var(--text-tertiary);
   background: none;
   border: 1px solid var(--border);
@@ -299,7 +305,7 @@ body {
 }
 
 .search-tips summary {
-  font-size: var(--size-2xs);
+  font-size: var(--size-sm);
   color: var(--text-tertiary);
   cursor: pointer;
   user-select: none;
@@ -320,7 +326,7 @@ body {
   justify-content: center;
   width: 1rem;
   height: 1rem;
-  font-size: var(--size-3xs);
+  font-size: var(--size-sm);
   font-weight: 600;
   border: 1px solid var(--border);
   border-radius: 50%;
@@ -341,7 +347,7 @@ body {
   padding: 0.5rem 0.625rem;
   background: var(--tag-bg);
   border-radius: var(--radius-sm);
-  font-size: var(--size-2xs);
+  font-size: var(--size-sm);
 }
 
 .tips-list {
@@ -362,14 +368,14 @@ body {
 
 .tip-row dt code {
   font-family: var(--font-mono);
-  font-size: var(--size-3xs);
+  font-size: var(--size-sm);
   color: var(--text-secondary);
-  letter-spacing: 0.01em;
+  letter-spacing: var(--tracking-open);
 }
 
 .tip-row dd {
   color: var(--text-tertiary);
-  font-size: var(--size-3xs);
+  font-size: var(--size-sm);
 }
 
 /* Autocomplete */
@@ -411,8 +417,7 @@ body {
 }
 
 .chip {
-  font-family: var(--font-mono);
-  font-size: var(--size-2xs);
+  font-size: var(--size-sm);
   color: var(--text-secondary);
   background: var(--tag-bg);
   padding: 0.125rem 0.5rem;
@@ -427,7 +432,7 @@ body {
   margin-bottom: 0.5rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border);
-  font-size: 0.75rem;
+  font-size: var(--size-sm);
   color: var(--text-tertiary);
 }
 
@@ -490,10 +495,9 @@ body {
 .density-year {
   position: absolute;
   transform: translateX(-50%);
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
+  font-size: var(--size-sm);
   color: var(--text-tertiary);
-  line-height: 1;
+  line-height: var(--lh-display);
 }
 
 .density-landmark-labels {
@@ -504,12 +508,11 @@ body {
 .density-landmark {
   position: absolute;
   transform: translateX(-50%);
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
+  font-size: var(--size-sm);
   font-weight: 600;
   color: var(--text-secondary);
   white-space: nowrap;
-  line-height: 1;
+  line-height: var(--lh-display);
 }
 
 /*
@@ -601,35 +604,33 @@ body {
 
 .result-number {
   font-family: var(--font-mono);
-  font-size: var(--size-xs);
+  font-size: var(--size-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-tight);
 }
 
 .result-date {
-  font-size: var(--size-xs);
+  font-size: var(--size-sm);
   font-weight: 300;
   font-variant-numeric: oldstyle-nums;
   color: var(--text-tertiary);
-  letter-spacing: 0.02em;
+  letter-spacing: var(--tracking-open);
 }
 
 .result-section {
-  font-family: var(--font-mono);
-  font-size: var(--size-3xs);
+  font-size: var(--size-sm);
   font-weight: 300;
   color: var(--text-tertiary);
-  letter-spacing: 0.02em;
+  letter-spacing: var(--tracking-open);
 }
 
 .result-semantic {
-  font-family: var(--font-mono);
-  font-size: 0.5rem;
+  font-size: var(--size-sm);
   color: var(--accent);
   opacity: 0.6;
-  letter-spacing: 0.03em;
+  letter-spacing: var(--tracking-open);
 }
 
 /* Section facets */
@@ -642,8 +643,7 @@ body {
 }
 
 .facet {
-  font-family: var(--font-mono);
-  font-size: var(--size-3xs);
+  font-size: var(--size-sm);
   color: var(--text-secondary);
   background: var(--tag-bg);
   padding: 0.125rem 0.5rem;
@@ -669,9 +669,9 @@ body {
 .result-title {
   font-size: var(--size-base);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-tight);
   color: var(--text);
-  line-height: 1.35;
+  line-height: var(--lh-ui);
   margin-bottom: 0.125rem;
 }
 
@@ -686,7 +686,7 @@ body {
   font-family: var(--font-body);
   font-size: var(--size-sm);
   color: var(--text-secondary);
-  line-height: 1.5;
+  line-height: var(--lh-reading);
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -726,8 +726,7 @@ body {
 }
 
 .page-info {
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: var(--size-sm);
   color: var(--text-tertiary);
 }
 
@@ -765,10 +764,10 @@ body {
 }
 
 .nav-link {
-  font-size: var(--size-xs);
+  font-size: var(--size-sm);
   color: var(--accent);
   text-decoration: none;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--tracking-open);
 }
 
 .nav-link:hover {
@@ -776,31 +775,30 @@ body {
 }
 
 .issue-meta-line {
-  font-family: var(--font-mono);
-  font-size: var(--size-xs);
+  font-size: var(--size-sm);
   font-weight: 300;
   font-variant-numeric: tabular-nums;
   color: var(--text-tertiary);
-  letter-spacing: 0.02em;
+  letter-spacing: var(--tracking-open);
 }
 
 /* Oversized issue number — the page's identity */
 .issue-number-hero {
   font-family: var(--font);
   font-size: var(--size-hero);
-  font-weight: 200;
+  font-weight: 300;
   color: var(--border);
-  line-height: 1;
-  letter-spacing: -0.04em;
+  line-height: var(--lh-display);
+  letter-spacing: var(--tracking-tight);
   margin-top: 0.25rem;
   margin-bottom: -0.25rem;
 }
 
 .issue-page-title {
-  font-size: clamp(var(--size-lg), 3vw, var(--size-2xl));
+  font-size: clamp(var(--size-lg), 3vw, var(--size-xl));
   font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.03em;
+  line-height: var(--lh-display);
+  letter-spacing: var(--tracking-tight);
   margin-bottom: 0.5rem;
 }
 
@@ -809,6 +807,7 @@ body {
   font-size: var(--size-sm);
   font-style: italic;
   color: var(--text-secondary);
+  line-height: var(--lh-reading);
   border-left: 2px solid var(--text-tertiary);
   padding-left: 0.75rem;
   margin: 0 0 1rem;
@@ -825,7 +824,7 @@ body {
 
 .section-tab {
   font-family: var(--font);
-  font-size: var(--size-xs);
+  font-size: var(--size-sm);
   position: relative;
   color: var(--text-secondary);
   background: none;
@@ -879,7 +878,7 @@ body {
 
 .section-body {
   font-family: var(--font-body);
-  line-height: 1.85;
+  line-height: var(--lh-reading);
   font-size: var(--size-base);
   max-width: 60ch;
 }
@@ -929,12 +928,12 @@ body {
 }
 
 .empty-guidance p {
-  font-size: var(--size-xs);
-  font-weight: 500;
+  font-size: var(--size-sm);
+  font-weight: 600;
   color: var(--text-tertiary);
   margin-bottom: 0.375rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--tracking-open);
 }
 
 .empty-guidance ul {
@@ -948,7 +947,7 @@ body {
 
 .empty-guidance code {
   font-family: var(--font-mono);
-  font-size: var(--size-xs);
+  font-size: var(--size-sm);
 }
 
 /* Loading — spinner is hidden for 200ms so fast loads never flash it.
@@ -987,7 +986,7 @@ body {
   margin-top: auto;
   padding-top: 2rem;
   text-align: center;
-  font-size: 0.5625rem;
+  font-size: var(--size-sm);
   color: var(--text-tertiary);
 }
 
@@ -1002,7 +1001,7 @@ body {
 
 .footer-built {
   margin-top: 0.125rem;
-  font-size: 0.5rem;
+  font-size: var(--size-sm);
 }
 
 .footer-built a {
@@ -1029,7 +1028,7 @@ body {
   }
 
   .search-tips-panel {
-    font-size: var(--size-3xs);
+    font-size: var(--size-sm);
   }
 
   .tip-row {
