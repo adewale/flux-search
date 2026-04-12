@@ -11,5 +11,4 @@ skills-lock.json
 worker-configuration.d.ts
 e2e/agent-browser/screenshots/
 e2e/screenshots/
-data/raw/
 data/processed/
