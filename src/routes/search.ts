@@ -160,6 +160,33 @@ export function buildFtsQuery(parsed: ReturnType<typeof parseQuery>): string {
   return parts.join(' ');
 }
 
+// Latest issue for the landing page
+searchRoutes.get('/latest-issue', async (c) => {
+  const result = await c.env.DB.prepare(`
+    SELECT issue_number, title, lead_essay_title, published_at, opening_quote, summary,
+           canonical_url, source_url
+    FROM issues
+    WHERE status = 'active' AND issue_number IS NOT NULL
+    ORDER BY published_at DESC
+    LIMIT 1
+  `).first<{
+    issue_number: number; title: string; lead_essay_title: string | null;
+    published_at: string; opening_quote: string | null; summary: string | null;
+    canonical_url: string | null; source_url: string;
+  }>();
+
+  if (!result) return c.json({ issue: null });
+
+  return c.json({
+    issue_number: result.issue_number,
+    title: result.lead_essay_title || result.title,
+    published_at: result.published_at,
+    opening_quote: result.opening_quote,
+    summary: result.summary,
+    canonical_url: result.canonical_url || result.source_url,
+  });
+});
+
 // Random quote for the landing page empty state
 searchRoutes.get('/random-quote', async (c) => {
   const result = await c.env.DB.prepare(`
