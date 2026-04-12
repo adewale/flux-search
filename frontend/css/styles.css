@@ -510,6 +510,19 @@ body {
   padding: 0.25rem;
 }
 
+.density-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.125rem 0.25rem;
+}
+
+.density-result-count {
+  font-size: var(--size-sm);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
 .density-svg {
   width: 100%;
   aspect-ratio: 6 / 1;

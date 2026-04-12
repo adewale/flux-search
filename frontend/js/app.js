@@ -176,6 +176,10 @@ function initSearchPage() {
       if (data.results && data.results.length > 0) {
         var skipDensity = isPagination || !machine.state.densityVisible;
         renderResults(resultsEl, resultsMeta, resultCount, invalidOps, filterChips, data, { skipDensity: skipDensity });
+        // Show count in density panel when visible, fallback meta otherwise
+        if (machine.state.densityVisible) {
+          resultsMeta.hidden = true;
+        }
         if (refineHints) refineHints.hidden = false;
         if (exampleQueries) exampleQueries.hidden = true;
         var totalPages = Math.ceil(data.total_hits / pageSize);

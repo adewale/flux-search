@@ -7,7 +7,11 @@ import { SECTION_LABELS, formatSectionLabel } from './section-labels.js';
 import { computeDensityBars } from './density.js';
 
 export function renderResults(container, metaEl, countEl, invalidOpsEl, filterChipsEl, data, opts) {
-  countEl.textContent = data.total_hits + ' result' + (data.total_hits !== 1 ? 's' : '');
+  var countText = data.total_hits + ' result' + (data.total_hits !== 1 ? 's' : '');
+  countEl.textContent = countText;
+  // Also set the fallback count for when density strip is hidden
+  var fallbackCount = document.getElementById('result-count-fallback');
+  if (fallbackCount) fallbackCount.textContent = countText;
   metaEl.hidden = false;
   invalidOpsEl.hidden = true;
 
