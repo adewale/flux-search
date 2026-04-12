@@ -176,3 +176,67 @@ The spec described issues as flat documents with title, body, and metadata. Read
 This discovery reshaped the entire architecture. We built `parseSections` to identify section types by heading patterns. Chunks became section-typed. Search results show which section matched. Facets let users filter by section type. Issue landing pages have tabbed section navigation. None of this was in the spec, and all of it makes the search experience meaningfully better.
 
 **Lesson: The most valuable domain knowledge isn't in the spec — it's in the data.** Read the actual content before designing the data model. The structure of a FLUX Review issue (quote → lead essay → signposts → lens → book → postcard) is the single most important design insight in the project, and it came from reading issues, not from reading the spec.
+
+## What we learned about pipeline ordering
+
+### Aggregates and transformations must share a single pipeline
+
+The search handler computes three things from ranked results: section facets, quarterly distribution, and per-result section labels. Section detection is expensive (parses full markdown per result), so we initially placed it inside the pagination map — only the 20 results on the current page got sections detected. But the aggregates (facets, density strip) were computed from ALL ranked results, where most had null sections. The result: facets showed 6 instead of 95, and the density strip was mostly gray.
+
+The fix was simple — move detection before aggregation. But the bug survived for weeks because each function was tested in isolation. `computeSectionFacets` worked correctly when given results with sections set. `detectSnippetSection` correctly found sections. No test verified that detection ran before facets.
+
+Then we discovered the section filter (`section:lens`) also ran before detection, so FTS-only results couldn't be filtered by section. And the filter-only path (`before:2024`) had no section detection at all. Three features, three independent bugs, all from the same root cause: pipeline ordering.
+
+**Lesson: When multiple features consume the same data, document the pipeline ordering and test the pipeline as a whole.** Unit tests of individual functions don't catch ordering bugs. Integration tests that assert invariants across the full pipeline do. Our PBT (`sum(facets) == total_hits`) would have caught this on day one.
+
+### Every query path must return the same response shape
+
+The search handler has three paths: normal search, filter-only, and issue number lookup. They evolved independently, and each had a different response shape — the issue lookup was missing `year_distribution`, `quarter_distribution`, `section_facets`, and `snippet_section`. The filter-only path had empty aggregates. The normal path was the only one that was correct.
+
+**Lesson: Define the response contract first, then implement each path to satisfy it.** We now document the 7 required top-level fields and 9 required result fields in the architecture doc. An integration test verifies all three paths return the same shape.
+
+## What we learned about content cleaning
+
+### Cleaning is a pipeline, and pipelines have ordering dependencies
+
+The normalizer has ~30 regex rules that strip Substack boilerplate. The order matters: profile link stripping (`[Name](substack.com/profile/...)`) must run before byline cleanup (`(?:,\s*){2,}and N others`) because the byline only has orphaned commas after the links are removed. Subscribe stripping must run last because other rules expose standalone `Subscribe` lines. The image caption regex runs twice — once early and once late — because the first pass catches standalone captions while the second catches captions exposed by earlier stripping.
+
+We discovered this through corpus testing. Unit tests with synthetic inputs passed because the test data didn't have the complex interleaving of the real HTML. Only running the normalizer against all 234 raw HTML files revealed the ordering dependencies.
+
+**Lesson: Test your data pipeline against real data, not synthetic inputs.** Adding `data/raw/` to the git repo and running corpus tests in CI was the single most impactful quality decision. Every normalizer regression is now caught before merge.
+
+### Cleaning rules accumulate; audit periodically
+
+We added cleaning rules in 5 separate sessions. By the end, the normalizer had duplicate regexes, late-pass duplicates that were actually necessary, and a Subscribe regex in three different locations. A consistency audit found the duplication, but distinguishing "redundant duplicate" from "necessary late-pass" required understanding the full pipeline.
+
+**Lesson: After adding cleaning rules iteratively, audit the full set for redundancy and ordering.** Comment each rule with why it exists and why it's at that position in the pipeline.
+
+## What we learned about visualization
+
+### Visual weight should match information weight
+
+The density strip started as a 24px sparkline — a glanceable summary. Over several iterations, it grew to an 80px panel with stacked section-colored bars, milestone annotations, tooltip hit areas, year labels, and a bordered card. Each feature was justified individually, but the cumulative effect was a chart that demanded more attention than the search results it was supposed to support.
+
+For a query returning 3 results, the density strip was larger than all three result cards combined. For the landing page showing 1 result, the chart was pure overhead. We had to explicitly hide it on the landing page via the state machine and ask ourselves "is this a good experience?" to recognize the problem.
+
+**Lesson: Periodically step back and ask whether a component's visual weight matches its information weight.** A sparkline that grows into a dashboard panel is a sign that features were added without considering their cumulative visual cost. Tufte's principle applies: the data-ink ratio should increase, not decrease, as you iterate.
+
+### "Is this a good experience?" is the most valuable question
+
+We asked this question repeatedly throughout the project. Every time, the answer was no, and the follow-up work was the most impactful of the project: extracting lead essay titles, fixing semantic search, cleaning snippets, removing the density strip from the landing page. The question works because it forces you to look at the product through the user's eyes rather than the developer's.
+
+## What we learned about testing
+
+### Integration tests catch bugs that unit tests cannot
+
+The consistency bug (facets showing 6 instead of 95) passed all unit tests. Each function worked correctly in isolation. The bug was in how the functions were composed — an ordering dependency that no unit test covered. The integration test that caught it was trivial: call the search endpoint and assert `sum(facets) == total_hits`.
+
+The relevance evaluation harness (13 hand-labeled queries) caught a real bug on its first run: `section:lens` as a filter-only query returned all 234 issues unfiltered. No unit test had ever exercised this code path against the live API.
+
+**Lesson: Integration tests and property-based tests are not optional extras — they catch the most important class of bugs.** Write `sum(aggregates) == total_hits` before you write the aggregation code.
+
+### The corpus IS the test suite
+
+Adding 234 raw HTML files to the repo transformed our testing. Before: synthetic inputs in unit tests, manual spot-checks against the live API. After: every normalizer change is validated against every real issue. The corpus-crud test checks 24 boilerplate patterns × 234 issues = 5,616 assertions. The corpus-survival test verifies word counts, section structure, and title quality across the full archive.
+
+The 48MB cost is trivial compared to the bugs it prevents. Three normalizer fixes were found only by running against the corpus — patterns that appeared in 200+ issues but never in our synthetic test data.
