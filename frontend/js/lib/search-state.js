@@ -41,6 +41,7 @@ function landing(booted = true) {
     autoLoadLatest: false,
     clearVisible: false,
     resultsVisible: false,
+    densityVisible: false,
     booted,
   };
 }
@@ -54,6 +55,7 @@ function landingFeatured() {
     autoLoadLatest: true,
     clearVisible: false,
     resultsVisible: false,
+    densityVisible: false,
     booted: true,
   };
 }
@@ -62,6 +64,7 @@ function featuredResults(q) {
   // Latest-issue fetch has landed: query is prefilled, results render
   // alongside the quote. The ✕ must show even though the user didn't
   // type this query — the state machine owns the committed input.
+  // Density strip hidden — landing shows a single result, not a distribution.
   return {
     name: 'FEATURED_RESULTS',
     query: q,
@@ -69,6 +72,7 @@ function featuredResults(q) {
     autoLoadLatest: false,
     clearVisible: q.length > 0,
     resultsVisible: true,
+    densityVisible: false,
     booted: true,
   };
 }
@@ -81,14 +85,14 @@ function results(q) {
     autoLoadLatest: false,
     clearVisible: q.length > 0,
     resultsVisible: true,
+    densityVisible: true,
     booted: true,
   };
 }
 
 function browsing(prev) {
   // Dismiss in-place: keep whatever the prior state was showing, just
-  // empty the search box. `quoteVisible` and any other chrome flags
-  // carry over.
+  // empty the search box. Chrome flags carry over from the prior state.
   return {
     name: 'BROWSING',
     query: '',
@@ -96,6 +100,7 @@ function browsing(prev) {
     autoLoadLatest: false,
     clearVisible: false,
     resultsVisible: true,
+    densityVisible: prev.densityVisible,
     booted: true,
   };
 }

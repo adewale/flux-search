@@ -119,16 +119,6 @@ function renderDensityStrip(dist) {
   var data = computeDensityBars(dist, W, H);
   if (data.bars.length === 0) return;
 
-  // Year-band stripes — alternating faint backgrounds per year
-  var yearBands = '';
-  for (var i = 0; i < data.yearTicks.length; i++) {
-    if (i % 2 === 0) continue; // only odd years get a band
-    var t = data.yearTicks[i];
-    var nextX = i + 1 < data.yearTicks.length ? data.yearTicks[i + 1].x : W;
-    yearBands += '<rect x="' + t.x + '" y="0" width="' + (nextX - t.x) +
-      '" height="' + H + '" class="density-year-band" />';
-  }
-
   // Stacked bars with section-type colors
   var barsSvg = data.bars.map(function (b) {
     var bx = b.x - data.barWidth / 2;
@@ -177,7 +167,6 @@ function renderDensityStrip(dist) {
 
   el.innerHTML =
     '<svg class="density-svg" viewBox="0 -8 ' + W + ' ' + (H + LABEL_H + 8) + '">' +
-      yearBands +
       milestones +
       barsSvg +
       tooltips +

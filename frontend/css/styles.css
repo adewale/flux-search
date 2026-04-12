@@ -562,12 +562,6 @@ body {
 .density-section-title_summary { fill: oklch(65% 0.08 60); }
 .density-section-other { fill: var(--text-tertiary); }
 
-/* Year-band stripes — alternating faint backgrounds for temporal context */
-.density-year-band {
-  fill: var(--tag-bg);
-  opacity: 0.6;
-}
-
 /* Year labels rendered inside the SVG at baseline */
 .density-year-text {
   font-size: 9px;

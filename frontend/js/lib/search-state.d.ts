@@ -10,6 +10,7 @@ export type State = {
   autoLoadLatest: boolean;
   clearVisible: boolean;
   resultsVisible: boolean;
+  densityVisible: boolean;
   booted: boolean;
 };
 

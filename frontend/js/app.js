@@ -174,7 +174,8 @@ function initSearchPage() {
       loadingEl.hidden = true;
 
       if (data.results && data.results.length > 0) {
-        renderResults(resultsEl, resultsMeta, resultCount, invalidOps, filterChips, data, { skipDensity: isPagination });
+        var skipDensity = isPagination || !machine.state.densityVisible;
+        renderResults(resultsEl, resultsMeta, resultCount, invalidOps, filterChips, data, { skipDensity: skipDensity });
         if (refineHints) refineHints.hidden = false;
         if (exampleQueries) exampleQueries.hidden = true;
         var totalPages = Math.ceil(data.total_hits / pageSize);
@@ -201,13 +202,19 @@ function initSearchPage() {
   }
 
   function clearAll(s, isPagination) {
-    clearResults(resultsEl, resultsMeta, filterChips, emptyState, { keepDensity: isPagination });
+    var keepDensity = isPagination && s && s.densityVisible;
+    clearResults(resultsEl, resultsMeta, filterChips, emptyState, { keepDensity: keepDensity });
     if (paginationEl) paginationEl.hidden = true;
     if (refineHints) refineHints.hidden = true;
     if (exampleQueries) exampleQueries.hidden = false;
     // Hide the landing quote whenever we're not in a landing state.
     var lq = document.getElementById('landing-quote');
     if (lq && s && !s.quoteVisible) lq.hidden = true;
+    // Hide density strip when state says it shouldn't be visible
+    if (s && !s.densityVisible) {
+      var ds = document.getElementById('density-strip');
+      if (ds) ds.hidden = true;
+    }
   }
 
   async function loadLandingQuote() {
