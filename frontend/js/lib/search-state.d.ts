@@ -1,5 +1,10 @@
 export type State = {
-  name: 'LANDING_FEATURED' | 'LANDING' | 'RESULTS' | 'BROWSING';
+  name:
+    | 'LANDING_FEATURED'
+    | 'FEATURED_RESULTS'
+    | 'LANDING'
+    | 'RESULTS'
+    | 'BROWSING';
   query: string;
   quoteVisible: boolean;
   autoLoadLatest: boolean;
@@ -10,6 +15,7 @@ export type State = {
 
 export type Event =
   | { type: 'LOAD'; query: string }
+  | { type: 'LATEST_LOADED'; query: string }
   | { type: 'SUBMIT'; query: string }
   | { type: 'EXAMPLE'; query: string }
   | { type: 'FACET'; section: string }

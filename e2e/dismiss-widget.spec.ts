@@ -45,6 +45,19 @@ test.describe('Dismiss widget — logic (in-place clear)', () => {
     await expect(page.locator('.result-card').first()).toBeVisible();
   });
 
+  test('cold-start prefilled query shows the ✕ even though user did not type', async ({ page }) => {
+    await page.goto('/');
+    // Wait for the latest-issue query to be prefilled.
+    await expect(page.locator('#search-input')).toHaveValue(/^issue:\d+$/, { timeout: 10_000 });
+    // ✕ must be visible.
+    await expect(page.locator('#search-clear')).toBeVisible();
+    // Tapping it must clear the input but keep the results.
+    const resultsBefore = await page.locator('.result-card').count();
+    await page.locator('#search-clear').click();
+    await expect(page.locator('#search-input')).toHaveValue('');
+    await expect(page.locator('.result-card')).toHaveCount(resultsBefore);
+  });
+
   test('submitting a new query from BROWSING transitions cleanly', async ({ page }) => {
     await page.goto('/?q=trust');
     await expect(page.locator('.result-card').first()).toBeVisible({ timeout: 10_000 });

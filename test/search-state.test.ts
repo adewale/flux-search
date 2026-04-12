@@ -3,7 +3,9 @@
  *
  * The state machine models the user-visible states of the search UI:
  *
- *   LANDING_FEATURED  — cold-start page; quote + auto-latest-issue results
+ *   LANDING_FEATURED  — cold-start page; quote shown, auto-load latest issue
+ *   FEATURED_RESULTS  — latest-issue fetch completed; query prefilled,
+ *                       quote still shown alongside featured results
  *   LANDING           — stable empty landing; quote only, no results
  *   RESULTS           — user-initiated search; results shown, quote hidden
  *   BROWSING          — results still shown but the search box is empty
@@ -63,15 +65,67 @@ describe('search state machine — states', () => {
     expect(s.autoLoadLatest).toBe(false);  // no auto-search
   });
 
-  it('dismiss from LANDING_FEATURED keeps the quote and the featured results', () => {
+  it('LATEST_LOADED fires after async latest-issue fetch → FEATURED_RESULTS', () => {
     const s = run([
-      { type: 'LOAD', query: '' }, // cold start → LANDING_FEATURED (quote + latest-issue results)
+      { type: 'LOAD', query: '' },
+      { type: 'LATEST_LOADED', query: 'issue:198' },
+    ]);
+    expect(s.name).toBe('FEATURED_RESULTS');
+    expect(s.query).toBe('issue:198');
+    expect(s.quoteVisible).toBe(true);
+    expect(s.resultsVisible).toBe(true);
+    // Critical: the ✕ must be visible even though the user didn't type this.
+    expect(s.clearVisible).toBe(true);
+    expect(s.autoLoadLatest).toBe(false);
+  });
+
+  it('dismiss BEFORE latest-issue fetch completes goes to LANDING', () => {
+    // LANDING_FEATURED has no results yet; dismiss has nothing to preserve.
+    const s = run([
+      { type: 'LOAD', query: '' },
+      { type: 'DISMISS' },
+    ]);
+    expect(s.name).toBe('LANDING');
+    expect(s.resultsVisible).toBe(false);
+  });
+
+  it('dismiss from FEATURED_RESULTS keeps the quote and the results', () => {
+    const s = run([
+      { type: 'LOAD', query: '' },
+      { type: 'LATEST_LOADED', query: 'issue:198' },
       { type: 'DISMISS' },
     ]);
     expect(s.name).toBe('BROWSING');
     expect(s.resultsVisible).toBe(true);
-    expect(s.quoteVisible).toBe(true);     // strictly preserved from prior state
+    expect(s.quoteVisible).toBe(true);
     expect(s.query).toBe('');
+  });
+
+  it('LATEST_LOADED outside LANDING_FEATURED is ignored', () => {
+    const s1 = run([
+      { type: 'LOAD', query: 'trust' },              // RESULTS
+      { type: 'LATEST_LOADED', query: 'issue:198' },  // racy late response
+    ]);
+    expect(s1.name).toBe('RESULTS');
+    expect(s1.query).toBe('trust');
+
+    const s2 = run([
+      { type: 'LOAD', query: '' },
+      { type: 'DISMISS' },                            // LANDING
+      { type: 'LATEST_LOADED', query: 'issue:198' },
+    ]);
+    expect(s2.name).toBe('LANDING');
+  });
+
+  it('user submits a new query from FEATURED_RESULTS → hides the quote', () => {
+    const s = run([
+      { type: 'LOAD', query: '' },
+      { type: 'LATEST_LOADED', query: 'issue:198' },
+      { type: 'SUBMIT', query: 'trust' },
+    ]);
+    expect(s.name).toBe('RESULTS');
+    expect(s.quoteVisible).toBe(false);
+    expect(s.query).toBe('trust');
   });
 
   it('dismiss from LANDING (empty) is a no-op', () => {

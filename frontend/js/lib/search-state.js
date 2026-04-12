@@ -1,7 +1,11 @@
 // Search box state machine.
 //
 // States:
-//   LANDING_FEATURED — cold-start landing; quote visible, auto-load latest issue
+//   LANDING_FEATURED — cold-start transient; quote visible, auto-load-latest
+//                      has been requested but hasn't returned yet.
+//   FEATURED_RESULTS — latest-issue fetch has landed; query prefilled to
+//                      "issue:N", quote still up alongside the results.
+//                      Committed input → ✕ is visible.
 //   LANDING          — stable empty landing; quote visible, no auto-search
 //   RESULTS          — user-driven search; quote hidden, results shown
 //   BROWSING         — user tapped ✕ while viewing results; input is empty
@@ -42,14 +46,28 @@ function landing(booted = true) {
 }
 
 function landingFeatured() {
+  // Transient cold-start state — waiting for /latest-issue to respond.
   return {
     name: 'LANDING_FEATURED',
     query: '',
     quoteVisible: true,
     autoLoadLatest: true,
     clearVisible: false,
-    // LANDING_FEATURED renders the latest-issue results alongside the
-    // quote, so dismiss can treat it as "results are on screen".
+    resultsVisible: false,
+    booted: true,
+  };
+}
+
+function featuredResults(q) {
+  // Latest-issue fetch has landed: query is prefilled, results render
+  // alongside the quote. The ✕ must show even though the user didn't
+  // type this query — the state machine owns the committed input.
+  return {
+    name: 'FEATURED_RESULTS',
+    query: q,
+    quoteVisible: true,
+    autoLoadLatest: false,
+    clearVisible: q.length > 0,
     resultsVisible: true,
     booted: true,
   };
@@ -97,6 +115,14 @@ export function reduce(state, event) {
       // LANDING_FEATURED is cold-start only. A LOAD after the machine has
       // already booted (e.g., via SPA navigation) falls back to LANDING.
       return state.booted ? landing(true) : landingFeatured();
+    case 'LATEST_LOADED':
+      // Only honoured while we're still in the cold-start transient.
+      // A late response after the user has typed or dismissed must not
+      // hijack the UI.
+      if (state.name === 'LANDING_FEATURED' && event.query) {
+        return featuredResults(event.query);
+      }
+      return state;
     case 'POPSTATE':
       return event.query ? results(event.query) : landing();
     case 'SUBMIT':
@@ -110,8 +136,11 @@ export function reduce(state, event) {
     }
     case 'DISMISS':
       // Dismiss is local: if results are showing, drop into BROWSING and
-      // keep them. Otherwise (no results yet) stay in the current state.
+      // keep them on screen. In LANDING_FEATURED (cold-start, waiting on
+      // /latest-issue) the dismiss cancels the pending auto-load and
+      // lands on empty LANDING. Otherwise (already on LANDING) no-op.
       if (state.resultsVisible) return browsing(state);
+      if (state.name === 'LANDING_FEATURED') return landing(true);
       return state;
     default:
       return state;

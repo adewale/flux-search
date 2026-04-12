@@ -9,7 +9,7 @@
  *       user-query results). BROWSING preserves the prior quoteVisible.
  *   I4  clearVisible ⇔ query.length > 0.
  *   I5  autoLoadLatest can only be true in LANDING_FEATURED.
- *   I6  resultsVisible ⇔ name ∈ {RESULTS, BROWSING, LANDING_FEATURED}.
+ *   I6  resultsVisible ⇔ name ∈ {RESULTS, BROWSING, FEATURED_RESULTS}.
  *   I7  query is always a string (never null/undefined/NaN).
  *   I8  The reducer is pure: reduce(s, e) given identical inputs returns
  *       structurally equal outputs.
@@ -17,6 +17,9 @@
  *       (no transition goes back to it).
  *   I10 DISMISS preserves resultsVisible: if results were showing before,
  *       they are still showing after.
+ *   I12 The ✕ is never wrongly hidden — clearVisible is derived from
+ *       query length in every state, even auto-populated ones like
+ *       FEATURED_RESULTS.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -42,8 +45,13 @@ const refineAppend = fc.constantFrom(
   'issue:198',
 );
 
+const issueQuery = fc
+  .integer({ min: 1, max: 500 })
+  .map((n) => 'issue:' + n);
+
 const event: fc.Arbitrary<Event> = fc.oneof(
   anyQuery.map((q) => ({ type: 'LOAD' as const, query: q })),
+  issueQuery.map((q) => ({ type: 'LATEST_LOADED' as const, query: q })),
   anyQuery.map((q) => ({ type: 'SUBMIT' as const, query: q })),
   anyQuery.map((q) => ({ type: 'EXAMPLE' as const, query: q })),
   section.map((s) => ({ type: 'FACET' as const, section: s })),
@@ -120,8 +128,8 @@ describe('PBT — search state machine invariants', () => {
     );
   });
 
-  it('I6: resultsVisible iff name ∈ {RESULTS, BROWSING, LANDING_FEATURED}', () => {
-    const withResults = new Set(['RESULTS', 'BROWSING', 'LANDING_FEATURED']);
+  it('I6: resultsVisible iff name ∈ {RESULTS, BROWSING, FEATURED_RESULTS}', () => {
+    const withResults = new Set(['RESULTS', 'BROWSING', 'FEATURED_RESULTS']);
     fc.assert(
       fc.property(fc.array(event, { maxLength: 15 }), (events) => {
         const s = runAll(events);
@@ -187,6 +195,20 @@ describe('PBT — search state machine invariants', () => {
         expect(m.state.quoteVisible).toBe(before.quoteVisible);
       }),
       { numRuns: 300 },
+    );
+  });
+
+  it('I12: prefilled queries show the ✕ (FEATURED_RESULTS case)', () => {
+    fc.assert(
+      fc.property(issueQuery, (q) => {
+        const m = createSearchMachine();
+        m.send({ type: 'LOAD', query: '' });
+        m.send({ type: 'LATEST_LOADED', query: q });
+        expect(m.state.name).toBe('FEATURED_RESULTS');
+        expect(m.state.query).toBe(q);
+        expect(m.state.clearVisible).toBe(true);
+      }),
+      { numRuns: 200 },
     );
   });
 

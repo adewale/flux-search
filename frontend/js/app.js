@@ -55,7 +55,7 @@ function initSearchPage() {
     var transitioned = !prev || prev.name !== s.name || prev.query !== s.query;
     if (!transitioned) return;
 
-    if (s.name === 'RESULTS') {
+    if (s.name === 'RESULTS' || s.name === 'FEATURED_RESULTS') {
       performSearch(s.query, 1);
     } else if (s.name === 'LANDING' || s.name === 'LANDING_FEATURED') {
       clearAll(s);
@@ -69,10 +69,17 @@ function initSearchPage() {
   function dispatch(event) {
     var prev = machine.state;
     machine.send(event);
-    // DISMISS is a local clear — don't rewrite the URL; the results on
-    // screen still correspond to the existing ?q=. Every other event
-    // owns the URL.
-    if (event.type !== 'DISMISS' && event.type !== 'POPSTATE') syncUrl();
+    // DISMISS is a local clear — don't rewrite the URL. LATEST_LOADED
+    // is an internal async completion that shouldn't replace the URL
+    // with ?q=issue:N (cold-start view is `/`). Every other event owns
+    // the URL.
+    if (
+      event.type !== 'DISMISS' &&
+      event.type !== 'POPSTATE' &&
+      event.type !== 'LATEST_LOADED'
+    ) {
+      syncUrl();
+    }
     apply(prev);
   }
 
@@ -218,17 +225,17 @@ function initSearchPage() {
     } catch (e) { /* silently degrade */ }
   }
 
-  // Only fires in LANDING_FEATURED (cold-start with no query). Populates
-  // the search box with the latest issue and runs a background search so
-  // the landing page doubles as a "what's new" view.
+  // Only fires in LANDING_FEATURED (cold-start with no query). Dispatches
+  // LATEST_LOADED so the state machine transitions to FEATURED_RESULTS —
+  // the reducer owns the query, the ✕ visibility, and the search run. If
+  // the response arrives after the user has typed or dismissed, the
+  // reducer ignores the event.
   async function loadLatestSearch() {
     try {
       var resp = await fetch('/latest-issue');
       var data = await resp.json();
-      if (data.issue_number && machine.state.name === 'LANDING_FEATURED') {
-        var q = 'issue:' + data.issue_number;
-        input.value = q;
-        performSearch(q, 1);
+      if (data.issue_number) {
+        dispatch({ type: 'LATEST_LOADED', query: 'issue:' + data.issue_number });
       }
     } catch (e) { /* silently degrade */ }
   }
