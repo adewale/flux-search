@@ -9,10 +9,6 @@ import { computeDensityBars } from './density.js';
 export function renderResults(container, metaEl, countEl, invalidOpsEl, filterChipsEl, data, opts) {
   var countText = data.total_hits + ' result' + (data.total_hits !== 1 ? 's' : '');
   countEl.textContent = countText;
-  // Also set the fallback count for when density strip is hidden
-  var fallbackCount = document.getElementById('result-count-fallback');
-  if (fallbackCount) fallbackCount.textContent = countText;
-  metaEl.hidden = false;
   invalidOpsEl.hidden = true;
 
   if (data.applied_filters && data.applied_filters.length > 0) {
@@ -67,7 +63,7 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
 
 export function clearResults(container, metaEl, filterChipsEl, emptyStateEl, opts) {
   container.innerHTML = '';
-  metaEl.hidden = true;
+  if (metaEl) metaEl.hidden = true;
   filterChipsEl.hidden = true;
   emptyStateEl.hidden = true;
   // Only clear density strip and facets on new queries, not pagination

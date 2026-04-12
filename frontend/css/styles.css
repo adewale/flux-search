@@ -478,16 +478,7 @@ body {
 }
 
 /* Results meta */
-.results-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border);
-  font-size: var(--size-sm);
-  color: var(--text-tertiary);
-}
+/* results-meta removed — count lives in density panel header */
 
 .invalid-ops {
   color: var(--accent-hover);
