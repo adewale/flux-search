@@ -107,13 +107,14 @@ function renderDensityStrip(yearDist) {
   if (!el) return;
 
   var W = 300;
-  var H = 24;
+  var H = 48;
   var data = computeDensityArea(yearDist, W, H);
   if (data.points.length === 0) return;
 
   var span = data.maxYear - data.minYear || 1;
+  var effectiveMax = Math.max(data.maxCount, 5);
 
-  // Area path with spike-per-year that drops to zero between hits
+  // Area path — connected fill, one point per year
   var pathD = 'M0,' + H + ' L' +
     data.points.map(function (p) { return p.x + ',' + p.y; }).join(' L') +
     ' L' + W + ',' + H + ' Z';
@@ -133,28 +134,45 @@ function renderDensityStrip(yearDist) {
     return '<line x1="' + lx + '" y1="' + H + '" x2="' + lx + '" y2="' + (H - 7) + '" class="density-mark-line" />';
   }).join('');
 
+  // Range-frame Y-axis: line from data min to data max, labels at endpoints.
+  // Only the range that contains data is drawn — pure data-ink.
+  var minCount = Math.min.apply(null, Object.values(yearDist));
+  var minY = H - (minCount / effectiveMax) * H;
+  var maxY = H - (data.maxCount / effectiveMax) * H;
+  var rangeFrame =
+    '<line x1="0" y1="' + minY + '" x2="0" y2="' + maxY + '" class="density-range-axis" />' +
+    '<line x1="-2" y1="' + maxY + '" x2="2" y2="' + maxY + '" class="density-range-tick" />' +
+    '<line x1="-2" y1="' + minY + '" x2="2" y2="' + minY + '" class="density-range-tick" />';
+
   el.innerHTML =
     '<div class="density-chart">' +
-      '<svg class="density-svg" viewBox="0 0 ' + W + ' ' + (H + 1) + '" preserveAspectRatio="none">' +
-        '<path d="' + pathD + '" />' +
-        ticks +
-        marks +
-        '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" class="density-baseline" />' +
-      '</svg>' +
-      '<div class="density-year-labels">' +
-        data.allYears.map(function (y) {
-          var pct = ((y - data.minYear) / span) * 100;
-          return '<span class="density-year" style="left:' + pct.toFixed(1) + '%">\u2019' + String(y).slice(2) + '</span>';
-        }).join('') +
+      '<div class="density-range-labels">' +
+        '<span class="density-range-max" style="top:' + maxY + 'px">' + data.maxCount + '</span>' +
+        (minCount !== data.maxCount ? '<span class="density-range-min" style="top:' + minY + 'px">' + minCount + '</span>' : '') +
       '</div>' +
-      (visibleLandmarks.length > 0 ?
-        '<div class="density-landmark-labels">' +
-          visibleLandmarks.map(function (lm) {
-            var pct = ((lm.year - data.minYear) / span) * 100;
-            return '<span class="density-landmark" style="left:' + pct.toFixed(1) + '%">' + lm.label + '</span>';
+      '<div class="density-area">' +
+        '<svg class="density-svg" viewBox="-3 0 ' + (W + 6) + ' ' + (H + 1) + '" preserveAspectRatio="none">' +
+          rangeFrame +
+          '<path d="' + pathD + '" />' +
+          ticks +
+          marks +
+          '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" class="density-baseline" />' +
+        '</svg>' +
+        '<div class="density-year-labels">' +
+          data.allYears.map(function (y) {
+            var pct = ((y - data.minYear) / span) * 100;
+            return '<span class="density-year" style="left:' + pct.toFixed(1) + '%">\u2019' + String(y).slice(2) + '</span>';
           }).join('') +
-        '</div>'
-      : '') +
+        '</div>' +
+        (visibleLandmarks.length > 0 ?
+          '<div class="density-landmark-labels">' +
+            visibleLandmarks.map(function (lm) {
+              var pct = ((lm.year - data.minYear) / span) * 100;
+              return '<span class="density-landmark" style="left:' + pct.toFixed(1) + '%">' + lm.label + '</span>';
+            }).join('') +
+          '</div>'
+        : '') +
+      '</div>' +
     '</div>';
 
   el.querySelector('svg').setAttribute('aria-label',
