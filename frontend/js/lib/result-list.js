@@ -6,7 +6,7 @@ import { escapeHtml, escapeHtmlPreserveMark, formatDate, cleanSnippet } from './
 import { SECTION_LABELS, formatSectionLabel } from './section-labels.js';
 import { computeDensityBars } from './density.js';
 
-export function renderResults(container, metaEl, countEl, invalidOpsEl, filterChipsEl, data) {
+export function renderResults(container, metaEl, countEl, invalidOpsEl, filterChipsEl, data, opts) {
   countEl.textContent = data.total_hits + ' result' + (data.total_hits !== 1 ? 's' : '');
   metaEl.hidden = false;
   invalidOpsEl.hidden = true;
@@ -20,9 +20,11 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
     filterChipsEl.hidden = true;
   }
 
-  var qd = data.quarter_distribution || data.year_distribution;
-  if (qd && Object.keys(qd).length > 0) {
-    renderDensityStrip(qd);
+  if (!opts || !opts.skipDensity) {
+    var qd = data.quarter_distribution || data.year_distribution;
+    if (qd && Object.keys(qd).length > 0) {
+      renderDensityStrip(qd);
+    }
   }
 
   container.innerHTML = data.results.map(function (r, i) {
@@ -59,15 +61,18 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
   }
 }
 
-export function clearResults(container, metaEl, filterChipsEl, emptyStateEl) {
+export function clearResults(container, metaEl, filterChipsEl, emptyStateEl, opts) {
   container.innerHTML = '';
   metaEl.hidden = true;
   filterChipsEl.hidden = true;
   emptyStateEl.hidden = true;
-  var densityEl = document.getElementById('density-strip');
-  if (densityEl) { densityEl.innerHTML = ''; densityEl.hidden = true; }
-  var facetsEl = document.getElementById('section-facets');
-  if (facetsEl) facetsEl.hidden = true;
+  // Only clear density strip and facets on new queries, not pagination
+  if (!opts || !opts.keepDensity) {
+    var densityEl = document.getElementById('density-strip');
+    if (densityEl) { var content = document.getElementById('density-content'); if (content) content.innerHTML = ''; densityEl.hidden = true; }
+    var facetsEl = document.getElementById('section-facets');
+    if (facetsEl) facetsEl.hidden = true;
+  }
 }
 
 export function renderPagination(el, currentPage, totalPages, onPageChange) {

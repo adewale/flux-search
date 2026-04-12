@@ -161,10 +161,10 @@ function initSearchPage() {
     if (clearBtn) clearBtn.hidden = !input.value;
   });
 
-  async function performSearch(q, page) {
+  async function performSearch(q, page, isPagination) {
     autocomplete.hide();
     loadingEl.hidden = false;
-    clearAll(machine.state);
+    clearAll(machine.state, isPagination);
     currentPage = page;
 
     try {
@@ -174,7 +174,7 @@ function initSearchPage() {
       loadingEl.hidden = true;
 
       if (data.results && data.results.length > 0) {
-        renderResults(resultsEl, resultsMeta, resultCount, invalidOps, filterChips, data);
+        renderResults(resultsEl, resultsMeta, resultCount, invalidOps, filterChips, data, { skipDensity: isPagination });
         if (refineHints) refineHints.hidden = false;
         if (exampleQueries) exampleQueries.hidden = true;
         var totalPages = Math.ceil(data.total_hits / pageSize);
@@ -186,7 +186,7 @@ function initSearchPage() {
             if (newPage > 1) url.searchParams.set('page', String(newPage));
             else url.searchParams.delete('page');
             history.pushState(null, '', url);
-            performSearch(q, newPage);
+            performSearch(q, newPage, true);
             window.scrollTo(0, 0);
           });
         }
@@ -200,8 +200,8 @@ function initSearchPage() {
     }
   }
 
-  function clearAll(s) {
-    clearResults(resultsEl, resultsMeta, filterChips, emptyState);
+  function clearAll(s, isPagination) {
+    clearResults(resultsEl, resultsMeta, filterChips, emptyState, { keepDensity: isPagination });
     if (paginationEl) paginationEl.hidden = true;
     if (refineHints) refineHints.hidden = true;
     if (exampleQueries) exampleQueries.hidden = false;
