@@ -197,32 +197,76 @@ export function computeSectionFacets(results: Array<{ snippetSection: string | n
 
 /**
  * Determine which section a FTS snippet came from by matching
- * snippet text against parsed section bodies.
+ * snippet text against parsed section bodies and titles.
+ *
+ * Strategy (executed in order, first match wins):
+ * 1. Split the snippet into clean fragments (on "..." ellipsis boundaries)
+ * 2. For each fragment, try a 6-word probe against section bodies
+ * 3. Try matching fragment text against section titles
+ * 4. Sliding-window fallback: try every contiguous 4-word sequence
  */
 export function detectSnippetSection(
   snippet: string,
   sections: Array<{ type: string; title?: string; body: string }>
 ): string | null {
-  if (!snippet) return null;
+  if (!snippet || sections.length === 0) return null;
 
-  // Strip <mark> tags and take a clean text window
-  const cleanSnippet = snippet.replace(/<\/?mark>/g, '').replace(/\.\.\./g, '').trim();
-  if (cleanSnippet.length < 10) return null;
+  // Strip <mark> tags; keep "..." as fragment separators for now
+  const detagged = snippet.replace(/<\/?mark>/g, '');
 
-  // Take a word sequence from the snippet as a search probe
-  const words = cleanSnippet.split(/\s+/).filter(w => w.length > 0);
-  if (words.length < 3) return null;
-  const probe = words.slice(0, 6).join(' ').toLowerCase();
+  // Split on "..." ellipses to get distinct text fragments.
+  // FTS snippets use "..." to join non-contiguous matches.
+  const rawFragments = detagged.split(/\.{3,}/);
+  const fragments = rawFragments
+    .map(f => f.replace(/\n+/g, ' ').trim())
+    .filter(f => f.length > 0);
 
-  for (const section of sections) {
-    if (section.body.toLowerCase().includes(probe)) {
-      return section.type;
+  if (fragments.length === 0) return null;
+
+  // Pre-compute lowercased section text for matching
+  const sectionData = sections.map(s => ({
+    type: s.type,
+    titleLower: (s.title || '').toLowerCase(),
+    bodyLower: s.body.toLowerCase(),
+  }));
+
+  // --- Pass 1: 6-word probes from the start of each fragment ---
+  for (const fragment of fragments) {
+    const words = fragment.split(/\s+/).filter(w => w.length > 0);
+    if (words.length < 3) continue;
+
+    const probe = words.slice(0, Math.min(6, words.length)).join(' ').toLowerCase();
+    for (const s of sectionData) {
+      if (s.bodyLower.includes(probe)) return s.type;
     }
   }
 
-  // If the snippet matches the first section's title, it's from the lead essay
-  if (sections.length > 0 && sections[0].title?.toLowerCase().includes(probe)) {
-    return sections[0].type;
+  // --- Pass 2: match fragment text against section titles ---
+  // Handles the common case where the snippet includes heading text
+  // like "Book for your shelf\nAn evergreen book..."
+  for (const fragment of fragments) {
+    const fragLower = fragment.toLowerCase();
+    for (const s of sectionData) {
+      if (s.titleLower.length >= 4 && fragLower.includes(s.titleLower)) {
+        return s.type;
+      }
+    }
+  }
+
+  // --- Pass 3: sliding 4-word window across all fragments ---
+  // Catches cases where the matching text is in the middle of a fragment
+  // or the first words are metadata/dates that don't appear in any section.
+  const WINDOW_SIZE = 4;
+  for (const fragment of fragments) {
+    const words = fragment.split(/\s+/).filter(w => w.length > 0);
+    if (words.length < WINDOW_SIZE) continue;
+
+    for (let i = 0; i <= words.length - WINDOW_SIZE; i++) {
+      const probe = words.slice(i, i + WINDOW_SIZE).join(' ').toLowerCase();
+      for (const s of sectionData) {
+        if (s.bodyLower.includes(probe)) return s.type;
+      }
+    }
   }
 
   return null;
