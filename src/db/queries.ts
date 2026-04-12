@@ -279,24 +279,30 @@ export async function autocompleteWords(db: D1Database, prefix: string, limit: n
     WHERE status = 'active'
   `).all<{ title: string; lead_essay_title: string | null; headings: string | null; summary: string | null }>();
 
-  // Extract distinct words that match the prefix
+  const texts = result.results.flatMap(row =>
+    [row.title, row.lead_essay_title, row.headings, row.summary].filter(Boolean) as string[]
+  );
+
+  return extractAutocompleteWords(texts, prefix).slice(0, limit);
+}
+
+/** Extract autocomplete words from text, stripping markdown links first. */
+export function extractAutocompleteWords(texts: string[], prefix: string): string[] {
+  if (!prefix || prefix.length < 2) return [];
+
   const lowerPrefix = prefix.toLowerCase();
   const wordSet = new Set<string>();
 
-  for (const row of result.results) {
-    const texts = [row.title, row.lead_essay_title, row.headings, row.summary].filter(Boolean) as string[];
-    for (const text of texts) {
-      for (const word of text.split(/[\s|,]+/)) {
-        const clean = word.toLowerCase().replace(/[^a-z'-]/g, '');
-        if (clean.length >= 3 && clean.startsWith(lowerPrefix) && clean !== lowerPrefix) {
-          wordSet.add(clean);
-        }
+  for (const text of texts) {
+    // Strip markdown links: [text](url) → text
+    const stripped = text.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');
+    for (const word of stripped.split(/[\s|,]+/)) {
+      const clean = word.toLowerCase().replace(/[^a-z'-]/g, '');
+      if (clean.length >= 3 && clean.startsWith(lowerPrefix) && clean !== lowerPrefix) {
+        wordSet.add(clean);
       }
     }
   }
 
-  // Sort by length (shorter = more likely what they're typing), then alphabetically
-  return [...wordSet]
-    .sort((a, b) => a.length - b.length || a.localeCompare(b))
-    .slice(0, limit);
+  return [...wordSet].sort((a, b) => a.length - b.length || a.localeCompare(b));
 }

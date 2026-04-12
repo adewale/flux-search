@@ -292,6 +292,19 @@ function cleanContent(markdown: string): { cleanMarkdown: string; plainText: str
   clean = clean.replace(/Ready for more\?/gi, '');
   clean = clean.replace(/SubscribeSign in/gi, '');
 
+  // Strip Substack footer boilerplate
+  clean = clean.replace(/Privacy\s*[∙·•]\s*Terms\s*[∙·•]\s*Collection notice/gi, '');
+  clean = clean.replace(/Start your Substack.*$/gim, '');
+  clean = clean.replace(/Substack is the home for great culture/gi, '');
+  clean = clean.replace(/This site requires JavaScript.*?unblock scripts/gis, '');
+  clean = clean.replace(/©\s*\d{4}.*(?:FLUX|Collective).*$/gim, '');
+  clean = clean.replace(/Get the app/gi, '');
+
+  // Strip Substack engagement widgets
+  clean = clean.replace(/\d*Share\s*Discussion about this post.*$/gim, '');
+  clean = clean.replace(/Comments\s*Restacks\s*Top\s*Latest\s*Discussions?\s*No posts/gi, '');
+  clean = clean.replace(/CommentsRestacksTopLatestDiscussionsNo posts/gi, '');
+
   // Strip navigation elements
   clean = clean.replace(/^\[.*?(Home|Archive|About|Subscribe).*?\]\(.*?\)\s*$/gm, '');
 

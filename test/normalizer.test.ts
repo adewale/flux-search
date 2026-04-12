@@ -140,6 +140,51 @@ describe('normalizePage', () => {
 
     expect(result.issue.id).toMatch(/^[0-9a-f-]{36}$/);
   });
+
+  it('strips Substack footer boilerplate', () => {
+    const boilerplate = [
+      'Privacy ∙ Terms ∙ Collection notice',
+      'Start your SubstackGet the appSubstack is the home for great culture',
+      'This site requires JavaScript to run correctly. Please [turn on JavaScript](https://enable-javascript.com/) or unblock scripts',
+    ].join('\n');
+    const result = normalizePage({
+      url: 'https://read.fluxcollective.org/p/test',
+      markdown: '# Title\n\nReal content here.\n\n' + boilerplate,
+      metadata: {},
+    }, 'run-1');
+
+    expect(result.issue.full_text_plain).not.toContain('Collection notice');
+    expect(result.issue.full_text_plain).not.toContain('Start your Substack');
+    expect(result.issue.full_text_plain).not.toContain('Substack is the home');
+    expect(result.issue.full_text_plain).not.toContain('turn on JavaScript');
+    expect(result.issue.full_text_plain).not.toContain('unblock scripts');
+    expect(result.issue.full_text_plain).toContain('Real content');
+  });
+
+  it('strips Substack engagement widgets', () => {
+    const widgets = '71ShareDiscussion about this postCommentsRestacksTopLatestDiscussionsNo posts';
+    const result = normalizePage({
+      url: 'https://read.fluxcollective.org/p/test',
+      markdown: '# Title\n\nReal content here.\n\n' + widgets,
+      metadata: {},
+    }, 'run-1');
+
+    expect(result.issue.full_text_plain).not.toContain('ShareDiscussion');
+    expect(result.issue.full_text_plain).not.toContain('CommentsRestacks');
+    expect(result.issue.full_text_plain).not.toContain('TopLatestDiscussions');
+    expect(result.issue.full_text_plain).toContain('Real content');
+  });
+
+  it('strips Substack footer from markdown too', () => {
+    const result = normalizePage({
+      url: 'https://read.fluxcollective.org/p/test',
+      markdown: '# Title\n\nGood stuff.\n\n© 2024 The FLUX Collective\nPrivacy ∙ Terms ∙ Collection notice\nStart your SubstackGet the app',
+      metadata: {},
+    }, 'run-1');
+
+    expect(result.issue.full_text_markdown).not.toContain('Collection notice');
+    expect(result.issue.full_text_markdown).not.toContain('Start your Substack');
+  });
 });
 
 describe('computeContentHash', () => {
