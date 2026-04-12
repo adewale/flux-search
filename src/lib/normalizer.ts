@@ -301,12 +301,19 @@ function cleanContent(markdown: string): { cleanMarkdown: string; plainText: str
   // Plain text remnants after markdown stripping
   clean = clean.replace(/^The FLUX Review\s*$/gm, '');
 
+  // --- Standalone date headings: "### September 18th, 2025" ---
+  // These appear as the issue dateline in the header area, not in prose.
+  clean = clean.replace(/^#{1,6}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\s*$/gm, '');
+
   // --- Photo credits and image prompt lines ---
   // "Jun 10, Wind farms in suburbia... // Photo: Spencer Pitman, FLUX"
   // "Apr 10, "FCP-230" // Photo:  with Midjourney"
   clean = clean.replace(/^.*\/\/\s*Photo:.*$/gm, '');
   // "May 19, "FCP-125" ..." without // Photo
   clean = clean.replace(/^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2},?\s+[""\u201C]FCP-\d+[""\u201D].*$/gm, '');
+  // Image caption lines with square brackets: "Sep 19, [ A simple system ] - The game Factorio..."
+  // These are image alt-text captions that appear after the byline mega-line is partially stripped.
+  clean = clean.replace(/^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2},?\s*\[.*?\].*$/gm, '');
 
   // --- Comment/engagement section: strip everything from ReplyShare or Subscribe+NShare onward ---
   // This catches user comments, Liked by, reply counts, TopLatest, etc.
@@ -385,6 +392,12 @@ function cleanContent(markdown: string): { cleanMarkdown: string; plainText: str
   // Must run AFTER profile link stripping leaves ", , , and N others"
   clean = clean.replace(/(?:,\s*){2,}and\s+\d+\s+others\w*/gi, '');
 
+  // --- Late-pass image caption cleanup ---
+  // After profile links, NShare, episode dateline, etc. are stripped from the
+  // byline mega-line, exposed fragments like "Sep 19, [ A simple system ] ..."
+  // may now be line-anchored. Catch them here.
+  clean = clean.replace(/^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2},?\s*\[.*?\].*$/gm, '');
+
   // --- Final Subscribe cleanup (after all other stripping) ---
   clean = clean.replace(/^\s*Subscribe\*?\s*$/gm, '');
 
@@ -395,6 +408,8 @@ function cleanContent(markdown: string): { cleanMarkdown: string; plainText: str
   // Generate plain text by stripping markdown
   let plain = clean;
   plain = plain.replace(/!\[.*?\]\(.*?\)/g, ''); // images
+  // Links where the text is a bare URL: replace with domain name only
+  plain = plain.replace(/\[(https?:\/\/(?:www\.)?([^/\]]+)[^\]]*)\]\([^)]*\)/g, '$2');
   plain = plain.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1'); // standard links
   // Catch any remaining ](url) fragments from malformed/nested links
   plain = plain.replace(/\]\(https?:\/\/[^)]*\)/g, '');

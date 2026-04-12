@@ -205,6 +205,82 @@ describe('normalizePage', () => {
   });
 });
 
+describe('date/photo crud stripping (issue #207)', () => {
+  /** Helper: run markdown through normalizePage and return cleaned text */
+  function clean(markdown: string) {
+    const result = normalizePage({
+      url: 'https://read.fluxcollective.org/p/207',
+      markdown: '# Test Issue\n\n' + markdown,
+      metadata: {},
+    }, 'run-1');
+    return {
+      md: result.issue.full_text_markdown,
+      plain: result.issue.full_text_plain,
+    };
+  }
+
+  it('strips standalone date headings like "### September 18th, 2025"', () => {
+    const { md, plain } = clean(
+      '### September 18th, 2025\n\n## 🪄 Lead essay\n\nReal content here.'
+    );
+    expect(md).not.toContain('September 18th, 2025');
+    expect(plain).not.toContain('September 18th, 2025');
+    expect(plain).toContain('Real content');
+  });
+
+  it('strips standalone date headings with various formats', () => {
+    // "### October 9th, 2025", "### January 29th, 2026", "### May 1, 2024"
+    for (const date of ['October 9th, 2025', 'January 29th, 2026', 'May 1, 2024', 'March 14, 2024']) {
+      const { plain } = clean(`### ${date}\n\n## 🧠 Essay\n\nContent.`);
+      expect(plain).not.toContain(date);
+    }
+  });
+
+  it('strips the byline mega-line (profile + date + share + image caption + episode)', () => {
+    // This is the actual pattern from issue 207's raw markdown after HTML→markdown conversion
+    const bylineMegaLine = '[The FLUX Collective](https://substack.com/@galex)Sep 19, 2025101Share' +
+      '[](https://substackcdn.com/image/fetch/example.png)' +
+      '[ A simple system ] - The game Factorio, Ed Bradon, [https://worksinprogress.co/](https://worksinprogress.co/)' +
+      'Episode 207 — September 18th, 2025 — Available at [read.fluxcollective.org/p/207](https://read.fluxcollective.org/p/207)' +
+      'Contributors to this issue: [Neel](https://substack.com/profile/123-neel)' +
+      'Additional insights from: [Ade](https://substack.com/profile/456-ade)' +
+      "*We're a ragtag band of systems thinkers*";
+    const { md, plain } = clean(bylineMegaLine + '\n\n## 🪄 Real heading\n\nReal content.');
+    // After all stripping, no remnants of the byline should survive
+    expect(plain).not.toContain('Sep 19');
+    expect(plain).not.toContain('A simple system');
+    expect(plain).not.toContain('worksinprogress.co');
+    expect(plain).not.toContain('Ed Bradon');
+    expect(plain).toContain('Real content');
+  });
+
+  it('strips image caption lines with square brackets', () => {
+    // Pattern: "Mon DD, [ caption ] - description, author, URL"
+    const { plain } = clean(
+      'Sep 19, [ A simple system ] - The game Factorio, Ed Bradon, https://worksinprogress.co/\n\nReal content.'
+    );
+    expect(plain).not.toContain('A simple system');
+    expect(plain).not.toContain('Ed Bradon');
+    expect(plain).toContain('Real content');
+  });
+
+  it('converts bare URL link text to domain name in plain text', () => {
+    const { plain } = clean(
+      'See [https://worksinprogress.co/](https://worksinprogress.co/) for more.\n\nReal content.'
+    );
+    // Should not have the raw URL as link text; should either strip or show domain
+    expect(plain).not.toMatch(/https?:\/\//);
+    expect(plain).toContain('Real content');
+  });
+
+  it('preserves legitimate content mentioning dates in prose', () => {
+    const { plain } = clean(
+      "The event happened on September 18th, 2025 and changed everything."
+    );
+    expect(plain).toContain('September 18th, 2025');
+  });
+});
+
 describe('computeContentHash', () => {
   it('produces consistent hashes', async () => {
     const hash1 = await computeContentHash('hello world');

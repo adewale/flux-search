@@ -32,6 +32,8 @@ const CRUD_PATTERNS = [
   { name: 'Photo credit', pattern: /\/\/\s*Photo:/i },
   { name: 'FCP image prompt', pattern: /FCP-\d+/i },
   { name: 'Byline orphan commas', pattern: /^[,\s]+and\s+\d+\s+others/m },
+  { name: 'Standalone date heading', pattern: /^(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4}\s*$/m },
+  { name: 'Image caption with brackets', pattern: /^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2},?\s*\[.*?\]/m },
 ];
 
 describe('corpus crud validation', () => {
