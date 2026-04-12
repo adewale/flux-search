@@ -15,15 +15,19 @@ function quarterToNum(key) {
   return year + (q - 1) * 0.25;
 }
 
-export function computeDensityBars(quarterDist, width, height) {
+export function computeDensityBars(quarterDist, width, height, now) {
   var keys = Object.keys(quarterDist).sort();
   if (keys.length === 0) {
     return { bars: [], yearTicks: [], barWidth: 0, maxCount: 0 };
   }
 
+  // Right edge = current quarter (not last data point)
+  var today = now || new Date();
+  var nowPos = today.getFullYear() + Math.floor(today.getMonth() / 3) * 0.25;
+
   var positions = keys.map(quarterToNum);
   var minPos = positions[0];
-  var maxPos = positions[positions.length - 1];
+  var maxPos = Math.max(positions[positions.length - 1], nowPos);
   var span = maxPos - minPos || 1;
 
   var maxCount = Math.max.apply(null, Object.values(quarterDist));
@@ -41,9 +45,9 @@ export function computeDensityBars(quarterDist, width, height) {
     bars.push({ key: key, x: x, height: barH, count: count });
   }
 
-  // Year ticks: one per year in the range
+  // Year ticks: one per year from first data to current year
   var minYear = Math.floor(minPos);
-  var maxYear = Math.ceil(maxPos);
+  var maxYear = today.getFullYear();
   var yearTicks = [];
   for (var y = minYear; y <= maxYear; y++) {
     var tx = ((y - minPos) / span) * width;

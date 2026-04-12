@@ -506,6 +506,27 @@ body {
   text-transform: uppercase;
 }
 
+.density-body {
+  display: flex;
+  align-items: stretch;
+}
+
+.density-y-label {
+  writing-mode: vertical-lr;
+  transform: rotate(180deg);
+  font-size: var(--size-sm);
+  color: var(--text-tertiary);
+  letter-spacing: var(--tracking-open);
+  padding-right: 0.375rem;
+  display: flex;
+  align-items: center;
+}
+
+#density-content {
+  flex: 1;
+  min-width: 0;
+}
+
 .density-chart {
   position: relative;
 }
