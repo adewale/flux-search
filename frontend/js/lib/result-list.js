@@ -4,7 +4,7 @@
 
 import { escapeHtml, escapeHtmlPreserveMark, formatDate, cleanSnippet } from './utils.js';
 import { SECTION_LABELS, formatSectionLabel } from './section-labels.js';
-import { computeDensityBars } from './density.js';
+import { computeDensityArea } from './density.js';
 
 export function renderResults(container, metaEl, countEl, invalidOpsEl, filterChipsEl, data) {
   countEl.textContent = data.total_hits + ' result' + (data.total_hits !== 1 ? 's' : '');
@@ -108,16 +108,15 @@ function renderDensityStrip(yearDist) {
 
   var W = 300;
   var H = 24;
-  var data = computeDensityBars(yearDist, W, H);
-  if (data.bars.length === 0) return;
+  var data = computeDensityArea(yearDist, W, H);
+  if (data.points.length === 0) return;
 
   var span = data.maxYear - data.minYear || 1;
 
-  // Discrete bars — one per year with results
-  var barsSvg = data.bars.map(function (b) {
-    return '<rect x="' + (b.x - data.barWidth / 2) + '" y="' + (H - b.barHeight) +
-      '" width="' + data.barWidth + '" height="' + b.barHeight + '" class="density-bar" />';
-  }).join('');
+  // Area path with spike-per-year that drops to zero between hits
+  var pathD = 'M0,' + H + ' L' +
+    data.points.map(function (p) { return p.x + ',' + p.y; }).join(' L') +
+    ' L' + W + ',' + H + ' Z';
 
   // Year ticks
   var ticks = data.allYears.map(function (y) {
@@ -137,7 +136,7 @@ function renderDensityStrip(yearDist) {
   el.innerHTML =
     '<div class="density-chart">' +
       '<svg class="density-svg" viewBox="0 0 ' + W + ' ' + (H + 1) + '" preserveAspectRatio="none">' +
-        barsSvg +
+        '<path d="' + pathD + '" />' +
         ticks +
         marks +
         '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" class="density-baseline" />' +

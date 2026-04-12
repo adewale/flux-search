@@ -484,15 +484,15 @@ body {
   display: block;
 }
 
-.density-bar {
+.density-svg path {
   fill: var(--accent);
-  opacity: 0.25;
+  opacity: 0.18;
   animation: density-reveal 0.4s ease-out;
 }
 
 @keyframes density-reveal {
   from { opacity: 0; transform: scaleY(0); transform-origin: bottom; }
-  to { opacity: 0.25; transform: scaleY(1); }
+  to { opacity: 0.18; transform: scaleY(1); }
 }
 
 .density-baseline {

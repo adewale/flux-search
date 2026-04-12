@@ -1,10 +1,11 @@
 // Density strip — pure computation, no DOM.
-// Produces bar data for discrete year-by-year rendering.
+// Produces area-fill path points with discrete spikes that drop to
+// zero between years, so sparse results don't look like constant density.
 
-export function computeDensityBars(yearDist, width, height) {
+export function computeDensityArea(yearDist, width, height) {
   var years = Object.keys(yearDist).map(Number).sort();
   if (years.length === 0) {
-    return { bars: [], minYear: 0, maxYear: 0, allYears: [], barWidth: 0, maxCount: 0 };
+    return { points: [], minYear: 0, maxYear: 0, allYears: [], maxCount: 0 };
   }
 
   var minYear = years[0];
@@ -15,17 +16,26 @@ export function computeDensityBars(yearDist, width, height) {
   var allYears = [];
   for (var y = minYear; y <= maxYear; y++) allYears.push(y);
 
-  var barWidth = Math.max(3, (width / (span + 1)) * 0.6);
+  // Each year with data gets a triangular spike; the area drops to
+  // baseline on either side so consecutive years still read as separate events.
+  var halfStep = 0.35;
+  var points = [];
 
-  var bars = [];
   for (var i = 0; i < allYears.length; i++) {
     var y = allYears[i];
     var count = yearDist[y] || 0;
-    if (count === 0) continue;
     var x = ((y - minYear) / span) * width;
-    var barH = (count / maxCount) * height;
-    bars.push({ year: y, x: x, barHeight: barH, count: count });
+
+    if (count > 0) {
+      var peakY = height - (count / maxCount) * height;
+      var dx = (halfStep / span) * width;
+      points.push({ x: Math.max(0, x - dx), y: height });
+      points.push({ x: x, y: peakY });
+      points.push({ x: Math.min(width, x + dx), y: height });
+    } else {
+      points.push({ x: x, y: height });
+    }
   }
 
-  return { bars: bars, minYear: minYear, maxYear: maxYear, allYears: allYears, barWidth: barWidth, maxCount: maxCount };
+  return { points: points, minYear: minYear, maxYear: maxYear, allYears: allYears, maxCount: maxCount };
 }
