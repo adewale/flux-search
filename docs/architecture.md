@@ -75,6 +75,56 @@ User query ──► query-parser ──► ParsedQuery
                            year distribution
 ```
 
+## Search pipeline (operation ordering)
+
+The search handler in `src/routes/search.ts` has three paths that must all
+produce the same response shape. The ordering of operations has dependencies
+that caused bugs when violated — this diagram documents the correct sequence.
+
+```
+Query string
+    │
+    ├─ issue:N only ──► getIssueByNumber ──► detect section ──► aggregates ──► respond
+    │
+    ├─ filter only ──► searchFilterOnly ──► detect sections ──► aggregates ──► paginate ──► respond
+    │
+    └─ text search ──► parse ──► FTS + Vectorize (parallel)
+                                        │
+                                        ▼
+                                   rankResults (RRF fusion)
+                                        │
+                                        ▼
+                               detectSnippetSection  ◄── MUST run here:
+                               (on ALL ranked results)   before filter, before aggregates
+                                        │
+                                        ▼
+                               section filter (if section: operator)
+                                        │
+                                        ▼
+                               compute aggregates:
+                                 • year_distribution
+                                 • quarter_distribution (with sections)
+                                 • section_facets
+                                        │
+                                        ▼
+                                   paginate
+                                        │
+                                        ▼
+                                   respond
+```
+
+**Critical ordering constraint:** `detectSnippetSection` must run on all ranked
+results BEFORE the section filter and aggregate computations. FTS-only results
+have null `snippetSection` from the ranker — detection fills it in by parsing
+the issue markdown. If detection runs after pagination (as it did originally),
+aggregates undercount sections and the section filter fails on FTS results.
+
+**Response contract:** All three paths return the same 7 top-level fields
+(`parsed_query`, `applied_filters`, `total_hits`, `year_distribution`,
+`quarter_distribution`, `section_facets`, `results`) and each result has 9
+fields (`issue_id`, `title`, `issue_number`, `published_at`, `snippet`,
+`snippet_section`, `confidence`, `canonical_url`, `matched_by`).
+
 ## Module map
 
 ### Routes (`src/routes/`)

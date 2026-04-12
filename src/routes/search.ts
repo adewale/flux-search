@@ -73,15 +73,27 @@ searchRoutes.get('/search', async (c) => {
   if (isFilterOnly(parsed)) {
     const filterResults = await searchFilterOnly(c.env.DB, parsed.filters);
 
-    // Detect sections and compute aggregates for all filter results
-    const withSections = filterResults.issues.map(issue => {
+    // Detect sections for all filter results
+    const sectionFilter = parsed.filters.section;
+    let withSections = filterResults.issues.map(issue => {
       let snippetSection: string | null = null;
       if (issue.full_text_markdown) {
         const sections = parseSections(issue.full_text_markdown);
-        if (sections.length > 0) snippetSection = sections[0].type;
+        if (sectionFilter) {
+          // When filtering by section, find that specific section
+          const match = sections.find(s => s.type === sectionFilter);
+          if (match) snippetSection = match.type;
+        } else if (sections.length > 0) {
+          snippetSection = sections[0].type;
+        }
       }
       return { issue, snippetSection };
     });
+
+    // Apply section filter if present
+    if (sectionFilter) {
+      withSections = withSections.filter(r => r.snippetSection === sectionFilter);
+    }
 
     const yearDist: Record<number, number> = {};
     const quarterSectionDist: Record<string, Record<string, number>> = {};
@@ -104,7 +116,7 @@ searchRoutes.get('/search', async (c) => {
     return c.json({
       parsed_query: { free_text: parsed.freeText, phrases: parsed.phrases, filters: parsed.filters },
       applied_filters: parsed.operators,
-      total_hits: filterResults.total,
+      total_hits: withSections.length,
       year_distribution: yearDist,
       quarter_distribution: quarterSectionDist,
       section_facets: sectionFacets,
