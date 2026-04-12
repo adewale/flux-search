@@ -242,6 +242,23 @@ export function computeYearDistribution(results: RankedResult[]): Record<number,
   return dist;
 }
 
+// --- Density strip: quarter distribution ---
+
+export function computeQuarterDistribution(results: RankedResult[]): Record<string, number> {
+  const dist: Record<string, number> = {};
+  for (const r of results) {
+    const date = r.issue.published_at;
+    if (!date) continue;
+    const month = new Date(date + 'T00:00:00Z').getUTCMonth(); // 0-11
+    const year = new Date(date + 'T00:00:00Z').getUTCFullYear();
+    if (isNaN(year)) continue;
+    const q = Math.floor(month / 3) + 1;
+    const key = year + '-Q' + q;
+    dist[key] = (dist[key] || 0) + 1;
+  }
+  return dist;
+}
+
 // --- Confidence tiers (Robin Williams: contrast as hierarchy) ---
 
 export function classifyConfidence(meta: DebugMeta): 'high' | 'medium' | 'low' {

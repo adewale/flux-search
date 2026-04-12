@@ -4,7 +4,7 @@
 
 import { escapeHtml, escapeHtmlPreserveMark, formatDate, cleanSnippet } from './utils.js';
 import { SECTION_LABELS, formatSectionLabel } from './section-labels.js';
-import { computeDensityArea } from './density.js';
+import { computeDensityBars } from './density.js';
 
 export function renderResults(container, metaEl, countEl, invalidOpsEl, filterChipsEl, data) {
   countEl.textContent = data.total_hits + ' result' + (data.total_hits !== 1 ? 's' : '');
@@ -20,8 +20,9 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
     filterChipsEl.hidden = true;
   }
 
-  if (data.year_distribution && Object.keys(data.year_distribution).length > 0) {
-    renderDensityStrip(data.year_distribution);
+  var qd = data.quarter_distribution || data.year_distribution;
+  if (qd && Object.keys(qd).length > 0) {
+    renderDensityStrip(qd);
   }
 
   container.innerHTML = data.results.map(function (r, i) {
@@ -64,7 +65,7 @@ export function clearResults(container, metaEl, filterChipsEl, emptyStateEl) {
   filterChipsEl.hidden = true;
   emptyStateEl.hidden = true;
   var densityEl = document.getElementById('density-strip');
-  if (densityEl) densityEl.hidden = true;
+  if (densityEl) { densityEl.innerHTML = ''; densityEl.hidden = true; }
   var facetsEl = document.getElementById('section-facets');
   if (facetsEl) facetsEl.hidden = true;
 }
@@ -102,81 +103,46 @@ var LANDMARKS = [
   { year: 2025, label: '#200' },
 ];
 
-function renderDensityStrip(yearDist) {
+function renderDensityStrip(dist) {
   var el = document.getElementById('density-strip');
   if (!el) return;
 
   var W = 300;
   var H = 48;
-  var data = computeDensityArea(yearDist, W, H);
-  if (data.points.length === 0) return;
+  var data = computeDensityBars(dist, W, H);
+  if (data.bars.length === 0) return;
 
-  var span = data.maxYear - data.minYear || 1;
-  var effectiveMax = Math.max(data.maxCount, 5);
-
-  // Area path — connected fill, one point per year
-  var pathD = 'M0,' + H + ' L' +
-    data.points.map(function (p) { return p.x + ',' + p.y; }).join(' L') +
-    ' L' + W + ',' + H + ' Z';
-
-  // Year ticks
-  var ticks = data.allYears.map(function (y) {
-    var tx = ((y - data.minYear) / span) * W;
-    return '<line x1="' + tx + '" y1="' + H + '" x2="' + tx + '" y2="' + (H - 4) + '" class="density-tick" />';
+  // Bars with direct count labels above each
+  var barsSvg = data.bars.map(function (b) {
+    var bx = b.x - data.barWidth / 2;
+    var by = H - b.height;
+    return '<rect x="' + bx + '" y="' + by + '" width="' + data.barWidth +
+      '" height="' + b.height + '" class="density-bar" />' +
+      '<text x="' + b.x + '" y="' + (by - 2) + '" class="density-bar-label">' + b.count + '</text>';
   }).join('');
 
-  // Landmark markers
-  var visibleLandmarks = LANDMARKS.filter(function (lm) {
-    return lm.year >= data.minYear && lm.year <= data.maxYear;
-  });
-  var marks = visibleLandmarks.map(function (lm) {
-    var lx = ((lm.year - data.minYear) / span) * W;
-    return '<line x1="' + lx + '" y1="' + H + '" x2="' + lx + '" y2="' + (H - 7) + '" class="density-mark-line" />';
+  // Year tick lines on the baseline
+  var ticks = data.yearTicks.map(function (t) {
+    return '<line x1="' + t.x + '" y1="' + H + '" x2="' + t.x + '" y2="' + (H - 4) + '" class="density-tick" />';
   }).join('');
-
-  // Range-frame Y-axis: line from data min to data max, labels at endpoints.
-  // Only the range that contains data is drawn — pure data-ink.
-  var minCount = Math.min.apply(null, Object.values(yearDist));
-  var minY = H - (minCount / effectiveMax) * H;
-  var maxY = H - (data.maxCount / effectiveMax) * H;
-  var rangeFrame =
-    '<line x1="0" y1="' + minY + '" x2="0" y2="' + maxY + '" class="density-range-axis" />' +
-    '<line x1="-2" y1="' + maxY + '" x2="2" y2="' + maxY + '" class="density-range-tick" />' +
-    '<line x1="-2" y1="' + minY + '" x2="2" y2="' + minY + '" class="density-range-tick" />';
 
   el.innerHTML =
     '<div class="density-chart">' +
-      '<div class="density-range-labels">' +
-        '<span class="density-range-max" style="top:' + maxY + 'px">' + data.maxCount + '</span>' +
-        (minCount !== data.maxCount ? '<span class="density-range-min" style="top:' + minY + 'px">' + minCount + '</span>' : '') +
-      '</div>' +
-      '<div class="density-area">' +
-        '<svg class="density-svg" viewBox="-3 0 ' + (W + 6) + ' ' + (H + 1) + '" preserveAspectRatio="none">' +
-          rangeFrame +
-          '<path d="' + pathD + '" />' +
-          ticks +
-          marks +
-          '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" class="density-baseline" />' +
-        '</svg>' +
-        '<div class="density-year-labels">' +
-          data.allYears.map(function (y) {
-            var pct = ((y - data.minYear) / span) * 100;
-            return '<span class="density-year" style="left:' + pct.toFixed(1) + '%">\u2019' + String(y).slice(2) + '</span>';
-          }).join('') +
-        '</div>' +
-        (visibleLandmarks.length > 0 ?
-          '<div class="density-landmark-labels">' +
-            visibleLandmarks.map(function (lm) {
-              var pct = ((lm.year - data.minYear) / span) * 100;
-              return '<span class="density-landmark" style="left:' + pct.toFixed(1) + '%">' + lm.label + '</span>';
-            }).join('') +
-          '</div>'
-        : '') +
+      '<svg class="density-svg" viewBox="-5 -12 ' + (W + 10) + ' ' + (H + 13) + '">' +
+        barsSvg +
+        ticks +
+        '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" class="density-baseline" />' +
+      '</svg>' +
+      '<div class="density-year-labels">' +
+        data.yearTicks.map(function (t) {
+          var pct = (t.x / W) * 100;
+          return '<span class="density-year" style="left:' + Math.max(0, Math.min(100, pct)).toFixed(1) + '%">\u2019' + String(t.year).slice(2) + '</span>';
+        }).join('') +
       '</div>' +
     '</div>';
 
   el.querySelector('svg').setAttribute('aria-label',
-    data.allYears.map(function (y) { return y + ': ' + (yearDist[y] || 0); }).join(', '));
+    data.bars.map(function (b) { return b.key + ': ' + b.count; }).join(', '));
 
   el.hidden = false;
 }

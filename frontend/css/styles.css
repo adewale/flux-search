@@ -489,59 +489,31 @@ body {
 
 .density-chart {
   position: relative;
-  display: flex;
-  gap: 0.25rem;
-}
-
-/* Range-frame Y-axis labels (Tufte): only min and max, positioned at data values */
-.density-range-labels {
-  position: relative;
-  width: 1.25rem;
-  flex-shrink: 0;
-}
-
-.density-range-max,
-.density-range-min {
-  position: absolute;
-  right: 0;
-  font-size: var(--size-sm);
-  font-variant-numeric: tabular-nums;
-  color: var(--text-tertiary);
-  line-height: 1;
-  transform: translateY(-50%);
-}
-
-.density-area {
-  flex: 1;
-  min-width: 0;
 }
 
 .density-svg {
   width: 100%;
-  height: 48px;
+  height: 64px;
   display: block;
 }
 
-.density-svg path {
+.density-bar {
   fill: var(--accent);
-  opacity: 0.18;
+  opacity: 0.22;
   animation: density-reveal 0.4s ease-out;
 }
 
-/* Range-frame axis: line spans data min to data max only */
-.density-range-axis {
-  stroke: var(--text-tertiary);
-  stroke-width: 0.75;
-}
-
-.density-range-tick {
-  stroke: var(--text-tertiary);
-  stroke-width: 0.75;
+.density-bar-label {
+  font-size: 8px;
+  font-family: var(--font);
+  fill: var(--text-secondary);
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
 }
 
 @keyframes density-reveal {
   from { opacity: 0; transform: scaleY(0); transform-origin: bottom; }
-  to { opacity: 0.18; transform: scaleY(1); }
+  to { opacity: 0.22; transform: scaleY(1); }
 }
 
 .density-baseline {

@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest';
 import {
   rankResults,
   computeYearDistribution,
+  computeQuarterDistribution,
   classifyConfidence,
   type RankedResult,
 } from '../src/lib/hybrid-ranker';
@@ -186,5 +187,54 @@ describe('computeBatchPlan', () => {
     const plan = computeBatchPlan(discovered, existing, 10);
     expect(plan.toProcess).toHaveLength(0);
     expect(plan.done).toBe(true);
+  });
+});
+
+describe('computeQuarterDistribution', () => {
+  function makeResult(published_at: string): RankedResult {
+    return {
+      issue: { published_at } as any,
+      snippet: '',
+      snippetSection: null,
+      matchedBy: ['fts'],
+      confidence: 'medium',
+      debugMeta: {} as any,
+    };
+  }
+
+  it('groups results by quarter', () => {
+    const results = [
+      makeResult('2022-02-10'),
+      makeResult('2022-06-09'),
+      makeResult('2022-08-11'),
+      makeResult('2022-10-13'),
+      makeResult('2022-10-27'),
+    ];
+    const dist = computeQuarterDistribution(results);
+    expect(dist['2022-Q1']).toBe(1);
+    expect(dist['2022-Q2']).toBe(1);
+    expect(dist['2022-Q3']).toBe(1);
+    expect(dist['2022-Q4']).toBe(2);
+  });
+
+  it('spans multiple years', () => {
+    const results = [
+      makeResult('2022-03-01'),
+      makeResult('2023-09-15'),
+      makeResult('2024-01-10'),
+    ];
+    const dist = computeQuarterDistribution(results);
+    expect(dist['2022-Q1']).toBe(1);
+    expect(dist['2023-Q3']).toBe(1);
+    expect(dist['2024-Q1']).toBe(1);
+  });
+
+  it('returns empty for no results', () => {
+    expect(computeQuarterDistribution([])).toEqual({});
+  });
+
+  it('handles missing published_at', () => {
+    const results = [makeResult(null as any)];
+    expect(computeQuarterDistribution(results)).toEqual({});
   });
 });
