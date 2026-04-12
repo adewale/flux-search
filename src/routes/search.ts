@@ -83,23 +83,20 @@ searchRoutes.get('/search', async (c) => {
 
   let ranked = rankResults(parsed, lexicalResults, semanticResults, c.env);
 
-  // Section filter — post-ranking filter on snippet section
-  if (parsed.filters.section) {
-    const sectionFilter = parsed.filters.section;
-    ranked = ranked.filter(r =>
-      r.snippetSection === sectionFilter ||
-      r.debugMeta.top_chunk_section?.toLowerCase().includes(sectionFilter)
-    );
-  }
-
-  // Detect section for ALL results before computing aggregates.
-  // Without this, FTS-only results have null snippetSection and
-  // the facets/density strip undercount sections.
+  // Detect section for ALL results first — must run before filtering
+  // and aggregates so that FTS-only results (which have null snippetSection
+  // from the ranker) get their sections filled in.
   for (const r of ranked) {
     if (!r.snippetSection && r.snippet && r.issue.full_text_markdown) {
       const sections = parseSections(r.issue.full_text_markdown);
       r.snippetSection = detectSnippetSection(r.snippet, sections);
     }
+  }
+
+  // Section filter — now runs after detection so FTS results are filterable
+  if (parsed.filters.section) {
+    const sectionFilter = parsed.filters.section;
+    ranked = ranked.filter(r => r.snippetSection === sectionFilter);
   }
 
   // Paginate
