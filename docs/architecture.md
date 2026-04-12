@@ -132,6 +132,8 @@ title: 16 | subtitle: 8 | headings: 8 | summary: 4 | body: 1 | contributors: 2
 
 ## Ranking algorithm
 
+> For the reasoning behind these choices and a guide to tuning them, see [search.md](search.md).
+
 Weighted reciprocal rank fusion with deterministic reranking:
 
 ```

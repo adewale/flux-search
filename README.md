@@ -104,7 +104,7 @@ Browser --> Cloudflare Worker (Hono)
 
 A search query is parsed into free text, quoted phrases, and filter operators. FTS5 and Vectorize run in parallel, and results are fused via reciprocal rank fusion with deterministic reranking boosts for phrase matches, title overlap, and cross-signal agreement.
 
-See [docs/architecture.md](docs/architecture.md) for the full module map, ranking algorithm, database schema, and configuration reference.
+See [docs/architecture.md](docs/architecture.md) for the full module map, database schema, and configuration reference, and [docs/search.md](docs/search.md) for a detailed explanation of the hybrid search design and how to tune it for a different corpus.
 
 ## Built with
 
