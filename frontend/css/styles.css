@@ -197,9 +197,35 @@ body {
   transform: scaleX(1.01);
 }
 
+#search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  display: none;
+}
+
 #search-input::placeholder {
   color: var(--text-tertiary);
   font-size: var(--size-sm);
+}
+
+.search-clear {
+  position: absolute;
+  right: 2.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.search-clear:hover {
+  opacity: 1;
+  color: var(--accent);
 }
 
 .search-btn {
@@ -458,15 +484,15 @@ body {
   display: block;
 }
 
-.density-svg path {
+.density-bar {
   fill: var(--accent);
-  opacity: 0.18;
+  opacity: 0.25;
   animation: density-reveal 0.4s ease-out;
 }
 
 @keyframes density-reveal {
   from { opacity: 0; transform: scaleY(0); transform-origin: bottom; }
-  to { opacity: 0.18; transform: scaleY(1); }
+  to { opacity: 0.25; transform: scaleY(1); }
 }
 
 .density-baseline {
@@ -1032,10 +1058,6 @@ body {
   .tip-row {
     flex-direction: column;
     gap: 0.125rem;
-  }
-
-  .density-strip {
-    display: none;
   }
 
   .example-query { padding: 0.375rem 0.625rem; }

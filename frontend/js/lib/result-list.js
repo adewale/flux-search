@@ -4,6 +4,7 @@
 
 import { escapeHtml, escapeHtmlPreserveMark, formatDate, cleanSnippet } from './utils.js';
 import { SECTION_LABELS, formatSectionLabel } from './section-labels.js';
+import { computeDensityBars } from './density.js';
 
 export function renderResults(container, metaEl, countEl, invalidOpsEl, filterChipsEl, data) {
   countEl.textContent = data.total_hits + ' result' + (data.total_hits !== 1 ? 's' : '');
@@ -102,67 +103,55 @@ var LANDMARKS = [
 ];
 
 function renderDensityStrip(yearDist) {
-  var years = Object.keys(yearDist).map(Number).sort();
-  if (years.length === 0) return;
-
   var el = document.getElementById('density-strip');
   if (!el) return;
 
-  var minYear = years[0];
-  var maxYear = years[years.length - 1];
-  var span = maxYear - minYear || 1;
-  var maxCount = Math.max.apply(null, Object.values(yearDist));
-  if (maxCount === 0) return;
-
   var W = 300;
   var H = 24;
+  var data = computeDensityBars(yearDist, W, H);
+  if (data.bars.length === 0) return;
 
-  // Area path — mountain silhouette
-  var points = [];
-  for (var y = minYear; y <= maxYear; y++) {
-    var x = ((y - minYear) / span) * W;
-    var count = yearDist[y] || 0;
-    var py = H - (count / maxCount) * H;
-    points.push(x + ',' + py);
-  }
-  var path = 'M0,' + H + ' L' + points.join(' L') + ' L' + W + ',' + H + ' Z';
+  var span = data.maxYear - data.minYear || 1;
 
-  // Year ticks — short lines rising into the silhouette from the baseline
-  var ticks = '';
-  for (var y = minYear; y <= maxYear; y++) {
-    var tx = ((y - minYear) / span) * W;
-    ticks += '<line x1="' + tx + '" y1="' + H + '" x2="' + tx + '" y2="' + (H - 4) + '" class="density-tick" />';
-  }
+  // Discrete bars — one per year with results
+  var barsSvg = data.bars.map(function (b) {
+    return '<rect x="' + (b.x - data.barWidth / 2) + '" y="' + (H - b.barHeight) +
+      '" width="' + data.barWidth + '" height="' + b.barHeight + '" class="density-bar" />';
+  }).join('');
 
-  // Landmark markers — slightly taller ticks
+  // Year ticks
+  var ticks = data.allYears.map(function (y) {
+    var tx = ((y - data.minYear) / span) * W;
+    return '<line x1="' + tx + '" y1="' + H + '" x2="' + tx + '" y2="' + (H - 4) + '" class="density-tick" />';
+  }).join('');
+
+  // Landmark markers
   var visibleLandmarks = LANDMARKS.filter(function (lm) {
-    return lm.year >= minYear && lm.year <= maxYear;
+    return lm.year >= data.minYear && lm.year <= data.maxYear;
   });
-  var marks = '';
-  for (var i = 0; i < visibleLandmarks.length; i++) {
-    var lm = visibleLandmarks[i];
-    var lx = ((lm.year - minYear) / span) * W;
-    marks += '<line x1="' + lx + '" y1="' + H + '" x2="' + lx + '" y2="' + (H - 7) + '" class="density-mark-line" />';
-  }
+  var marks = visibleLandmarks.map(function (lm) {
+    var lx = ((lm.year - data.minYear) / span) * W;
+    return '<line x1="' + lx + '" y1="' + H + '" x2="' + lx + '" y2="' + (H - 7) + '" class="density-mark-line" />';
+  }).join('');
 
   el.innerHTML =
     '<div class="density-chart">' +
       '<svg class="density-svg" viewBox="0 0 ' + W + ' ' + (H + 1) + '" preserveAspectRatio="none">' +
-        '<path d="' + path + '" />' +
+        barsSvg +
         ticks +
         marks +
         '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" class="density-baseline" />' +
       '</svg>' +
       '<div class="density-year-labels">' +
-        years.map(function (y) {
-          var pct = ((y - minYear) / span) * 100;
+        data.allYears.map(function (y) {
+          var pct = ((y - data.minYear) / span) * 100;
           return '<span class="density-year" style="left:' + pct.toFixed(1) + '%">\u2019' + String(y).slice(2) + '</span>';
         }).join('') +
       '</div>' +
       (visibleLandmarks.length > 0 ?
         '<div class="density-landmark-labels">' +
           visibleLandmarks.map(function (lm) {
-            var pct = ((lm.year - minYear) / span) * 100;
+            var pct = ((lm.year - data.minYear) / span) * 100;
             return '<span class="density-landmark" style="left:' + pct.toFixed(1) + '%">' + lm.label + '</span>';
           }).join('') +
         '</div>'
@@ -170,7 +159,7 @@ function renderDensityStrip(yearDist) {
     '</div>';
 
   el.querySelector('svg').setAttribute('aria-label',
-    years.map(function (y) { return y + ': ' + (yearDist[y] || 0); }).join(', '));
+    data.allYears.map(function (y) { return y + ': ' + (yearDist[y] || 0); }).join(', '));
 
   el.hidden = false;
 }

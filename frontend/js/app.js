@@ -21,6 +21,8 @@ function initSearchPage() {
   var loadingEl = document.getElementById('loading');
   var paginationEl = document.getElementById('pagination');
 
+  var clearBtn = document.getElementById('search-clear');
+
   if (!form || !input) return;
 
   var refineHints = document.getElementById('refine-hints');
@@ -49,6 +51,7 @@ function initSearchPage() {
   if (initialQ) {
     input.value = initialQ;
     currentQuery = initialQ;
+    updateClearButton();
     performSearch(initialQ, 1);
   } else {
     showLanding();
@@ -120,6 +123,27 @@ function initSearchPage() {
       performSearch(q, 1);
     });
   });
+
+  // Clear button — dismiss search contents and return to landing
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function () {
+      input.value = '';
+      isLandingSearch = false;
+      updateClearButton();
+      var url = new URL(window.location);
+      url.searchParams.delete('q');
+      url.searchParams.delete('page');
+      history.pushState(null, '', url);
+      showLanding();
+      input.focus();
+    });
+  }
+
+  // Show/hide clear button based on input content
+  input.addEventListener('input', updateClearButton);
+  function updateClearButton() {
+    if (clearBtn) clearBtn.hidden = !input.value;
+  }
 
   async function performSearch(q, page) {
     autocomplete.hide();
@@ -207,6 +231,7 @@ function initSearchPage() {
         var q = 'issue:' + data.issue_number;
         input.value = q;
         currentQuery = q;
+        updateClearButton();
         performSearch(q, 1);
       }
     } catch (e) { /* silently degrade */ }
