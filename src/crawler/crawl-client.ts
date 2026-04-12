@@ -33,7 +33,7 @@ export async function fetchPage(url: string): Promise<CrawlPageResult | null> {
   }
 }
 
-function extractMetadata(html: string): Record<string, string> {
+export function extractMetadata(html: string): Record<string, string> {
   const meta: Record<string, string> = {};
 
   // Extract <title> (may have attributes like data-rh="true")
@@ -56,7 +56,7 @@ function extractMetadata(html: string): Record<string, string> {
   return meta;
 }
 
-function htmlToSimpleMarkdown(html: string): string {
+export function htmlToSimpleMarkdown(html: string): string {
   let text = html;
 
   // Remove non-content blocks

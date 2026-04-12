@@ -283,7 +283,12 @@ function isMetadataLine(line: string): boolean {
 function cleanContent(markdown: string): { cleanMarkdown: string; plainText: string } {
   let clean = markdown;
 
-  // Strip subscription prompts and Substack boilerplate
+  // --- Comment/engagement section: strip everything from ReplyShare or Subscribe+NShare onward ---
+  // This catches user comments, Liked by, reply counts, TopLatest, etc.
+  clean = clean.replace(/\n\s*ReplyShare[\s\S]*$/i, '');
+  clean = clean.replace(/\nSubscribe\d+Share[\s\S]*$/i, '');
+
+  // --- Substack subscription/engagement boilerplate ---
   clean = clean.replace(/Subscribe\s+to\s+.+?newsletter/gi, '');
   clean = clean.replace(/Thanks?\s+for\s+reading.*/gi, '');
   clean = clean.replace(/Share\s+this\s+post/gi, '');
@@ -291,8 +296,13 @@ function cleanContent(markdown: string): { cleanMarkdown: string; plainText: str
   clean = clean.replace(/This newsletter is a collection of patterns.*?weeks\./gi, '');
   clean = clean.replace(/Ready for more\?/gi, '');
   clean = clean.replace(/SubscribeSign in/gi, '');
+  // Standalone Subscribe lines (but not "subscribe to the idea" in prose)
+  // Handles Subscribe, Subscribe*, and Subscribe with surrounding whitespace
+  clean = clean.replace(/^\s*Subscribe\*?\s*$/gm, '');
+  // Subscribe* at end of text (may not have trailing newline)
+  clean = clean.replace(/\nSubscribe\*?\s*$/gi, '');
 
-  // Strip Substack footer boilerplate
+  // --- Substack footer boilerplate ---
   clean = clean.replace(/Privacy\s*[∙·•]\s*Terms\s*[∙·•]\s*Collection notice/gi, '');
   clean = clean.replace(/Start your Substack.*$/gim, '');
   clean = clean.replace(/Substack is the home for great culture/gi, '');
@@ -300,30 +310,54 @@ function cleanContent(markdown: string): { cleanMarkdown: string; plainText: str
   clean = clean.replace(/©\s*\d{4}.*(?:FLUX|Collective).*$/gim, '');
   clean = clean.replace(/Get the app/gi, '');
 
-  // Strip Substack engagement widgets
+  // --- Engagement widgets ---
   clean = clean.replace(/\d*Share\s*Discussion about this post.*$/gim, '');
-  clean = clean.replace(/Comments\s*Restacks\s*Top\s*Latest\s*Discussions?\s*No posts/gi, '');
+  clean = clean.replace(/Comments?\s*Restacks?\s*Top\s*Latest\s*Discussions?\s*No posts/gi, '');
   clean = clean.replace(/CommentsRestacksTopLatestDiscussionsNo posts/gi, '');
+  clean = clean.replace(/TopLatestDiscussionsNo posts/gi, '');
+  // Inline NShare (not anchored to line start/end)
+  clean = clean.replace(/\d+Share/gi, '');
 
-  // Strip navigation elements
+  // --- Episode dateline and self-referential link (may be inline, not line-anchored) ---
+  clean = clean.replace(/Episode\s+\d+\s*[-–—]+[^#\n]*(?:Available at[^\n]*)?/gi, '');
+  clean = clean.replace(/Available at\s+\[?read\.fluxcollective\S*/gi, '');
+
+  // --- "ragtag band" intro (appears in ~229 issues, may be inline) ---
+  clean = clean.replace(/We[''\u2019]re a ragtag band of systems thinkers[^\n]*/gi, '');
+
+  // --- Contributor/insights attribution lines ---
+  clean = clean.replace(/Contributors?\s+to\s+this\s+issue:.*$/gim, '');
+  clean = clean.replace(/Additional\s+insights?\s+from:.*$/gim, '');
+
+  // --- "N more comments" links ---
+  clean = clean.replace(/^\[?\d+\s+more\s+comments?\.{0,3}\]?\(.*?\)\s*$/gim, '');
+  // Standalone "N reply/replies" links
+  clean = clean.replace(/^\[?\d+\s+repl(?:y|ies)\]?\(?.*?\)?\s*$/gim, '');
+
+  // --- Navigation elements ---
   clean = clean.replace(/^\[.*?(Home|Archive|About|Subscribe).*?\]\(.*?\)\s*$/gm, '');
 
-  // Strip Substack image embeds: ![alt](https://substackcdn.com/...) and [](https://substackcdn.com/...)
+  // --- Empty headings ---
+  clean = clean.replace(/^#{1,6}\s*$/gm, '');
+
+  // --- Substack image embeds ---
   clean = clean.replace(/!?\[[^\]]*\]\(https?:\/\/substackcdn\.com[^)]*\)/g, '');
-  // Strip Bucketeer S3 image embeds: ![alt](https://bucketeer-...s3.amazonaws.com/...)
   clean = clean.replace(/!?\[[^\]]*\]\(https?:\/\/bucketeer-[a-f0-9-]+\.s3\.amazonaws\.com[^)]*\)/g, '');
-  // Strip substack-post-media S3 image embeds
   clean = clean.replace(/!?\[[^\]]*\]\(https?:\/\/substack-post-media\.s3\.amazonaws\.com[^)]*\)/g, '');
 
-  // Strip Substack profile/byline links: [Name](https://substack.com/@handle)
+  // --- Substack profile links (/@handle and /profile/NNN) ---
   clean = clean.replace(/\[[^\]]*\]\(https?:\/\/substack\.com\/@[^)]*\)/g, '');
+  clean = clean.replace(/\[[^\]]*\]\(https?:\/\/substack\.com\/profile\/[^)]*\)/g, '');
+  clean = clean.replace(/\[[^\]]*\]\(https?:\/\/open\.substack\.com[^)]*\)/g, '');
 
-  // Strip share/like counters: "612Share", "51Share", standalone or merged with dates
-  // Date+share merged: "May 03, 2024612Share" or "Jul 18, 20251111Share"
+  // --- Share/like counters (line-anchored, for any remaining) ---
   clean = clean.replace(/^(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2},?\s+\d{4})?\d+Share\s*$/gim, '');
 
-  // Strip other empty markdown links [](url)
+  // --- Empty markdown links ---
   clean = clean.replace(/\[\]\([^)]+\)/g, '');
+
+  // --- Final Subscribe cleanup (after all other stripping) ---
+  clean = clean.replace(/^\s*Subscribe\*?\s*$/gm, '');
 
   // Normalize whitespace
   clean = clean.replace(/\n{3,}/g, '\n\n');
