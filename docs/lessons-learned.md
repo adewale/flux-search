@@ -128,3 +128,51 @@ Three tests gave false confidence:
 - "strips subscription prompts" checked only `full_text_plain` → would pass if the markdown regex broke but the text conversion coincidentally removed the phrases
 
 A missing test is honest — you know you're not covered. A wrong test is dangerous — you believe you're covered when you're not.
+
+## What we learned about design
+
+### Design is systematic constraint, not decoration
+
+We started with default styling, then applied design skills (delight, typeset, bolder, colorize, animate, polish, optimize) one at a time. The result was incoherent — 12 font sizes, 7 weights, colors chosen by gut feel. The breakthrough was switching from additive ("let's make this look nicer") to subtractive ("what's the minimum set of constraints that produces coherence?").
+
+The typography rationalisation cut from 12 sizes to 5 using a 1.5× modular scale (11px → 16px → 24px → 36px → 64px), from 7 weights to 4 (300/400/600/700), and enforced zero raw CSS values — every property references a token. The section colors went from hand-picked hex values to `oklch(65% 0.08 H)` — same lightness and chroma, varying only hue. Both changes made the design more coherent by reducing the number of decisions.
+
+**Lesson: Good design is a small set of rules applied consistently, not a large set of individual choices.** A modular scale, a constrained weight palette, and a single color formula produce better results than choosing each value independently. The rules do the work; the designer chooses the rules.
+
+### Three fonts with clear roles beat one font trying to do everything
+
+We settled on Lora (wordmark only — bold serif identity), Literata (all reading text — body, quotes, snippets), and DM Sans (everything else — UI, labels, navigation). Each font has exactly one job. This clarity made typography decisions mechanical: "Is this reading text? Literata. Is it UI? DM Sans."
+
+### Reuse existing patterns instead of inventing new ones
+
+The latest issue was first shown as a custom card component (label, bordered box, meta text, title). It looked fine but was a one-off pattern that didn't match anything else on the page. Replacing it with a pre-populated search — filling the search box with `issue:N` and showing the standard search result — was better in every way: zero new CSS, consistent with what users see when they search, and the search result card was already the best representation of an issue.
+
+**Lesson: Before building a new component, check if an existing pattern already solves the problem.** The search result card is tested, styled, confidence-tiered, section-colored, and links to the right place. A custom card would have needed all of that from scratch.
+
+## What we learned about distributed systems
+
+### Silent failures are the worst failures
+
+Semantic search never contributed a single result for the first several deploys. The cause: `returnMetadata: 'indexed'` in the Vectorize query. Without metadata indexes configured, this returned empty metadata for every vector — so the ranker had no issue IDs to match against. The fix was changing one word: `'indexed'` → `'all'`.
+
+No errors were thrown. No logs indicated a problem. The search "worked" — it returned FTS results. The system degraded silently to lexical-only search, and the only way to notice was to look at the `matched_by` field in debug mode and wonder why it never said `vector`.
+
+**Lesson: Distributed systems fail silently at integration boundaries.** Each component (Workers, Vectorize, D1) worked correctly in isolation. The failure was in how they connected. The same pattern appeared with the semantic score threshold — without `SEMANTIC_MIN_SCORE = 0.75`, weak vector matches polluted results with confident-looking noise. Both problems were invisible without looking at actual search results and asking "is this right?"
+
+### Separate fetch from process from validate
+
+The corpus pipeline went through three iterations. First: fetch and process in one step (the crawler). Problem: every normalizer fix required re-crawling 233 issues from Substack. Second: fetch once, process locally. `fetch-corpus.sh` downloads raw HTML to `data/raw/`; `process-corpus.sh` runs normalisation locally with no network. Third: add a validation layer. `validate-corpus.ts` runs 1,401 checks across 234 records.
+
+The separation made normalizer iteration 100× faster (local file processing vs. network fetches) and made bugs reproducible (same input, same output). The validation layer caught date corruption, emoji leakage, and missing fields before upload.
+
+**Lesson: Separate the irreversible (network fetch) from the reversible (local processing) from the verifiable (validation).** When you can re-run the middle step instantly with the same inputs, you can iterate on data quality without touching the network.
+
+## What we learned about domain modeling
+
+### Structure emerges from the data, not from the spec
+
+The spec described issues as flat documents with title, body, and metadata. Reading the actual issues revealed a rich internal structure: opening quote, lead essay with its own title, signposts section, lens of the week, book recommendations, postcards, and more. Each section type has a distinctive emoji-prefixed heading pattern.
+
+This discovery reshaped the entire architecture. We built `parseSections` to identify section types by heading patterns. Chunks became section-typed. Search results show which section matched. Facets let users filter by section type. Issue landing pages have tabbed section navigation. None of this was in the spec, and all of it makes the search experience meaningfully better.
+
+**Lesson: The most valuable domain knowledge isn't in the spec — it's in the data.** Read the actual content before designing the data model. The structure of a FLUX Review issue (quote → lead essay → signposts → lens → book → postcard) is the single most important design insight in the project, and it came from reading issues, not from reading the spec.
