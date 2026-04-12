@@ -11,6 +11,7 @@ import {
   rankResults,
   computeYearDistribution,
   computeQuarterDistribution,
+  computeQuarterSectionDistribution,
   classifyConfidence,
   type RankedResult,
 } from '../src/lib/hybrid-ranker';
@@ -236,5 +237,40 @@ describe('computeQuarterDistribution', () => {
   it('handles missing published_at', () => {
     const results = [makeResult(null as any)];
     expect(computeQuarterDistribution(results)).toEqual({});
+  });
+});
+
+describe('computeQuarterSectionDistribution', () => {
+  function makeResultWithSection(published_at: string, section: string | null): RankedResult {
+    return {
+      issue: { published_at } as any,
+      snippet: '',
+      snippetSection: section,
+      matchedBy: ['fts'],
+      confidence: 'medium',
+      debugMeta: {} as any,
+    };
+  }
+
+  it('groups by quarter and section type', () => {
+    const results = [
+      makeResultWithSection('2022-02-10', 'lead_essay'),
+      makeResultWithSection('2022-03-15', 'signposts'),
+      makeResultWithSection('2022-06-01', 'lead_essay'),
+      makeResultWithSection('2022-06-20', 'lens'),
+    ];
+    const dist = computeQuarterSectionDistribution(results);
+    expect(dist['2022-Q1']).toEqual({ lead_essay: 1, signposts: 1 });
+    expect(dist['2022-Q2']).toEqual({ lead_essay: 1, lens: 1 });
+  });
+
+  it('uses "other" for null section', () => {
+    const results = [makeResultWithSection('2023-01-15', null)];
+    const dist = computeQuarterSectionDistribution(results);
+    expect(dist['2023-Q1']).toEqual({ other: 1 });
+  });
+
+  it('returns empty for no results', () => {
+    expect(computeQuarterSectionDistribution([])).toEqual({});
   });
 });

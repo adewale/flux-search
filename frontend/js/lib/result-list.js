@@ -118,24 +118,57 @@ function renderDensityStrip(dist) {
   var data = computeDensityBars(dist, W, H);
   if (data.bars.length === 0) return;
 
-  // Bars with direct count labels above each
+  // Stacked bars with section-type colors
   var barsSvg = data.bars.map(function (b) {
     var bx = b.x - data.barWidth / 2;
-    var by = H - b.height;
-    return '<rect x="' + bx + '" y="' + by + '" width="' + data.barWidth +
-      '" height="' + b.height + '" class="density-bar" />' +
-      '<text x="' + b.x + '" y="' + (by - 2) + '" class="density-bar-label">' + b.count + '</text>';
+    var baseY = H;
+    return b.segments.map(function (seg) {
+      var segY = baseY - seg.y - seg.height;
+      return '<rect x="' + bx + '" y="' + segY + '" width="' + data.barWidth +
+        '" height="' + seg.height + '" class="density-bar density-section-' + seg.section + '" />';
+    }).join('');
   }).join('');
 
-  // Year tick lines on the baseline
+  // Year tick lines
   var ticks = data.yearTicks.map(function (t) {
     return '<line x1="' + t.x + '" y1="' + H + '" x2="' + t.x + '" y2="' + (H - 4) + '" class="density-tick" />';
   }).join('');
 
+  // Milestone annotations
+  var milestones = LANDMARKS.filter(function (lm) {
+    var lmPos = lm.year;
+    var minPos = data.yearTicks.length > 0 ? data.yearTicks[0].year : 0;
+    var maxYear = data.yearTicks.length > 0 ? data.yearTicks[data.yearTicks.length - 1].year : 0;
+    return lmPos >= minPos && lmPos <= maxYear;
+  }).map(function (lm) {
+    var minPos = data.yearTicks[0].year;
+    var maxPos = new Date().getFullYear() + Math.floor(new Date().getMonth() / 3) * 0.25;
+    var span = maxPos - minPos || 1;
+    var lx = ((lm.year - minPos) / span) * W;
+    return '<line x1="' + lx + '" y1="0" x2="' + lx + '" y2="' + H + '" class="density-milestone" />' +
+      '<text x="' + lx + '" y="-2" class="density-milestone-label">' + lm.label + '</text>';
+  }).join('');
+
+  // Tooltip hit areas (invisible rects that show tooltips on hover)
+  var tooltips = data.bars.map(function (b) {
+    var bx = b.x - data.barWidth / 2 - 2;
+    var parts = b.key.split('-Q');
+    var label = 'Q' + parts[1] + ' ' + parts[0];
+    var sectionList = b.segments.map(function (s) {
+      return formatSectionLabel(s.section) + ': ' + s.count;
+    }).join(', ');
+    var title = label + ' — ' + b.totalCount + ' result' + (b.totalCount !== 1 ? 's' : '') +
+      (b.segments.length > 1 ? ' (' + sectionList + ')' : '');
+    return '<rect x="' + bx + '" y="0" width="' + (data.barWidth + 4) +
+      '" height="' + H + '" class="density-tooltip-area"><title>' + title + '</title></rect>';
+  }).join('');
+
   el.innerHTML =
     '<div class="density-chart">' +
-      '<svg class="density-svg" viewBox="-5 -12 ' + (W + 10) + ' ' + (H + 13) + '">' +
+      '<svg class="density-svg" viewBox="-5 -10 ' + (W + 10) + ' ' + (H + 11) + '">' +
+        milestones +
         barsSvg +
+        tooltips +
         ticks +
         '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" class="density-baseline" />' +
       '</svg>' +
@@ -148,7 +181,7 @@ function renderDensityStrip(dist) {
     '</div>';
 
   el.querySelector('svg').setAttribute('aria-label',
-    data.bars.map(function (b) { return b.key + ': ' + b.count; }).join(', '));
+    data.bars.map(function (b) { return b.key + ': ' + b.totalCount; }).join(', '));
 
   if (panel) panel.hidden = false;
 }

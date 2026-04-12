@@ -537,23 +537,51 @@ body {
   display: block;
 }
 
+/* Section-colored bars — same oklch palette as result card stripes */
 .density-bar {
-  fill: var(--accent);
-  opacity: 0.22;
+  opacity: 0.55;
   animation: density-reveal 0.4s ease-out;
 }
 
-.density-bar-label {
-  font-size: 8px;
+.density-section-lead_essay { fill: oklch(65% 0.08 60); }
+.density-section-signposts { fill: oklch(65% 0.08 240); }
+.density-section-lens { fill: oklch(65% 0.08 160); }
+.density-section-book { fill: oklch(65% 0.08 300); }
+.density-section-postcard { fill: oklch(65% 0.08 340); }
+.density-section-worth_your_time { fill: oklch(65% 0.08 200); }
+.density-section-fluxers { fill: oklch(65% 0.08 30); }
+.density-section-title_summary { fill: oklch(65% 0.08 60); }
+.density-section-other { fill: var(--text-tertiary); }
+
+/* Milestone annotations — thin dashed lines for archive landmarks */
+.density-milestone {
+  stroke: var(--text-tertiary);
+  stroke-width: 0.5;
+  stroke-dasharray: 2 2;
+  opacity: 0.6;
+}
+
+.density-milestone-label {
+  font-size: 7px;
   font-family: var(--font);
-  fill: var(--text-secondary);
+  fill: var(--text-tertiary);
   text-anchor: middle;
-  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Tooltip hit areas — invisible rects that show native tooltips */
+.density-tooltip-area {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.density-tooltip-area:hover ~ .density-bar {
+  opacity: 0.8;
 }
 
 @keyframes density-reveal {
   from { opacity: 0; transform: scaleY(0); transform-origin: bottom; }
-  to { opacity: 0.22; transform: scaleY(1); }
+  to { opacity: 0.55; transform: scaleY(1); }
 }
 
 .density-baseline {

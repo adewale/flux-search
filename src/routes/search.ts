@@ -3,7 +3,7 @@ import type { Env } from '../env';
 import { parseQuery, isFilterOnly } from '../lib/query-parser';
 import { searchFts, searchFilterOnly, autocompleteWords, getIssueByNumber } from '../db/queries';
 import { searchVectorize } from '../lib/vector-search';
-import { rankResults, computeYearDistribution, computeQuarterDistribution, computeSectionFacets, detectSnippetSection } from '../lib/hybrid-ranker';
+import { rankResults, computeYearDistribution, computeQuarterDistribution, computeQuarterSectionDistribution, computeSectionFacets, detectSnippetSection } from '../lib/hybrid-ranker';
 import { parseSections } from '../lib/sections';
 
 export const searchRoutes = new Hono<{ Bindings: Env }>();
@@ -105,7 +105,7 @@ searchRoutes.get('/search', async (c) => {
     applied_filters: parsed.operators,
     total_hits: ranked.length,
     year_distribution: computeYearDistribution(ranked),
-    quarter_distribution: computeQuarterDistribution(ranked),
+    quarter_distribution: computeQuarterSectionDistribution(ranked),
     section_facets: computeSectionFacets(ranked),
     results: paged.map(r => {
       // Detect section for FTS results where snippetSection is null

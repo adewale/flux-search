@@ -259,6 +259,25 @@ export function computeQuarterDistribution(results: RankedResult[]): Record<stri
   return dist;
 }
 
+// --- Density strip: quarter × section distribution ---
+
+export function computeQuarterSectionDistribution(results: RankedResult[]): Record<string, Record<string, number>> {
+  const dist: Record<string, Record<string, number>> = {};
+  for (const r of results) {
+    const date = r.issue.published_at;
+    if (!date) continue;
+    const d = new Date(date + 'T00:00:00Z');
+    const year = d.getUTCFullYear();
+    if (isNaN(year)) continue;
+    const q = Math.floor(d.getUTCMonth() / 3) + 1;
+    const key = year + '-Q' + q;
+    const section = r.snippetSection || 'other';
+    if (!dist[key]) dist[key] = {};
+    dist[key][section] = (dist[key][section] || 0) + 1;
+  }
+  return dist;
+}
+
 // --- Confidence tiers (Robin Williams: contrast as hierarchy) ---
 
 export function classifyConfidence(meta: DebugMeta): 'high' | 'medium' | 'low' {

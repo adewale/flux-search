@@ -221,7 +221,7 @@ export async function searchFts(
   db: D1Database,
   ftsQuery: string,
   filters: SearchFilters,
-  limit: number = 50
+  limit: number = 500
 ): Promise<FtsSearchResult[]> {
   if (!ftsQuery.trim()) return [];
 

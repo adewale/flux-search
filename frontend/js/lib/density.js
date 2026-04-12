@@ -1,27 +1,25 @@
-// Density strip — directly-labeled bars at quarterly granularity.
-// Each quarter with results gets a bar with its count printed above.
-// A minimum Y-scale prevents single results from filling full height.
+// Density strip — stacked bars at quarterly granularity.
+// Each quarter gets a bar with segments colored by section type.
+// Hover tooltips show details; no inline count labels.
 
 var MIN_SCALE = 5;
 
-/**
- * Parse a quarter key ("2022-Q1") into a numeric position.
- * Q1=0, Q2=0.25, Q3=0.5, Q4=0.75 within the year.
- */
 function quarterToNum(key) {
   var parts = key.split('-Q');
-  var year = parseInt(parts[0]);
-  var q = parseInt(parts[1]);
-  return year + (q - 1) * 0.25;
+  return parseInt(parts[0]) + (parseInt(parts[1]) - 1) * 0.25;
 }
 
-export function computeDensityBars(quarterDist, width, height, now) {
-  var keys = Object.keys(quarterDist).sort();
+/**
+ * Compute bar chart data from a quarter×section distribution.
+ * Input: { "2022-Q1": { lead_essay: 3, signposts: 2 }, ... }
+ * Output: bars with stacked segments, year ticks, milestone positions.
+ */
+export function computeDensityBars(quarterSectionDist, width, height, now) {
+  var keys = Object.keys(quarterSectionDist).sort();
   if (keys.length === 0) {
-    return { bars: [], yearTicks: [], barWidth: 0, maxCount: 0 };
+    return { bars: [], yearTicks: [], milestones: [], barWidth: 0, maxCount: 0 };
   }
 
-  // Right edge = current quarter (not last data point)
   var today = now || new Date();
   var nowPos = today.getFullYear() + Math.floor(today.getMonth() / 3) * 0.25;
 
@@ -30,7 +28,14 @@ export function computeDensityBars(quarterDist, width, height, now) {
   var maxPos = Math.max(positions[positions.length - 1], nowPos);
   var span = maxPos - minPos || 1;
 
-  var maxCount = Math.max.apply(null, Object.values(quarterDist));
+  // Total count per quarter and global max
+  var totals = keys.map(function (k) {
+    var sections = quarterSectionDist[k];
+    var sum = 0;
+    for (var s in sections) sum += sections[s];
+    return sum;
+  });
+  var maxCount = Math.max.apply(null, totals);
   var effectiveMax = Math.max(maxCount, MIN_SCALE);
 
   var barWidth = Math.max(3, Math.min(20, (width / (span / 0.25 + 2)) * 0.6));
@@ -38,14 +43,34 @@ export function computeDensityBars(quarterDist, width, height, now) {
   var bars = [];
   for (var i = 0; i < keys.length; i++) {
     var key = keys[i];
-    var count = quarterDist[key];
+    var sections = quarterSectionDist[key];
+    var totalCount = totals[i];
     var pos = positions[i];
     var x = ((pos - minPos) / span) * width;
-    var barH = (count / effectiveMax) * height;
-    bars.push({ key: key, x: x, height: barH, count: count });
+    var barH = (totalCount / effectiveMax) * height;
+
+    // Build stacked segments, sorted by count descending
+    var segEntries = [];
+    for (var s in sections) segEntries.push({ section: s, count: sections[s] });
+    segEntries.sort(function (a, b) { return b.count - a.count; });
+
+    var segments = [];
+    var yOffset = 0;
+    for (var j = 0; j < segEntries.length; j++) {
+      var segH = (segEntries[j].count / totalCount) * barH;
+      segments.push({
+        section: segEntries[j].section,
+        count: segEntries[j].count,
+        y: yOffset,
+        height: segH,
+      });
+      yOffset += segH;
+    }
+
+    bars.push({ key: key, x: x, height: barH, totalCount: totalCount, segments: segments });
   }
 
-  // Year ticks: one per year from first data to current year
+  // Year ticks
   var minYear = Math.floor(minPos);
   var maxYear = today.getFullYear();
   var yearTicks = [];
