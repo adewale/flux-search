@@ -25,7 +25,7 @@ export function computeBatchPlan(
   return { toProcess, remaining: missing.length - toProcess.length, done: false };
 }
 
-export async function runBootstrap(env: Env, crawlRunId: string): Promise<void> {
+export async function runBootstrap(env: Env, crawlRunId: string, options?: { force?: boolean; offset?: number }): Promise<void> {
   console.log(`Starting bootstrap crawl: ${crawlRunId}`);
 
   await startCrawlRun(env.DB, crawlRunId, 'bootstrap', 'https://read.fluxcollective.org/sitemap.xml');
@@ -45,7 +45,15 @@ export async function runBootstrap(env: Env, crawlRunId: string): Promise<void> 
     // Iterative batch loop — no recursion
     while (true) {
       const existingUrls = new Set(await getAllSourceUrls(env.DB));
-      const plan = computeBatchPlan(discoveredUrls, existingUrls, BOOTSTRAP_BATCH_SIZE);
+
+      let plan: BatchPlan;
+      if (options?.force) {
+        const start = options.offset || 0;
+        const batch = discoveredUrls.slice(start, start + BOOTSTRAP_BATCH_SIZE);
+        plan = { toProcess: batch, remaining: discoveredUrls.length - start - batch.length, done: batch.length === 0 };
+      } else {
+        plan = computeBatchPlan(discoveredUrls, existingUrls, BOOTSTRAP_BATCH_SIZE);
+      }
 
       if (plan.done) break;
 
@@ -58,7 +66,7 @@ export async function runBootstrap(env: Env, crawlRunId: string): Promise<void> 
           batch.map(async (url) => {
             const page = await fetchPage(url);
             if (!page) return { url, status: 'failed' as const };
-            return { url, status: await ingestPage(env, page, crawlRunId) };
+            return { url, status: await ingestPage(env, page, crawlRunId, { force: options?.force }) };
           })
         );
 
@@ -83,6 +91,9 @@ export async function runBootstrap(env: Env, crawlRunId: string): Promise<void> 
         issues_created: totalCreated,
         notes: `In progress: ${totalCreated} created, ${plan.remaining} URLs remaining`,
       });
+
+      // Force mode processes one batch per invocation
+      if (options?.force) break;
     }
 
     await updateCrawlRun(env.DB, crawlRunId, {

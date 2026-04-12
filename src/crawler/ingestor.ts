@@ -16,7 +16,8 @@ import { startCrawlRun, updateCrawlRun } from '../db/queries';
 export async function ingestPage(
   env: Env,
   page: CrawlPageResult,
-  crawlRunId: string
+  crawlRunId: string,
+  options?: { force?: boolean }
 ): Promise<'created' | 'updated' | 'skipped' | 'failed'> {
   const normalized = normalizePage(page, crawlRunId);
 
@@ -36,11 +37,11 @@ export async function ingestPage(
   );
 
   if (dedup.isDuplicate && dedup.existingIssue) {
-    if (dedup.existingIssue.content_hash === contentHash) {
+    if (dedup.existingIssue.content_hash === contentHash && !options?.force) {
       return 'skipped';
     }
 
-    // Content changed — update existing issue
+    // Content changed (or force) — update existing issue
     normalized.issue.id = dedup.existingIssue.id;
     await upsertIssue(env.DB, normalized.issue);
     await rechunkAndEmbed(env, normalized.issue);

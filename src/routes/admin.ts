@@ -11,16 +11,18 @@ adminRoutes.use('*', adminAuth);
 
 adminRoutes.post('/bootstrap', async (c) => {
   const crawlRunId = crypto.randomUUID();
+  const force = c.req.query('force') === 'true';
+  const offset = parseInt(c.req.query('offset') || '0') || 0;
 
   // Start bootstrap in background — returns immediately
   c.executionCtx.waitUntil(
-    runBootstrap(c.env, crawlRunId).catch(err => {
+    runBootstrap(c.env, crawlRunId, { force, offset }).catch(err => {
       console.error('Bootstrap failed:', err);
     })
   );
 
   return c.json({
-    message: 'Bootstrap started',
+    message: force ? 'Force bootstrap started' : 'Bootstrap started',
     crawl_run_id: crawlRunId,
   }, 202);
 });
