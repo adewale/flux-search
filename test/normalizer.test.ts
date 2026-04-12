@@ -141,6 +141,24 @@ describe('normalizePage', () => {
     expect(result.issue.id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
+  it('does not duplicate lead essay title as a heading in body', () => {
+    const result = normalizePage({
+      url: 'https://read.fluxcollective.org/p/test',
+      markdown: '# FLUX Review\n\n> "A great quote"\n\n## 🧠🔋 The decision treadmill\n\nEssay body here.\n\n## 🛣️🚩 Signposts\n\nMore content.',
+      metadata: {},
+    }, 'run-1');
+
+    expect(result.issue.title).toBe('The decision treadmill');
+    expect(result.issue.lead_essay_title).toBe('The decision treadmill');
+    // The heading should NOT appear in the body since it's the page title
+    const headingPattern = /##\s+.*decision treadmill/i;
+    expect(result.issue.full_text_markdown).not.toMatch(headingPattern);
+    // But the essay body content should survive
+    expect(result.issue.full_text_markdown).toContain('Essay body here');
+    // And other headings should survive
+    expect(result.issue.full_text_markdown).toContain('Signposts');
+  });
+
   it('strips Substack footer boilerplate', () => {
     const boilerplate = [
       'Privacy ∙ Terms ∙ Collection notice',

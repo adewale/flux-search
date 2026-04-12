@@ -43,6 +43,7 @@ export function parseSections(markdown: string): ParsedSection[] {
 
   let currentTitle = '';
   let currentBody: string[] = [];
+  let preHeadingBody: string[] = [];
   let foundFirstSection = false;
 
   for (const line of lines) {
@@ -60,12 +61,22 @@ export function parseSections(markdown: string): ParsedSection[] {
       foundFirstSection = true;
     } else if (foundFirstSection) {
       currentBody.push(line);
+    } else {
+      // Collect text before the first ## heading
+      preHeadingBody.push(line);
     }
   }
 
   // Flush last section
   if (foundFirstSection) {
     sections.push(makeSection(currentTitle, currentBody.join('\n').trim()));
+  }
+
+  // If there's substantial text before the first heading, treat it as the lead essay.
+  // This handles issues where the lead essay heading was stripped (it becomes the page title).
+  const preHeadingText = preHeadingBody.join('\n').trim();
+  if (preHeadingText.length > 100 && foundFirstSection) {
+    sections.unshift({ type: 'lead_essay', title: '', body: preHeadingText });
   }
 
   // If no sections found at all, treat entire content as 'other'

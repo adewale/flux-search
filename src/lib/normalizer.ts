@@ -16,12 +16,19 @@ export function normalizePage(page: CrawlPageResult, crawlRunId: string): Normal
   const rawTitle = extractTitle(page.markdown, page.metadata);
   const subtitle = extractSubtitle(page.markdown, page.metadata);
   const publishedAt = extractPublishDate(page.markdown, page.metadata);
-  const { cleanMarkdown, plainText } = cleanContent(page.markdown);
+  let { cleanMarkdown, plainText } = cleanContent(page.markdown);
   const headings = extractHeadings(cleanMarkdown);
   const authors = page.metadata?.['author'] || null;
 
   // Extract intrinsic issue structure
-  const { leadEssayTitle, openingQuote, leadEssaySummary } = extractIssueStructure(cleanMarkdown);
+  const { leadEssayTitle, openingQuote, leadEssaySummary, leadEssayHeadingLine } = extractIssueStructure(cleanMarkdown);
+
+  // Remove the lead essay heading from body — it becomes the page title,
+  // so keeping it in the body creates a visible duplication on the issue page.
+  if (leadEssayHeadingLine) {
+    cleanMarkdown = cleanMarkdown.replace(leadEssayHeadingLine, '').replace(/\n{3,}/g, '\n\n').trim();
+    plainText = plainText.replace(stripEmoji(leadEssayHeadingLine.replace(/^#+\s*/, '')).trim(), '').replace(/\n{3,}/g, '\n\n').trim();
+  }
 
   // Clean title: use lead essay heading if available, otherwise clean the Substack template
   const title = leadEssayTitle || cleanIssueTitle(rawTitle, issueNumber);
@@ -84,12 +91,14 @@ function extractIssueStructure(markdown: string): {
   leadEssayTitle: string | null;
   openingQuote: string | null;
   leadEssaySummary: string | null;
+  leadEssayHeadingLine: string | null;
 } {
   const lines = markdown.split('\n');
 
   let openingQuote: string | null = null;
   let leadEssayTitle: string | null = null;
   let leadEssaySummary: string | null = null;
+  let leadEssayHeadingLine: string | null = null;
 
   // Find opening quote: first line starting with > "
   for (const line of lines) {
@@ -116,6 +125,7 @@ function extractIssueStructure(markdown: string): {
     if (trimmed.startsWith('## ') && !inLeadEssay) {
       // First ## heading = lead essay title
       leadEssayTitle = stripEmoji(trimmed.replace(/^##\s+/, '')).trim();
+      leadEssayHeadingLine = trimmed;
       inLeadEssay = true;
       continue;
     }
@@ -134,7 +144,7 @@ function extractIssueStructure(markdown: string): {
     leadEssaySummary = essayParts.join(' ').slice(0, 500).trim();
   }
 
-  return { leadEssayTitle, openingQuote, leadEssaySummary };
+  return { leadEssayTitle, openingQuote, leadEssaySummary, leadEssayHeadingLine };
 }
 
 function classifyPage(url: string, markdown: string): ContentType {

@@ -137,9 +137,11 @@ describe('full_text_plain excludes section heading emoji', () => {
     expect(result.issue.full_text_plain).not.toContain('🌱');
   });
 
-  it('preserves the heading text itself (without emoji)', () => {
+  it('preserves the heading text as the title (without emoji)', () => {
     const result = normalizePage(makePage(FLUX_ISSUE_WITH_QUOTE), 'run-1');
-    expect(result.issue.full_text_plain).toContain('A model of trust');
+    // Lead essay heading becomes the title, not duplicated in body
+    expect(result.issue.title).toBe('A model of trust');
+    expect(result.issue.lead_essay_title).toBe('A model of trust');
   });
 
   it('does not contain signpost emoji in plain text', () => {
