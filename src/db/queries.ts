@@ -171,35 +171,28 @@ export async function searchFilterOnly(
   db: D1Database,
   filters: SearchFilters,
   limit: number = 500
-): Promise<{ total: number; issues: IssueRow[] }> {
-  let countSql = 'SELECT COUNT(*) as count FROM issues WHERE status = ?';
+): Promise<{ issues: IssueRow[] }> {
   let sql = 'SELECT * FROM issues WHERE status = ?';
   const params: unknown[] = ['active'];
 
   if (filters.before) {
-    countSql += ' AND published_at < ?';
     sql += ' AND published_at < ?';
     params.push(filters.before);
   }
   if (filters.after) {
-    countSql += ' AND published_at > ?';
     sql += ' AND published_at > ?';
     params.push(filters.after);
   }
   if (filters.year) {
-    countSql += ' AND year = ?';
     sql += ' AND year = ?';
     params.push(filters.year);
   }
 
   sql += ' ORDER BY published_at DESC LIMIT ?';
 
-  const countResult = await db.prepare(countSql).bind(...params).first<{ count: number }>();
-  const total = countResult?.count ?? 0;
-
   const results = await db.prepare(sql).bind(...params, limit).all<IssueRow>();
 
-  return { total, issues: results.results };
+  return { issues: results.results };
 }
 
 export async function getCrawlRun(db: D1Database, id: string): Promise<CrawlRunRow | null> {

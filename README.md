@@ -78,7 +78,7 @@ npm run corpus:validate   # 1,401 checks across 234 records
 
 ```bash
 npm run dev           # local dev server (port 8787)
-npm test              # run 189 tests
+npm test              # run 472 tests
 npm run test:watch    # watch mode
 ```
 

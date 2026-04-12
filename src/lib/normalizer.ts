@@ -398,7 +398,7 @@ function cleanContent(markdown: string): { cleanMarkdown: string; plainText: str
   // may now be line-anchored. Catch them here.
   clean = clean.replace(/^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2},?\s*\[.*?\].*$/gm, '');
 
-  // --- Final Subscribe cleanup (after all other stripping) ---
+  // Final Subscribe cleanup — catches lines exposed by earlier stripping
   clean = clean.replace(/^\s*Subscribe\*?\s*$/gm, '');
 
   // Normalize whitespace

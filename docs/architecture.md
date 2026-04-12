@@ -133,7 +133,7 @@ fields (`issue_id`, `title`, `issue_number`, `published_at`, `snippet`,
 - `admin.ts` — `POST /admin/bootstrap`, `POST /admin/reindex`, `GET /admin/crawl-runs/:id`, `GET /admin/coverage`. Protected by bearer token auth.
 
 ### Search engine (`src/lib/`)
-- `query-parser.ts` — Parses raw query string into free text, quoted phrases, and filter operators (`before:`, `after:`, `year:`, `issue:`).
+- `query-parser.ts` — Parses raw query string into free text, quoted phrases, and filter operators (`before:`, `after:`, `year:`, `issue:`, `section:`).
 - `hybrid-ranker.ts` — Weighted reciprocal rank fusion of FTS and Vectorize results. Applies deterministic boosts (exact issue +10, phrase in title +6, phrase in heading +4, phrase in body +3) and penalties (semantic-only -3.5). Classifies results into high/medium/low confidence tiers. Progressive snippet disclosure (top 3 get 400 chars, rest get 150).
 - `vector-search.ts` — Embeds query via Workers AI, queries Vectorize, collapses chunk-level results to issue-level candidates.
 - `chunker.ts` — Splits issue text into 300-800 token chunks for semantic indexing. Respects section boundaries. First chunk is always title + summary.
@@ -215,9 +215,14 @@ All tuning parameters are Cloudflare Worker env vars, changeable without redeplo
 
 ## Testing
 
-189 tests across 14 files:
+472 tests across 38 files:
 - Unit tests for all pure-logic modules (query parser, chunker, normalizer, ranker, auth, crawl client, sitemap parser)
 - Property-based tests with fast-check for regex-heavy functions, mathematical invariants, and string transformations
+- Corpus validation tests: crud removal and content survival across all 234 raw HTML files
+- Search consistency PBT: aggregate totals must equal total_hits across all query paths
+- Integration tests against the live API: response shape, aggregate consistency, pagination stability
+- Relevance evaluation harness: 13 hand-labeled {query → expected result} cases
+- Visual regression tests: 12 Playwright screenshot comparisons (6 pages × 2 viewports)
 - Shared test helpers in `test/helpers.ts`
 
-PBT found 8 real bugs during development, all fixed.
+PBT found 8+ real bugs during development, all fixed.

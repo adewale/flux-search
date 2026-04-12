@@ -3,7 +3,7 @@ import type { Env } from '../env';
 import { parseQuery, isFilterOnly } from '../lib/query-parser';
 import { searchFts, searchFilterOnly, autocompleteWords, getIssueByNumber } from '../db/queries';
 import { searchVectorize } from '../lib/vector-search';
-import { rankResults, computeYearDistribution, computeQuarterDistribution, computeQuarterSectionDistribution, computeSectionFacets, detectSnippetSection } from '../lib/hybrid-ranker';
+import { rankResults, computeYearDistribution, computeQuarterSectionDistribution, computeSectionFacets, detectSnippetSection } from '../lib/hybrid-ranker';
 import { parseSections } from '../lib/sections';
 
 export const searchRoutes = new Hono<{ Bindings: Env }>();
