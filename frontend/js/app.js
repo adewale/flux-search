@@ -5,6 +5,7 @@
 
 import { initAutocomplete } from './lib/autocomplete.js';
 import { renderResults, clearResults, renderPagination } from './lib/result-list.js';
+import { createSearchMachine } from './lib/search-state.js';
 
 initSearchPage();
 
@@ -28,10 +29,9 @@ function initSearchPage() {
   var refineHints = document.getElementById('refine-hints');
   var exampleQueries = document.querySelector('.example-queries');
 
-  var currentQuery = '';
   var currentPage = 1;
   var pageSize = 20;
-  var isLandingSearch = false;
+  var machine = createSearchMachine();
 
   var autocomplete = initAutocomplete(input, dropdown, {
     fetchSuggestions: async function (q) {
@@ -46,110 +46,114 @@ function initSearchPage() {
     },
   });
 
-  var params = new URLSearchParams(window.location.search);
-  var initialQ = params.get('q');
-  if (initialQ) {
-    input.value = initialQ;
-    currentQuery = initialQ;
-    updateClearButton();
-    performSearch(initialQ, 1);
-  } else {
-    showLanding();
+  // Reflect state into DOM and run side effects.
+  function apply(prev) {
+    var s = machine.state;
+    input.value = s.query;
+    if (clearBtn) clearBtn.hidden = !s.clearVisible;
+
+    var transitioned = !prev || prev.name !== s.name || prev.query !== s.query;
+    if (!transitioned) return;
+
+    if (s.name === 'RESULTS') {
+      performSearch(s.query, 1);
+    } else {
+      // LANDING or LANDING_FEATURED
+      clearAll(s);
+      loadLandingQuote();
+      if (s.autoLoadLatest) loadLatestSearch();
+    }
   }
+
+  function dispatch(event) {
+    var prev = machine.state;
+    machine.send(event);
+    syncUrl();
+    apply(prev);
+  }
+
+  function syncUrl() {
+    var s = machine.state;
+    var url = new URL(window.location);
+    if (s.name === 'RESULTS' && s.query) {
+      url.searchParams.set('q', s.query);
+      if (currentPage > 1) url.searchParams.set('page', String(currentPage));
+      else url.searchParams.delete('page');
+    } else {
+      url.searchParams.delete('q');
+      url.searchParams.delete('page');
+    }
+    if (url.toString() !== window.location.toString()) {
+      history.pushState(null, '', url);
+    }
+  }
+
+  // Initial load from URL.
+  var params = new URLSearchParams(window.location.search);
+  var initialQ = params.get('q') || '';
+  dispatch({ type: 'LOAD', query: initialQ });
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     var q = input.value.trim();
     if (q) {
-      isLandingSearch = false;
-      currentQuery = q;
       currentPage = 1;
-      updateUrl(q, 1);
-      performSearch(q, 1);
+      dispatch({ type: 'SUBMIT', query: q });
     }
   });
 
-  // Clickable section facets
   document.addEventListener('facet-click', function (e) {
-    isLandingSearch = false;
-    var section = e.detail.section;
-    var q = currentQuery.replace(/\s*section:\S+/g, '').trim();
-    q = q + ' section:' + section;
-    input.value = q;
-    currentQuery = q;
     currentPage = 1;
-    updateUrl(q, 1);
-    performSearch(q, 1);
+    dispatch({ type: 'FACET', section: e.detail.section });
   });
 
   window.addEventListener('popstate', function () {
     var p = new URLSearchParams(window.location.search);
     var q = p.get('q') || '';
     var page = parseInt(p.get('page') || '1') || 1;
-    input.value = q;
-    if (q) {
-      isLandingSearch = false;
-      performSearch(q, page);
-    } else {
-      showLanding();
-    }
+    currentPage = page;
+    // Apply popstate without re-pushing history.
+    var prev = machine.state;
+    machine.send({ type: 'POPSTATE', query: q });
+    apply(prev);
   });
 
-  // Example query buttons — fill search box and submit
   document.querySelectorAll('.example-query').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      isLandingSearch = false;
       var q = btn.getAttribute('data-query');
-      input.value = q;
-      currentQuery = q;
       currentPage = 1;
-      updateUrl(q, 1);
-      performSearch(q, 1);
+      dispatch({ type: 'EXAMPLE', query: q });
     });
   });
 
-  // Refine suggestion buttons — append/replace operator in current query
   document.querySelectorAll('.refine-suggestion').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      isLandingSearch = false;
       var appendText = btn.getAttribute('data-query-append');
-      var key = appendText.split(':')[0];
-      var cleaned = currentQuery.replace(new RegExp('\\b' + key + ':\\S+', 'g'), '').replace(/\s+/g, ' ').trim();
-      var q = (cleaned + ' ' + appendText).trim();
-      input.value = q;
-      currentQuery = q;
       currentPage = 1;
-      updateUrl(q, 1);
-      performSearch(q, 1);
+      dispatch({ type: 'REFINE', append: appendText });
     });
   });
 
-  // Clear button — dismiss search contents and return to landing
+  // Clear button — dismiss the search. On touch devices, release focus so
+  // the soft keyboard is dismissed; on pointer devices, keep focus for
+  // quick re-typing.
   if (clearBtn) {
     clearBtn.addEventListener('click', function () {
-      input.value = '';
-      isLandingSearch = false;
-      updateClearButton();
-      var url = new URL(window.location);
-      url.searchParams.delete('q');
-      url.searchParams.delete('page');
-      history.pushState(null, '', url);
-      showLanding();
-      input.focus();
+      dispatch({ type: 'DISMISS' });
+      var fine = window.matchMedia('(hover: hover) and (pointer: fine)');
+      if (fine && fine.matches) input.focus();
+      else input.blur();
     });
   }
 
-  // Show/hide clear button based on input content
-  input.addEventListener('input', updateClearButton);
-  function updateClearButton() {
+  input.addEventListener('input', function () {
     if (clearBtn) clearBtn.hidden = !input.value;
-  }
+  });
 
   async function performSearch(q, page) {
     autocomplete.hide();
     loadingEl.hidden = false;
-    clearAll();
-    currentQuery = q;
+    clearAll(machine.state);
     currentPage = page;
 
     try {
@@ -165,10 +169,13 @@ function initSearchPage() {
         var totalPages = Math.ceil(data.total_hits / pageSize);
         if (totalPages > 1) {
           renderPagination(paginationEl, page, totalPages, function (newPage) {
-            isLandingSearch = false;
             currentPage = newPage;
-            updateUrl(currentQuery, newPage);
-            performSearch(currentQuery, newPage);
+            var url = new URL(window.location);
+            url.searchParams.set('q', q);
+            if (newPage > 1) url.searchParams.set('page', String(newPage));
+            else url.searchParams.delete('page');
+            history.pushState(null, '', url);
+            performSearch(q, newPage);
             window.scrollTo(0, 0);
           });
         }
@@ -182,30 +189,14 @@ function initSearchPage() {
     }
   }
 
-  function showLanding() {
-    isLandingSearch = true;
-    clearAll();
-    loadLandingQuote();
-    loadLatestSearch();
-  }
-
-  function clearAll() {
+  function clearAll(s) {
     clearResults(resultsEl, resultsMeta, filterChips, emptyState);
     if (paginationEl) paginationEl.hidden = true;
     if (refineHints) refineHints.hidden = true;
     if (exampleQueries) exampleQueries.hidden = false;
-    if (!isLandingSearch) {
-      var lq = document.getElementById('landing-quote');
-      if (lq) lq.hidden = true;
-    }
-  }
-
-  function updateUrl(q, page) {
-    var url = new URL(window.location);
-    url.searchParams.set('q', q);
-    if (page > 1) url.searchParams.set('page', String(page));
-    else url.searchParams.delete('page');
-    history.pushState(null, '', url);
+    // Hide the landing quote whenever we're not in a landing state.
+    var lq = document.getElementById('landing-quote');
+    if (lq && s && !s.quoteVisible) lq.hidden = true;
   }
 
   async function loadLandingQuote() {
@@ -223,18 +214,18 @@ function initSearchPage() {
     } catch (e) { /* silently degrade */ }
   }
 
+  // Only fires in LANDING_FEATURED (cold-start with no query). Populates
+  // the search box with the latest issue and runs a background search so
+  // the landing page doubles as a "what's new" view.
   async function loadLatestSearch() {
     try {
       var resp = await fetch('/latest-issue');
       var data = await resp.json();
-      if (data.issue_number) {
+      if (data.issue_number && machine.state.name === 'LANDING_FEATURED') {
         var q = 'issue:' + data.issue_number;
         input.value = q;
-        currentQuery = q;
-        updateClearButton();
         performSearch(q, 1);
       }
     } catch (e) { /* silently degrade */ }
   }
-
 }
