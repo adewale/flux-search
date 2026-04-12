@@ -92,6 +92,16 @@ searchRoutes.get('/search', async (c) => {
     );
   }
 
+  // Detect section for ALL results before computing aggregates.
+  // Without this, FTS-only results have null snippetSection and
+  // the facets/density strip undercount sections.
+  for (const r of ranked) {
+    if (!r.snippetSection && r.snippet && r.issue.full_text_markdown) {
+      const sections = parseSections(r.issue.full_text_markdown);
+      r.snippetSection = detectSnippetSection(r.snippet, sections);
+    }
+  }
+
   // Paginate
   const offset = (page - 1) * limit;
   const paged = ranked.slice(offset, offset + limit);
@@ -107,27 +117,18 @@ searchRoutes.get('/search', async (c) => {
     year_distribution: computeYearDistribution(ranked),
     quarter_distribution: computeQuarterSectionDistribution(ranked),
     section_facets: computeSectionFacets(ranked),
-    results: paged.map(r => {
-      // Detect section for FTS results where snippetSection is null
-      let section = r.snippetSection;
-      if (!section && r.snippet && r.issue.full_text_markdown) {
-        const sections = parseSections(r.issue.full_text_markdown);
-        section = detectSnippetSection(r.snippet, sections);
-      }
-
-      return {
-        issue_id: r.issue.id,
-        title: r.issue.title,
-        issue_number: r.issue.issue_number,
-        published_at: r.issue.published_at,
-        snippet: r.snippet,
-        snippet_section: section,
-        confidence: r.confidence,
-        canonical_url: r.issue.canonical_url || r.issue.source_url,
-        matched_by: r.matchedBy,
-        ...(debug ? { debug: r.debugMeta } : {}),
-      };
-    }),
+    results: paged.map(r => ({
+      issue_id: r.issue.id,
+      title: r.issue.title,
+      issue_number: r.issue.issue_number,
+      published_at: r.issue.published_at,
+      snippet: r.snippet,
+      snippet_section: r.snippetSection,
+      confidence: r.confidence,
+      canonical_url: r.issue.canonical_url || r.issue.source_url,
+      matched_by: r.matchedBy,
+      ...(debug ? { debug: r.debugMeta } : {}),
+    })),
   });
 });
 

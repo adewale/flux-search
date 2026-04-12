@@ -187,9 +187,8 @@ export function rankResults(
 export function computeSectionFacets(results: Array<{ snippetSection: string | null }>): Record<string, number> {
   const facets: Record<string, number> = {};
   for (const r of results) {
-    if (r.snippetSection) {
-      facets[r.snippetSection] = (facets[r.snippetSection] || 0) + 1;
-    }
+    const section = r.snippetSection || 'other';
+    facets[section] = (facets[section] || 0) + 1;
   }
   return facets;
 }
