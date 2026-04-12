@@ -8,30 +8,54 @@
 
 import { test, expect } from '@playwright/test';
 
-test.describe('Dismiss widget — logic', () => {
-  test('clearing an existing query leaves the input empty and stays empty', async ({ page }) => {
+test.describe('Dismiss widget — logic (in-place clear)', () => {
+  test('dismiss empties the input but leaves results on screen', async ({ page }) => {
     await page.goto('/?q=trust');
-
-    // Wait for results from the initial query.
     await expect(page.locator('.result-card').first()).toBeVisible({ timeout: 10_000 });
+    const resultCountBefore = await page.locator('.result-card').count();
 
-    const clear = page.locator('#search-clear');
-    await expect(clear).toBeVisible();
+    await page.locator('#search-clear').click();
 
-    await clear.click();
-
-    // Input must actually be empty.
+    // Input is empty…
     await expect(page.locator('#search-input')).toHaveValue('');
-
-    // It must STAY empty — i.e. nothing auto-populates it after the click.
+    // …and stays empty (no async auto-population).
     await page.waitForTimeout(800);
     await expect(page.locator('#search-input')).toHaveValue('');
 
-    // URL no longer has ?q=
-    expect(new URL(page.url()).searchParams.get('q')).toBeNull();
+    // Results are still showing — the SAME results.
+    await expect(page.locator('.result-card')).toHaveCount(resultCountBefore);
 
-    // Landing quote should be visible, no results list.
-    await expect(page.locator('#results .result-card')).toHaveCount(0);
+    // URL is untouched — dismiss is a local action, not a navigation.
+    expect(new URL(page.url()).searchParams.get('q')).toBe('trust');
+
+    // The clear button is hidden again (nothing to clear).
+    await expect(page.locator('#search-clear')).toBeHidden();
+  });
+
+  test('dismiss does NOT hide the quote when it was showing (cold-start)', async ({ page }) => {
+    await page.goto('/');
+    // Wait for the cold-start landing quote to load.
+    await page.waitForSelector('#landing-quote:not([hidden])', { timeout: 5_000 }).catch(() => {});
+    // And for the featured latest-issue results to populate.
+    await expect(page.locator('.result-card').first()).toBeVisible({ timeout: 10_000 });
+    await page.locator('#search-clear').click();
+
+    await expect(page.locator('#search-input')).toHaveValue('');
+    await expect(page.locator('#landing-quote')).toBeVisible();
+    await expect(page.locator('.result-card').first()).toBeVisible();
+  });
+
+  test('submitting a new query from BROWSING transitions cleanly', async ({ page }) => {
+    await page.goto('/?q=trust');
+    await expect(page.locator('.result-card').first()).toBeVisible({ timeout: 10_000 });
+    await page.locator('#search-clear').click();
+    await expect(page.locator('#search-input')).toHaveValue('');
+
+    await page.fill('#search-input', 'hope');
+    await page.press('#search-input', 'Enter');
+
+    await expect(page.locator('.result-card').first()).toBeVisible({ timeout: 10_000 });
+    expect(new URL(page.url()).searchParams.get('q')).toBe('hope');
   });
 
   test('clear button is hidden when the input is empty', async ({ page }) => {
@@ -44,25 +68,12 @@ test.describe('Dismiss widget — logic', () => {
   test('dismiss is idempotent', async ({ page }) => {
     await page.goto('/?q=trust');
     await expect(page.locator('.result-card').first()).toBeVisible({ timeout: 10_000 });
-
     await page.locator('#search-clear').click();
     await expect(page.locator('#search-input')).toHaveValue('');
-    // Second click is a no-op (button is hidden; force to simulate rapid tap).
+    // Second click (forced — it's hidden) remains a no-op.
     await page.locator('#search-clear').click({ force: true }).catch(() => {});
     await expect(page.locator('#search-input')).toHaveValue('');
-  });
-
-  test('back-button after dismiss does not resurrect the old query', async ({ page }) => {
-    await page.goto('/?q=trust');
-    await expect(page.locator('.result-card').first()).toBeVisible({ timeout: 10_000 });
-    await page.locator('#search-clear').click();
-    await expect(page.locator('#search-input')).toHaveValue('');
-    await page.goBack().catch(() => {});
-    // Either we're at ?q=trust (prior URL) or at empty; in either case
-    // the input reflects the URL, not a spurious auto-search.
-    const url = new URL(page.url());
-    const q = url.searchParams.get('q') || '';
-    await expect(page.locator('#search-input')).toHaveValue(q);
+    await expect(page.locator('.result-card').first()).toBeVisible();
   });
 });
 

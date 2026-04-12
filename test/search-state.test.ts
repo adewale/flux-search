@@ -6,10 +6,11 @@
  *   LANDING_FEATURED  — cold-start page; quote + auto-latest-issue results
  *   LANDING           — stable empty landing; quote only, no results
  *   RESULTS           — user-initiated search; results shown, quote hidden
+ *   BROWSING          — results still shown but the search box is empty
+ *                       (user tapped ✕ to clear the query in-place)
  *
- * The dismiss widget bug is that the existing code lacks a stable LANDING
- * state: every path to landing re-fires the featured auto-search. These
- * tests pin the intended machine down.
+ * Dismissing is a *local* action: it empties the input without tearing
+ * down the results list. These tests pin that semantic down.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -49,36 +50,67 @@ describe('search state machine — states', () => {
     expect(s.autoLoadLatest).toBe(false);
   });
 
-  it('dismiss from RESULTS → LANDING (stable, no auto-search)', () => {
+  it('dismiss from RESULTS → BROWSING: results remain, input is empty', () => {
     const s = run([
       { type: 'LOAD', query: 'trust' },
       { type: 'DISMISS' },
     ]);
-    expect(s.name).toBe('LANDING');
+    expect(s.name).toBe('BROWSING');
     expect(s.query).toBe('');
-    expect(s.quoteVisible).toBe(true);
-    // The bug: previous code would set autoLoadLatest=true here.
-    expect(s.autoLoadLatest).toBe(false);
+    expect(s.resultsVisible).toBe(true);   // results are preserved
+    expect(s.quoteVisible).toBe(false);    // came from RESULTS, quote was hidden
+    expect(s.clearVisible).toBe(false);    // nothing to clear
+    expect(s.autoLoadLatest).toBe(false);  // no auto-search
   });
 
-  it('LANDING is a fixed point — re-dismiss is a no-op', () => {
+  it('dismiss from LANDING_FEATURED keeps the quote and the featured results', () => {
+    const s = run([
+      { type: 'LOAD', query: '' }, // cold start → LANDING_FEATURED (quote + latest-issue results)
+      { type: 'DISMISS' },
+    ]);
+    expect(s.name).toBe('BROWSING');
+    expect(s.resultsVisible).toBe(true);
+    expect(s.quoteVisible).toBe(true);     // strictly preserved from prior state
+    expect(s.query).toBe('');
+  });
+
+  it('dismiss from LANDING (empty) is a no-op', () => {
+    const m = createSearchMachine();
+    // Force directly into LANDING via popstate.
+    m.send({ type: 'POPSTATE', query: '' });
+    const before = m.state;
+    m.send({ type: 'DISMISS' });
+    expect(m.state).toEqual(before);
+  });
+
+  it('BROWSING is a fixed point under repeated dismiss', () => {
     const s = run([
       { type: 'LOAD', query: 'trust' },
       { type: 'DISMISS' },
       { type: 'DISMISS' },
       { type: 'DISMISS' },
     ]);
-    expect(s.name).toBe('LANDING');
+    expect(s.name).toBe('BROWSING');
     expect(s.query).toBe('');
-    expect(s.autoLoadLatest).toBe(false);
   });
 
-  it('popstate to empty URL → LANDING (not LANDING_FEATURED)', () => {
+  it('submitting a new query from BROWSING transitions to RESULTS', () => {
+    const s = run([
+      { type: 'LOAD', query: 'trust' },
+      { type: 'DISMISS' },
+      { type: 'SUBMIT', query: 'hope' },
+    ]);
+    expect(s.name).toBe('RESULTS');
+    expect(s.query).toBe('hope');
+  });
+
+  it('popstate to empty URL → LANDING (tears down results, unlike DISMISS)', () => {
     const s = run([
       { type: 'LOAD', query: 'trust' },
       { type: 'POPSTATE', query: '' },
     ]);
     expect(s.name).toBe('LANDING');
+    expect(s.resultsVisible).toBe(false);
     expect(s.autoLoadLatest).toBe(false);
   });
 
@@ -143,14 +175,20 @@ describe('search state machine — invariants', () => {
     expect(m.state.clearVisible).toBe(false);
   });
 
-  it('quoteVisible iff in a LANDING state', () => {
+  it('quoteVisible is preserved across dismiss', () => {
+    // From RESULTS: quote is hidden, dismiss keeps it hidden.
     const m = createSearchMachine();
-    m.send({ type: 'LOAD', query: '' });
-    expect(m.state.quoteVisible).toBe(true);
-    m.send({ type: 'SUBMIT', query: 'x' });
+    m.send({ type: 'LOAD', query: 'x' });
     expect(m.state.quoteVisible).toBe(false);
     m.send({ type: 'DISMISS' });
-    expect(m.state.quoteVisible).toBe(true);
+    expect(m.state.quoteVisible).toBe(false);
+
+    // From LANDING_FEATURED: quote is visible, dismiss keeps it visible.
+    const m2 = createSearchMachine();
+    m2.send({ type: 'LOAD', query: '' });
+    expect(m2.state.quoteVisible).toBe(true);
+    m2.send({ type: 'DISMISS' });
+    expect(m2.state.quoteVisible).toBe(true);
   });
 
   it('autoLoadLatest only true on the first LOAD event with empty query', () => {

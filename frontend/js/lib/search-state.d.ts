@@ -1,5 +1,5 @@
 export type State = {
-  name: 'LANDING_FEATURED' | 'LANDING' | 'RESULTS';
+  name: 'LANDING_FEATURED' | 'LANDING' | 'RESULTS' | 'BROWSING';
   query: string;
   quoteVisible: boolean;
   autoLoadLatest: boolean;

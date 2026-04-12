@@ -57,18 +57,22 @@ function initSearchPage() {
 
     if (s.name === 'RESULTS') {
       performSearch(s.query, 1);
-    } else {
-      // LANDING or LANDING_FEATURED
+    } else if (s.name === 'LANDING' || s.name === 'LANDING_FEATURED') {
       clearAll(s);
       loadLandingQuote();
       if (s.autoLoadLatest) loadLatestSearch();
     }
+    // BROWSING: intentionally no DOM side effects beyond the input-value
+    // sync above. Results, chips, pagination and quote stay as they were.
   }
 
   function dispatch(event) {
     var prev = machine.state;
     machine.send(event);
-    syncUrl();
+    // DISMISS is a local clear — don't rewrite the URL; the results on
+    // screen still correspond to the existing ?q=. Every other event
+    // owns the URL.
+    if (event.type !== 'DISMISS' && event.type !== 'POPSTATE') syncUrl();
     apply(prev);
   }
 
@@ -79,7 +83,7 @@ function initSearchPage() {
       url.searchParams.set('q', s.query);
       if (currentPage > 1) url.searchParams.set('page', String(currentPage));
       else url.searchParams.delete('page');
-    } else {
+    } else if (s.name === 'LANDING' || s.name === 'LANDING_FEATURED') {
       url.searchParams.delete('q');
       url.searchParams.delete('page');
     }

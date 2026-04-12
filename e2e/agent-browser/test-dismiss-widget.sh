@@ -46,27 +46,30 @@ assert_equals() {
 }
 
 # ========================
-# 1. Landing after dismiss is stable
+# 1. Dismiss is an in-place clear — results persist
 # ========================
-echo "=== Dismiss widget: clears and stays clear ==="
+echo "=== Dismiss widget: clears input, keeps results ==="
 agent-browser open "$BASE/?q=trust" 2>/dev/null
 sleep 2
+RESULTS_BEFORE=$(agent-browser eval 'document.querySelectorAll(".result-card").length' 2>/dev/null)
 agent-browser find role button click --name "Clear search" 2>/dev/null
 sleep 1
 SNAP=$(agent-browser snapshot 2>/dev/null)
 INPUT_VALUE=$(agent-browser eval 'document.getElementById("search-input").value' 2>/dev/null)
+RESULTS_AFTER=$(agent-browser eval 'document.querySelectorAll(".result-card").length' 2>/dev/null)
+URL_Q=$(agent-browser eval 'new URL(location.href).searchParams.get("q") || ""' 2>/dev/null)
 
 assert_equals "search input is empty after ✕" "$INPUT_VALUE" ""
-assert_contains "landing quote is visible" "$SNAP" 'blockquote'
-assert_not_contains "no result cards on landing" "$SNAP" 'result-card'
-assert_not_contains "no 'issue:' auto-search in URL" "$(agent-browser eval 'location.search' 2>/dev/null)" 'q=issue'
+assert_equals "result count unchanged after ✕" "$RESULTS_AFTER" "$RESULTS_BEFORE"
+assert_contains "result cards still present" "$SNAP" 'result-card\|result-title'
+assert_equals "URL query string preserved (?q=trust)" "$URL_Q" "trust"
 
 # Wait another second to catch any async repopulation.
 sleep 1
 INPUT_VALUE_LATER=$(agent-browser eval 'document.getElementById("search-input").value' 2>/dev/null)
 assert_equals "search input STAYS empty 1s later" "$INPUT_VALUE_LATER" ""
 
-agent-browser screenshot "$SHOTS/dismiss-01-landing-stable.png" 2>/dev/null
+agent-browser screenshot "$SHOTS/dismiss-01-browsing-after-clear.png" 2>/dev/null
 echo ""
 
 # ========================

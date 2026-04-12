@@ -2,17 +2,21 @@
  * Property-based tests for the search box state machine.
  *
  * Invariants encoded here — any sequence of events must preserve:
- *   I1  DISMISS is absorbing: state after DISMISS is exactly LANDING.
- *   I2  LANDING is a fixed point under repeated DISMISS.
- *   I3  quoteVisible ⇔ name ∈ {LANDING, LANDING_FEATURED}.
+ *   I1  DISMISS always yields query=''. If results were on screen it
+ *       lands in BROWSING; otherwise the prior state is preserved.
+ *   I2  Any state with empty query is a fixed point under DISMISS.
+ *   I3  quoteVisible ⇒ name ≠ RESULTS (the quote never shows alongside
+ *       user-query results). BROWSING preserves the prior quoteVisible.
  *   I4  clearVisible ⇔ query.length > 0.
  *   I5  autoLoadLatest can only be true in LANDING_FEATURED.
- *   I6  resultsVisible ⇔ name == RESULTS.
+ *   I6  resultsVisible ⇔ name ∈ {RESULTS, BROWSING, LANDING_FEATURED}.
  *   I7  query is always a string (never null/undefined/NaN).
  *   I8  The reducer is pure: reduce(s, e) given identical inputs returns
  *       structurally equal outputs.
  *   I9  Once the user has left LANDING_FEATURED, it is unreachable
  *       (no transition goes back to it).
+ *   I10 DISMISS preserves resultsVisible: if results were showing before,
+ *       they are still showing after.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -55,42 +59,42 @@ function runAll(events: Event[]): State {
 }
 
 describe('PBT — search state machine invariants', () => {
-  it('I1: DISMISS leads to LANDING regardless of history', () => {
+  it('I1: DISMISS always empties the query and never auto-loads', () => {
     fc.assert(
       fc.property(fc.array(event, { maxLength: 20 }), (events) => {
         const s = runAll([...events, { type: 'DISMISS' }]);
-        expect(s.name).toBe('LANDING');
         expect(s.query).toBe('');
-        expect(s.quoteVisible).toBe(true);
         expect(s.autoLoadLatest).toBe(false);
-        expect(s.resultsVisible).toBe(false);
+        expect(s.clearVisible).toBe(false);
       }),
       { numRuns: 300 },
     );
   });
 
-  it('I2: LANDING is a fixed point under repeated DISMISS', () => {
+  it('I2: any state with empty query is a fixed point under DISMISS', () => {
     fc.assert(
       fc.property(
         fc.array(event, { maxLength: 10 }),
-        fc.integer({ min: 1, max: 8 }),
+        fc.integer({ min: 2, max: 8 }),
         (events, dismisses) => {
-          const extra: Event[] = Array.from({ length: dismisses }, () => ({ type: 'DISMISS' }));
-          const s = runAll([...events, { type: 'DISMISS' }, ...extra]);
-          expect(s.name).toBe('LANDING');
-          expect(s.query).toBe('');
+          const m = createSearchMachine();
+          for (const e of events) m.send(e);
+          m.send({ type: 'DISMISS' });
+          const first = m.state;
+          for (let i = 1; i < dismisses; i++) m.send({ type: 'DISMISS' });
+          // Structural equality: redundant dismisses must not change the state.
+          expect(m.state).toEqual(first);
         },
       ),
       { numRuns: 200 },
     );
   });
 
-  it('I3: quoteVisible iff in a LANDING state', () => {
+  it('I3: quoteVisible implies name is not RESULTS', () => {
     fc.assert(
       fc.property(fc.array(event, { maxLength: 15 }), (events) => {
         const s = runAll(events);
-        const isLanding = s.name === 'LANDING' || s.name === 'LANDING_FEATURED';
-        expect(s.quoteVisible).toBe(isLanding);
+        if (s.quoteVisible) expect(s.name).not.toBe('RESULTS');
       }),
       { numRuns: 300 },
     );
@@ -116,11 +120,12 @@ describe('PBT — search state machine invariants', () => {
     );
   });
 
-  it('I6: resultsVisible iff name is RESULTS', () => {
+  it('I6: resultsVisible iff name ∈ {RESULTS, BROWSING, LANDING_FEATURED}', () => {
+    const withResults = new Set(['RESULTS', 'BROWSING', 'LANDING_FEATURED']);
     fc.assert(
       fc.property(fc.array(event, { maxLength: 15 }), (events) => {
         const s = runAll(events);
-        expect(s.resultsVisible).toBe(s.name === 'RESULTS');
+        expect(s.resultsVisible).toBe(withResults.has(s.name));
       }),
       { numRuns: 300 },
     );
@@ -171,7 +176,21 @@ describe('PBT — search state machine invariants', () => {
     );
   });
 
-  it('I10: FACET produces a query containing section:<s> exactly once', () => {
+  it('I10: DISMISS preserves resultsVisible and quoteVisible', () => {
+    fc.assert(
+      fc.property(fc.array(event, { maxLength: 15 }), (events) => {
+        const m = createSearchMachine();
+        for (const e of events) m.send(e);
+        const before = m.state;
+        m.send({ type: 'DISMISS' });
+        expect(m.state.resultsVisible).toBe(before.resultsVisible);
+        expect(m.state.quoteVisible).toBe(before.quoteVisible);
+      }),
+      { numRuns: 300 },
+    );
+  });
+
+  it('I11: FACET produces a query containing section:<s> exactly once', () => {
     fc.assert(
       fc.property(
         fc.array(event, { maxLength: 10 }),

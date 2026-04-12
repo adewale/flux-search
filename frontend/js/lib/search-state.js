@@ -4,6 +4,9 @@
 //   LANDING_FEATURED — cold-start landing; quote visible, auto-load latest issue
 //   LANDING          — stable empty landing; quote visible, no auto-search
 //   RESULTS          — user-driven search; quote hidden, results shown
+//   BROWSING         — user tapped ✕ while viewing results; input is empty
+//                      but the results list and prior chrome remain visible.
+//                      A local clear, not a navigation.
 //
 // The machine is a pure function of events. It doesn't touch the DOM, fetch,
 // or history — app.js is responsible for reflecting `state` back into the UI
@@ -45,7 +48,9 @@ function landingFeatured() {
     quoteVisible: true,
     autoLoadLatest: true,
     clearVisible: false,
-    resultsVisible: false,
+    // LANDING_FEATURED renders the latest-issue results alongside the
+    // quote, so dismiss can treat it as "results are on screen".
+    resultsVisible: true,
     booted: true,
   };
 }
@@ -57,6 +62,21 @@ function results(q) {
     quoteVisible: false,
     autoLoadLatest: false,
     clearVisible: q.length > 0,
+    resultsVisible: true,
+    booted: true,
+  };
+}
+
+function browsing(prev) {
+  // Dismiss in-place: keep whatever the prior state was showing, just
+  // empty the search box. `quoteVisible` and any other chrome flags
+  // carry over.
+  return {
+    name: 'BROWSING',
+    query: '',
+    quoteVisible: prev.quoteVisible,
+    autoLoadLatest: false,
+    clearVisible: false,
     resultsVisible: true,
     booted: true,
   };
@@ -89,7 +109,10 @@ export function reduce(state, event) {
       return results(replaceOp(state.query, key, event.append));
     }
     case 'DISMISS':
-      return landing();
+      // Dismiss is local: if results are showing, drop into BROWSING and
+      // keep them. Otherwise (no results yet) stay in the current state.
+      if (state.resultsVisible) return browsing(state);
+      return state;
     default:
       return state;
   }
