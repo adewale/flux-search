@@ -164,6 +164,11 @@ searchRoutes.get('/search', async (c) => {
       const sections = parseSections(r.issue.full_text_markdown);
       r.snippetSection = detectSnippetSection(r.snippet, sections);
     }
+    // Normalize chunk-level label to a display section.
+    // title_summary is a chunker label, not a user-facing section.
+    if (r.snippetSection === 'title_summary') {
+      r.snippetSection = 'lead_essay';
+    }
   }
 
   // Section filter — now runs after detection so FTS results are filterable
