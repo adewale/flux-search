@@ -134,12 +134,11 @@ function renderDensityStrip(dist) {
     }).join('');
   }).join('');
 
-  // Y-axis scale — max value at top, thin tick
+  // Y-axis scale — max value at top only. The baseline communicates zero;
+  // labeling it would overlap with the first bar.
   var yAxis =
     '<text x="' + (AXIS_W - 4) + '" y="4" class="density-axis-label">' + data.maxCount + '</text>' +
-    '<line x1="' + (AXIS_W - 2) + '" y1="0" x2="' + AXIS_W + '" y2="0" class="density-axis-tick" />' +
-    '<text x="' + (AXIS_W - 4) + '" y="' + H + '" class="density-axis-label">0</text>' +
-    '<line x1="' + (AXIS_W - 2) + '" y1="' + H + '" x2="' + AXIS_W + '" y2="' + H + '" class="density-axis-tick" />';
+    '<line x1="' + (AXIS_W - 2) + '" y1="0" x2="' + AXIS_W + '" y2="0" class="density-axis-tick" />';
 
   // Milestone annotations
   var milestones = LANDMARKS.filter(function (lm) {
