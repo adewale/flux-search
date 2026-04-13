@@ -547,7 +547,6 @@ body {
 
 .density-svg {
   width: 100%;
-  aspect-ratio: 6 / 1;
   display: block;
 }
 
@@ -581,7 +580,7 @@ body {
   font-size: 12px;
   font-family: var(--font);
   fill: var(--text-tertiary);
-  text-anchor: end;
+  text-anchor: start;
   font-variant-numeric: tabular-nums;
   dominant-baseline: middle;
 }

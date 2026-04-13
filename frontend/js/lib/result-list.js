@@ -138,7 +138,7 @@ function renderDensityStrip(dist) {
   var scaleLabel = data.scaleMax || data.maxCount;
   var yAxis =
     '<line x1="' + axisX + '" y1="0" x2="' + axisX + '" y2="' + H + '" class="density-axis-line" />' +
-    '<text x="' + (axisX - 4) + '" y="4" class="density-axis-label">' + scaleLabel + '</text>' +
+    '<text x="2" y="4" class="density-axis-label">' + scaleLabel + '</text>' +
     '<line x1="' + (axisX - 2) + '" y1="0" x2="' + axisX + '" y2="0" class="density-axis-tick" />';
 
   // Year labels — show every year; fixed-width bars leave enough room
