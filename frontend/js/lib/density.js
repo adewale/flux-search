@@ -84,5 +84,5 @@ export function computeDensityBars(quarterSectionDist, width, height, now) {
     yearTicks.push({ year: y, x: tx });
   }
 
-  return { bars: bars, yearTicks: yearTicks, barWidth: barWidth, maxCount: maxCount };
+  return { bars: bars, yearTicks: yearTicks, barWidth: barWidth, maxCount: maxCount, scaleMax: effectiveMax };
 }

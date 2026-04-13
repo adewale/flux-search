@@ -134,10 +134,13 @@ function renderDensityStrip(dist) {
     }).join('');
   }).join('');
 
-  // Y-axis: vertical line from baseline to max, with max label
+  // Y-axis: vertical line from baseline to max, labeled with the visual scale max.
+  // scaleMax may be > maxCount due to MIN_SCALE — the label must match
+  // what the bar heights are proportional to.
+  var scaleLabel = data.scaleMax || data.maxCount;
   var yAxis =
     '<line x1="' + AXIS_W + '" y1="0" x2="' + AXIS_W + '" y2="' + H + '" class="density-axis-line" />' +
-    '<text x="' + (AXIS_W - 4) + '" y="4" class="density-axis-label">' + data.maxCount + '</text>' +
+    '<text x="' + (AXIS_W - 4) + '" y="4" class="density-axis-label">' + scaleLabel + '</text>' +
     '<line x1="' + (AXIS_W - 2) + '" y1="0" x2="' + AXIS_W + '" y2="0" class="density-axis-tick" />';
 
   // Year labels — thin when crowded (>4 years: show only every other year)

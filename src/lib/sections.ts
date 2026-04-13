@@ -8,7 +8,8 @@ import { stripEmoji } from './emoji';
  * a known recurring section pattern.
  */
 
-export const SECTION_TYPES = [
+/** Display sections — user-facing section types shown in results and facets. */
+export const DISPLAY_SECTIONS = [
   'lead_essay',
   'signposts',
   'worth_your_time',
@@ -16,11 +17,32 @@ export const SECTION_TYPES = [
   'book',
   'postcard',
   'fluxers',
-  'title_summary', // chunk-level: title + summary as first chunk
   'other',
 ] as const;
 
-export type SectionType = typeof SECTION_TYPES[number];
+export type DisplaySection = typeof DISPLAY_SECTIONS[number];
+
+/** Chunk labels — internal labels for vector index chunks.
+ * Includes display sections plus chunker-specific labels like title_summary. */
+export const CHUNK_LABELS = [
+  ...DISPLAY_SECTIONS,
+  'title_summary', // chunker: title + summary as first chunk
+] as const;
+
+export type ChunkLabel = typeof CHUNK_LABELS[number];
+
+/** Normalize a chunk label to a display section.
+ * Maps internal labels (title_summary) to their display equivalents. */
+export function toDisplaySection(label: string | null): DisplaySection {
+  if (!label) return 'other';
+  if (label === 'title_summary') return 'lead_essay';
+  if (DISPLAY_SECTIONS.includes(label as DisplaySection)) return label as DisplaySection;
+  return 'other';
+}
+
+// Backward compatibility
+export const SECTION_TYPES = CHUNK_LABELS;
+export type SectionType = ChunkLabel;
 
 export interface ParsedSection {
   type: SectionType;

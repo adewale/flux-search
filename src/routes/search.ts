@@ -4,7 +4,7 @@ import { parseQuery, isFilterOnly } from '../lib/query-parser';
 import { searchFts, searchFilterOnly, autocompleteWords, getIssueByNumber } from '../db/queries';
 import { searchVectorize } from '../lib/vector-search';
 import { rankResults, computeYearDistribution, computeQuarterSectionDistribution, computeSectionFacets, detectSnippetSection } from '../lib/hybrid-ranker';
-import { parseSections } from '../lib/sections';
+import { parseSections, toDisplaySection } from '../lib/sections';
 
 export const searchRoutes = new Hono<{ Bindings: Env }>();
 
@@ -164,11 +164,9 @@ searchRoutes.get('/search', async (c) => {
       const sections = parseSections(r.issue.full_text_markdown);
       r.snippetSection = detectSnippetSection(r.snippet, sections);
     }
-    // Normalize chunk-level label to a display section.
-    // title_summary is a chunker label, not a user-facing section.
-    if (r.snippetSection === 'title_summary') {
-      r.snippetSection = 'lead_essay';
-    }
+    // Normalize chunk labels (title_summary, unknown) to display sections.
+    // This is the boundary between internal chunk labels and user-facing sections.
+    r.snippetSection = toDisplaySection(r.snippetSection);
   }
 
   // Section filter — now runs after detection so FTS results are filterable
