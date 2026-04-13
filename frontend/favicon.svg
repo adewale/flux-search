@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <text x="13" y="14" text-anchor="middle" dominant-baseline="central" font-size="16">🌀</text>
+  <circle cx="13" cy="13" r="10.5" fill="none" stroke="#6b5b4f" stroke-width="2"/>
+  <line x1="21" y1="21" x2="29" y2="29" stroke="#6b5b4f" stroke-width="3" stroke-linecap="round"/>
+</svg>
