@@ -536,7 +536,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  padding: 0.125rem 0.25rem;
+  padding: 0.125rem 0.125rem;
 }
 
 .density-result-count {
