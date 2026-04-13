@@ -113,8 +113,8 @@ function renderDensityStrip(dist) {
   var el = document.getElementById('density-content') || panel;
   if (!el) return;
 
-  var AXIS_W = 24; // left margin for Y-axis label
-  var W = 560;     // chart area width (after axis)
+  var AXIS_W = 18; // left margin for Y-axis label
+  var W = 570;     // chart area width (after axis)
   var H = 80;
   var LABEL_H = 16;
   var data = computeDensityBars(dist, W, H);
