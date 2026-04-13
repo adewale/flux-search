@@ -25,11 +25,34 @@ The density strip is a bar chart showing how search results are distributed over
 
 ### Axes
 
-- **Y-axis line:** Vertical line from top (y=0) to baseline (y=H). Positioned at the left edge of the first bar, not at AXIS_W.
+- **Y-axis line:** Vertical line from top (y=0) to baseline (y=H). Positioned at `AXIS_W - barWidth/2` — the left edge of the first possible bar, not at AXIS_W.
 - **Y-axis label:** `scaleMax` value (not `maxCount`) at the top. `scaleMax = Math.max(maxCount, MIN_SCALE)` where `MIN_SCALE=5`. This prevents single-result quarters from filling full height.
 - **Y-axis tick:** Short horizontal tick at the top connecting the label to the axis line.
-- **X-axis baseline:** Horizontal line from the Y-axis position to just past the rightmost bar's right edge.
+- **X-axis baseline:** Horizontal line from the Y-axis x position to just past the rightmost bar's right edge. The Y-axis line and baseline meet at a clean L-shaped corner.
 - **Year labels:** SVG text at the baseline, one per year. All years shown (no thinning). Text-anchor: middle. Format: `'21`, `'22`, etc.
+
+### Geometric invariants (tested in `test/density-geometry.test.ts`)
+
+These spatial relationships are enforced by 21 tests:
+
+1. Y-axis x == left edge of the first bar
+2. Baseline starts at Y-axis x
+3. Baseline extends past the rightmost bar's right edge
+4. Tallest bar top (y=0) aligns with Y-axis top (y=0)
+5. All bars sit on the baseline (bar bottom == H)
+6. No bar exceeds chart height (height <= H)
+7. Bar heights are proportional to count
+8. Minimum bar height is 3px
+9. Bars are sorted left-to-right by quarter
+10. Bars do not overlap
+11. Y-axis label == scaleMax (what bars scale to)
+12. scaleMax >= MIN_SCALE and >= maxCount
+13. Year ticks are all >= 0 (never off the left edge)
+14. Year ticks span from first data year to current year
+15. Year ticks after the first are evenly spaced
+16. Segment heights sum to bar height
+17. Segment counts sum to bar totalCount
+18. Segments are sorted by count descending
 
 ### Bars
 
@@ -91,4 +114,6 @@ The density strip receives `quarter_distribution` with section keys that are `Di
 - `frontend/js/lib/result-list.js` — SVG rendering (axes, bars, tooltips, labels)
 - `frontend/css/styles.css` — panel, bar, axis, and tooltip styles
 - `test/density-strip.test.ts` — unit tests for computation
+- `test/density-geometry.test.ts` — 21 geometric relationship tests
 - `docs/density-strip-research.md` — research on implementations and design patterns
+- `specs/density-strip.spec.md` — this specification
