@@ -529,14 +529,14 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 0.125rem 0.125rem 0;
+  padding: 0.125rem 0.125rem 0 0.5rem;
 }
 
 .density-header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  padding: 0.125rem 0.125rem;
+  padding: 0.125rem 0;
 }
 
 .density-result-count {
@@ -748,6 +748,7 @@ body {
   flex-wrap: wrap;
   gap: 0.375rem;
   margin-bottom: 0.5rem;
+  padding-left: 0.5rem;
   contain: layout style;
 }
 

@@ -40,6 +40,27 @@ test.describe('density strip alignment', () => {
     expect(Math.abs(axisLineLeft - firstBarLeft)).toBeLessThan(2);
   });
 
+  test('result count, Y-axis label, and first result share a content edge', async ({ page }) => {
+    await page.goto('/?q=crypto');
+    await page.waitForSelector('.result-card', { timeout: 10000 });
+
+    const countLeft = await page.locator('.density-result-count').evaluate(el =>
+      el.getBoundingClientRect().left
+    );
+    const axisLabelLeft = await page.locator('.density-axis-label').first().evaluate(el =>
+      el.getBoundingClientRect().left
+    );
+    const resultNumberLeft = await page.locator('.result-number').first().evaluate(el =>
+      el.getBoundingClientRect().left
+    );
+
+    // All three should be within 5px of each other
+    const positions = [countLeft, axisLabelLeft, resultNumberLeft];
+    const min = Math.min(...positions);
+    const max = Math.max(...positions);
+    expect(max - min).toBeLessThan(5);
+  });
+
   test('baseline extends to or past the rightmost bar', async ({ page }) => {
     await page.goto('/?q=war');
     await page.waitForSelector('.density-bar', { timeout: 10000 });
