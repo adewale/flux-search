@@ -52,7 +52,7 @@ export function computeDensityBars(quarterSectionDist, width, height, now) {
     var totalCount = totals[i];
     var pos = positions[i];
     var x = ((pos - minPos) / span) * width;
-    var barH = (totalCount / effectiveMax) * height;
+    var barH = Math.max(3, (totalCount / effectiveMax) * height);
 
     // Build stacked segments, sorted by count descending
     var segEntries = [];

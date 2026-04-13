@@ -141,10 +141,8 @@ function renderDensityStrip(dist) {
     '<text x="' + (AXIS_W - 4) + '" y="4" class="density-axis-label">' + scaleLabel + '</text>' +
     '<line x1="' + (AXIS_W - 2) + '" y1="0" x2="' + AXIS_W + '" y2="0" class="density-axis-tick" />';
 
-  // Year labels — thin when crowded (>4 years: show only every other year)
-  var skipYears = data.yearTicks.length > 5;
+  // Year labels — show every year; fixed-width bars leave enough room
   var yearLabels = data.yearTicks.map(function (t, i) {
-    if (skipYears && i % 2 !== 0 && i !== data.yearTicks.length - 1) return '';
     return '<text x="' + (AXIS_W + t.x) + '" y="' + (H + LABEL_H - 2) +
       '" class="density-year-text">\u2019' + String(t.year).slice(2) + '</text>';
   }).join('');
