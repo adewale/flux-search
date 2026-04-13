@@ -192,3 +192,52 @@ If you're adapting this approach for a different newsletter or content archive:
 6. **The semantic-only penalty matters most for small corpora.** With 234 issues, Vectorize always finds "something." With 10,000 documents, the noise floor is lower because there are more genuinely relevant candidates. You may not need the penalty at all for larger corpora.
 
 7. **Expose weights as config, not code.** We use Cloudflare Worker environment variables. Every tuning change is a config update, not a redeploy. This is essential for iterating on search quality without a deployment cycle.
+
+## How we verify search quality
+
+Search quality is tested at six levels, from unit tests to live API verification. Each level catches a different class of bug.
+
+### Level 1: Ranking unit tests (test/semantic-threshold.test.ts)
+
+Tests the ranking algorithm in isolation with synthetic FTS and Vectorize results. Verifies:
+- Weak vector-only results (cosine < 0.75) are filtered out
+- Co-matched results (FTS + vector) bypass the threshold
+- The semantic-only penalty (-3.5) applies only when 3+ FTS results exist
+- The boundary at exactly 0.75 is correctly enforced
+
+These tests use mock data — no network, no D1, no Vectorize. They run in <100ms and catch ranking logic bugs immediately.
+
+### Level 2: FTS safety tests (test/fts-safety.test.ts)
+
+Verifies that user input containing FTS5 special characters doesn't crash the search. Apostrophes, colons, angle brackets, ampersands, slashes, parentheses, and asterisks are all sanitized before reaching the MATCH clause. Tests both the sanitizer function and the live API.
+
+### Level 3: Pipeline consistency PBT (test/search-consistency.test.ts)
+
+Property-based tests that assert invariants across the search pipeline:
+- `sum(section_facets) == total_hits` for any set of results
+- `sum(quarter_distribution) == total_hits` for any set of results
+- Section facets match quarter section totals
+
+These catch pipeline ordering bugs — e.g., computing aggregates before section detection runs, which silently undercounts sections.
+
+### Level 4: Relevance evaluation harness (test/relevance.test.ts)
+
+Hand-labeled queries with expected results:
+- `"decision treadmill"` → issue #230 is the top result
+- `unstuck` → issue #55 "How to get unstuck" is first
+- `section:lens` → all results are from the lens section
+- `before:2022` → all results published before 2022
+- No result contains Substack boilerplate in its snippet or title
+
+These catch ranking regressions and data quality issues.
+
+### Level 5: Integration tests (test/search-integration.test.ts)
+
+Calls the live API and verifies:
+- All three query paths (normal, filter-only, issue-lookup) return the same 7 top-level fields and 9 result fields
+- Aggregates are consistent across pages (page 1 and page 2 have identical distributions)
+- Section filter returns only results from the specified section
+
+### Level 6: Comprehensive search quality suite (test/search-quality.test.ts)
+
+77 tests across 8 categories: ranking quality, section filters, date filters, aggregate consistency, result quality, pagination, and edge cases. This is the broadest suite — it exercises the search end-to-end against the deployed API with diverse queries and verifies the full contract.
