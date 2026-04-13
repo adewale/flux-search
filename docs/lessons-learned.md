@@ -240,3 +240,51 @@ The relevance evaluation harness (13 hand-labeled queries) caught a real bug on 
 Adding 234 raw HTML files to the repo transformed our testing. Before: synthetic inputs in unit tests, manual spot-checks against the live API. After: every normalizer change is validated against every real issue. The corpus-crud test checks 24 boilerplate patterns × 234 issues = 5,616 assertions. The corpus-survival test verifies word counts, section structure, and title quality across the full archive.
 
 The 48MB cost is trivial compared to the bugs it prevents. Three normalizer fixes were found only by running against the corpus — patterns that appeared in 200+ issues but never in our synthetic test data.
+
+## What we learned about type boundaries
+
+### Internal labels leak to users unless the boundary is explicit
+
+The chunker labels its first chunk `title_summary` — an internal label for the vector index. This label leaked through the search pipeline into the API response, the result card (no color stripe), and the issue page URL (`#title_summary` — a non-existent tab). The leak was invisible because `title_summary` is a valid string — no error, no crash, just wrong behavior.
+
+The fix was creating distinct types: `ChunkLabel` (internal, includes `title_summary`) and `DisplaySection` (user-facing, does not). A `toDisplaySection()` function is the single conversion point. Any new chunk label must be explicitly mapped here or it becomes `other`. The compiler can now catch mismatches.
+
+**Lesson: When data crosses a boundary between internal and user-facing systems, make the boundary a function with distinct types on each side.** String typing (`section: string`) lets anything through. Branded types (`section: DisplaySection`) make leaks visible at compile time.
+
+## What we learned about visual alignment
+
+### Browser-verified tests catch what coordinate math misses
+
+We aligned the Y-axis label, result count, and result cards to a shared content grid by adjusting CSS padding and SVG coordinates. The math said they should align. The Playwright bounding-box tests said they didn't — the CSS `aspect-ratio: 6/1` was silently distorting the SVG coordinate mapping, shifting the label 20px from its expected position.
+
+The fix was removing the CSS aspect-ratio override and letting the SVG scale naturally from its viewBox. But we only discovered the problem because the Playwright test checked *rendered* bounding boxes in a real browser, not SVG coordinate math.
+
+**Lesson: Visual alignment bugs live in the gap between coordinate systems.** SVG viewBox units, CSS pixels, and rendered bounding boxes are three different coordinate systems that don't always agree. Test the rendered output, not the input coordinates. `element.getBoundingClientRect()` is the source of truth.
+
+### Two alignment edges are better than three
+
+The page originally had three left edges: 0px (header elements), ~5px (density panel content), and 8px (result card text). Each was close to the others but not identical — they looked like mistakes rather than intentional choices.
+
+Consolidating to two edges — 0px for interactive chrome (search box, refine chips, panel borders) and ~8px for content (result count, chart, facets, results) — made the page feel ordered. Moving the Y-axis label above the chart freed the left margin from label-width duty, allowing the chart's left edge to align exactly with the content grid.
+
+**Lesson: If you have N alignment edges where N > 2, reduce to 2.** One edge for structure, one for content. Every element on the page should belong to exactly one. Three "almost aligned" edges are worse than two deliberately different ones.
+
+## What we learned about chart design
+
+### Every axis must match its visual encoding
+
+The density strip Y-axis initially showed `maxCount` (the actual highest bar value) but the bars were scaled to `scaleMax` (which includes a `MIN_SCALE` floor). When `MIN_SCALE > maxCount`, the axis said "1" but the tallest bar was only 20% of the axis height. The label lied about what the visual height meant.
+
+**Lesson: The axis label must show the value that the visual encoding is proportional to.** If bars scale to `effectiveMax`, the axis must say `effectiveMax`. If you add a minimum scale floor, the axis must reflect it.
+
+### Fixed-width bars derived from the maximum possible density
+
+Bar width was initially calculated per-query, making "unstuck" (3 bars) look completely different from "crypto" (15 bars). Fixing the width to `chartWidth / 21 quarters * 0.8` made every query's chart visually consistent. Sparse queries show narrow bars with empty space (correct), dense queries fill the chart (correct).
+
+**Lesson: Derive visual constants from the data model's constraints, not from individual queries.** The archive has at most 21 quarters. That's a known maximum. Using it as the basis for bar width makes every chart comparable.
+
+### FTS5 special characters crash the search
+
+Apostrophes (`it's`), colons (`foo:bar`), angle brackets, ampersands, and slashes all cause FTS5 MATCH syntax errors. Users type these naturally. The fix: strip everything except word characters, spaces, and hyphens before passing to FTS5. A whitelist (`[^\w\s-]` → space) is safer than a blacklist of known special characters.
+
+**Lesson: Sanitize at the boundary between user input and query syntax.** FTS5, SQL, and regex all have syntax characters that overlap with natural language. Don't list the dangerous characters — keep only the safe ones.

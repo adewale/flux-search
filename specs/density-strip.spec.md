@@ -25,11 +25,19 @@ The density strip is a bar chart showing how search results are distributed over
 
 ### Axes
 
-- **Y-axis line:** Vertical line from top (y=0) to baseline (y=H). Positioned at `AXIS_W - barWidth/2` — the left edge of the first possible bar, not at AXIS_W.
-- **Y-axis label:** `scaleMax` value (not `maxCount`) at the top. `scaleMax = Math.max(maxCount, MIN_SCALE)` where `MIN_SCALE=5`. This prevents single-result quarters from filling full height.
-- **Y-axis tick:** Short horizontal tick at the top connecting the label to the axis line.
-- **X-axis baseline:** Horizontal line from the Y-axis x position to just past the rightmost bar's right edge. The Y-axis line and baseline meet at a clean L-shaped corner.
-- **Year labels:** SVG text at the baseline, one per year. All years shown (no thinning). Text-anchor: middle. Format: `'21`, `'22`, etc.
+- **Y-axis label:** `scaleMax` value positioned **above** the chart (at y=-4), not beside it. This frees the left margin from label-width duty. `scaleMax = Math.max(maxCount, MIN_SCALE)` where `MIN_SCALE=5`.
+- **Y-axis line:** Vertical line from top (y=0) to baseline (y=H) at `axisX = AXIS_W`. The label, axis line, and first bar's left edge share the same x position.
+- **Y-axis tick:** Short horizontal tick at the top of the axis line.
+- **X-axis baseline:** Horizontal line from axisX to just past the rightmost bar's right edge.
+- **Year labels:** SVG text at the baseline, one per year. All years shown. Text-anchor: middle. Format: `'21`, `'22`, etc.
+
+### Content grid alignment
+
+The page has two alignment edges, verified by Playwright bounding-box tests:
+- **0px** — interactive chrome (search box, refine chips, panel border)
+- **~8px** — content (result count, Y-axis label, facets, result cards)
+
+The density panel has `padding-left: 0.5rem` to match the result card indent. The "95 results" header, "14" scale label, and "#35" issue number are all within 5px of each other.
 
 ### Geometric invariants (tested in `test/density-geometry.test.ts`)
 
@@ -73,12 +81,13 @@ Year ticks are clamped to `x >= 0`. If the first data quarter is Q2+ of a year, 
 
 ## Sizing
 
-- **Chart width:** 560px (SVG viewBox units). Renders at 100% of the panel width via CSS.
+- **Chart width:** 576px (SVG viewBox units). Renders at 100% of the panel width via CSS.
 - **Chart height:** 80px.
-- **Y-axis margin:** 24px (AXIS_W) reserved for the label.
+- **AXIS_W:** 2px (minimal — label is above the chart, not beside it).
+- **barShift:** `AXIS_W + barWidth/2` — offsets all bars so the first bar's left edge aligns with axisX.
 - **Label height:** 16px below the baseline for year labels.
-- **Aspect ratio:** CSS `aspect-ratio: 6 / 1` for responsive scaling.
-- **Panel padding:** 0.25rem (minimal — chart uses nearly the full card).
+- **Top padding:** 12px above y=0 for the scale label.
+- **Panel padding:** `0.125rem 0.125rem 0 0.5rem` — 8px left to align with result card content grid.
 
 ## Interactions
 

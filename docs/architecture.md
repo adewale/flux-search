@@ -215,7 +215,7 @@ All tuning parameters are Cloudflare Worker env vars, changeable without redeplo
 
 ## Testing
 
-472 tests across 38 files:
+618 tests across 44 files:
 - Unit tests for all pure-logic modules (query parser, chunker, normalizer, ranker, auth, crawl client, sitemap parser)
 - Property-based tests with fast-check for regex-heavy functions, mathematical invariants, and string transformations
 - Corpus validation tests: crud removal and content survival across all 234 raw HTML files

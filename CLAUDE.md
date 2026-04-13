@@ -47,6 +47,18 @@ The search box is driven by a pure state machine with 5 states:
 
 The `densityVisible` flag controls whether the density strip appears. It's false for all landing states and true for RESULTS.
 
+### Type boundary: ChunkLabel vs DisplaySection (src/lib/sections.ts)
+
+Chunk labels (internal, for vector index) and display sections (user-facing) are distinct types. `toDisplaySection()` is the single conversion point. `title_summary` maps to `lead_essay`. Any unmapped label becomes `other`. This prevents internal labels from leaking to the UI.
+
+### FTS5 input sanitization (src/routes/search.ts)
+
+User input is sanitized before FTS5 MATCH: `text.replace(/[^\w\s-]/g, ' ')`. Apostrophes, colons, angle brackets, ampersands, and slashes all cause FTS5 syntax errors. The whitelist approach (keep only safe characters) is safer than blacklisting known dangerous characters.
+
+### Visual alignment (e2e/density-alignment.spec.ts)
+
+The page has two alignment edges: 0px for chrome and ~8px for content. Playwright tests verify rendered bounding boxes align — `getBoundingClientRect()` is the source of truth, not SVG coordinate math. CSS `aspect-ratio` overrides can silently distort SVG coordinate mapping.
+
 ## Testing approach
 
 - **Red-green TDD** for all features and bug fixes
@@ -56,7 +68,7 @@ The `densityVisible` flag controls whether the density strip appears. It's false
 - **Relevance harness** — 13 hand-labeled {query → expected result} cases
 - **Visual regression** — Playwright screenshots compared against baselines
 
-Run `npx vitest run` for unit/PBT/corpus tests. Run `npx playwright test` for e2e/visual.
+Run `npx vitest run` for 618 unit/PBT/corpus tests. Run `npx playwright test` for e2e/visual/alignment.
 
 ## Common operations
 
