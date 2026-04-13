@@ -120,8 +120,6 @@ function renderDensityStrip(dist) {
   var data = computeDensityBars(dist, W, H);
   if (data.bars.length === 0) return;
 
-  var effectiveMax = Math.max(data.maxCount, 5);
-
   // Stacked bars with section-type colors
   var barsSvg = data.bars.map(function (b) {
     var bx = AXIS_W + b.x - data.barWidth / 2;
