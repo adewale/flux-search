@@ -22,6 +22,24 @@
   outline-offset: 2px;
 }
 
+.skip-to-content {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 999;
+  padding: 0.5rem 1rem;
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--size-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.skip-to-content:focus {
+  left: 1rem;
+  top: 1rem;
+}
+
 /*
  * Design principles applied:
  *
@@ -52,7 +70,7 @@
   --surface: #ffffff;
   --text: #1c1917;
   --text-secondary: #57534e;
-  --text-tertiary: #78716c;
+  --text-tertiary: #736b66;
   --border: #e7e5e4;
   --accent: #1c1917;
   --accent-line: #d6d3d1;
@@ -265,7 +283,8 @@ body {
   align-items: center;
 }
 
-.search-btn:hover {
+.search-btn:hover,
+.search-btn:focus-visible {
   color: var(--accent);
 }
 
@@ -297,7 +316,8 @@ body {
   line-height: var(--lh-ui);
 }
 
-.example-query:hover {
+.example-query:hover,
+.example-query:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -339,7 +359,8 @@ body {
   transition: border-color 0.15s, color 0.15s;
 }
 
-.refine-suggestion:hover {
+.refine-suggestion:hover,
+.refine-suggestion:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -548,7 +569,7 @@ body {
 
 /* Year labels rendered inside the SVG at baseline */
 .density-year-text {
-  font-size: 9px;
+  font-size: 12px;
   font-family: var(--font);
   fill: var(--text-tertiary);
   text-anchor: middle;
@@ -564,7 +585,7 @@ body {
 }
 
 .density-milestone-label {
-  font-size: 7px;
+  font-size: 12px;
   font-family: var(--font);
   fill: var(--text-tertiary);
   text-anchor: middle;
@@ -737,7 +758,8 @@ body {
   cursor: pointer;
 }
 
-.facet:hover {
+.facet:hover,
+.facet:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -806,7 +828,8 @@ body {
   cursor: pointer;
 }
 
-.page-btn:hover {
+.page-btn:hover,
+.page-btn:focus-visible {
   border-color: var(--accent);
 }
 
@@ -826,7 +849,8 @@ body {
   transition: border-color 0.15s, color 0.15s;
 }
 
-.btn-secondary:hover {
+.btn-secondary:hover,
+.btn-secondary:focus-visible {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -855,7 +879,8 @@ body {
   letter-spacing: var(--tracking-open);
 }
 
-.nav-link:hover {
+.nav-link:hover,
+.nav-link:focus-visible {
   text-decoration: underline;
 }
 
@@ -919,7 +944,8 @@ body {
   cursor: pointer;
 }
 
-.section-tab:hover {
+.section-tab:hover,
+.section-tab:focus-visible {
   background: var(--tag-bg);
 }
 
