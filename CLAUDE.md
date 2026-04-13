@@ -2,7 +2,7 @@
 
 ## What is this?
 
-A search engine for [The FLUX Review](https://read.fluxcollective.org) newsletter archive. Hybrid lexical + semantic search across 230 numbered issues (2021-2026), deployed as a single Cloudflare Worker.
+A search engine for [The FLUX Review](https://read.fluxcollective.org) newsletter archive. Hybrid lexical + semantic search across all issues of The FLUX Review, published weekly since 2021, deployed as a single Cloudflare Worker.
 
 Live: https://flux-search.adewale-883.workers.dev/
 
@@ -25,11 +25,11 @@ rank → detect sections → filter by section → compute aggregates → pagina
 ```
 
 - `detectSnippetSection` MUST run on ALL ranked results BEFORE the section filter and aggregate computations. FTS-only results have null `snippetSection` from the ranker.
-- All three query paths (normal, filter-only, issue-lookup) MUST return the same 7 top-level fields and 9 result fields. See the "Search pipeline" section in `docs/architecture.md`.
+- All three query paths (normal, filter-only, issue-lookup) MUST return the same response shape (see Response contract in docs/architecture.md).
 
 ### Normalizer regex ordering (src/lib/normalizer.ts)
 
-The ~30 cleaning regexes have ordering dependencies:
+The many cleaning regexes have ordering dependencies:
 
 - Profile link stripping MUST run before byline cleanup (orphaned commas only appear after links are removed)
 - Subscribe stripping runs in a single final pass (after all other rules expose standalone Subscribe lines)
@@ -53,7 +53,7 @@ Chunk labels (internal, for vector index) and display sections (user-facing) are
 
 ### FTS5 input sanitization (src/routes/search.ts)
 
-User input is sanitized before FTS5 MATCH: `text.replace(/[^\w\s-]/g, ' ')`. Apostrophes, colons, angle brackets, ampersands, and slashes all cause FTS5 syntax errors. The whitelist approach (keep only safe characters) is safer than blacklisting known dangerous characters.
+User input is sanitized to word characters, spaces, and hyphens before FTS5 MATCH. Apostrophes, colons, angle brackets, ampersands, and slashes all cause FTS5 syntax errors. The whitelist approach (keep only safe characters) is safer than blacklisting known dangerous characters.
 
 ### Visual alignment (e2e/density-alignment.spec.ts)
 
@@ -68,16 +68,16 @@ The page has two alignment edges: 0px for chrome and ~8px for content. Playwrigh
 - **Relevance harness** — 13 hand-labeled {query → expected result} cases
 - **Visual regression** — Playwright screenshots compared against baselines
 
-Run `npx vitest run` for 618 unit/PBT/corpus tests. Run `npx playwright test` for e2e/visual/alignment.
+Run `npx vitest run` for unit/PBT/corpus tests. Run `npx playwright test` for e2e/visual/alignment.
 
 ## Common operations
 
 ```bash
 npm run dev              # local dev server (port 8787)
-npm test                 # 470+ tests
+npm test                 # Run `npx vitest run` for unit/PBT/corpus tests
 npm run corpus:fetch     # download raw HTML from Substack
 npm run corpus:process   # normalize locally
-npm run corpus:validate  # 1,401 checks across 234 records
+npm run corpus:validate  # validates all corpus records
 
 # Force re-bootstrap (re-normalize + re-chunk + re-embed all issues):
 for offset in 0 50 100 150 200; do

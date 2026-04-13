@@ -1,6 +1,6 @@
 # FLUX Review Search
 
-Search every issue of [The FLUX Review](https://read.fluxcollective.org) newsletter. Hybrid lexical + semantic search across 234 issues from 2021-2026, deployed as a single Cloudflare Worker.
+Search every issue of [The FLUX Review](https://read.fluxcollective.org) newsletter. Hybrid lexical + semantic search across all issues of The FLUX Review (published weekly since 2021), deployed as a single Cloudflare Worker.
 
 **Live:** [flux-search.adewale-883.workers.dev](https://flux-search.adewale-883.workers.dev/)
 
@@ -71,14 +71,14 @@ For faster iteration on content normalization without re-fetching from Substack:
 ```bash
 npm run corpus:fetch      # download raw HTML once
 npm run corpus:process    # normalize locally (no network)
-npm run corpus:validate   # 1,401 checks across 234 records
+npm run corpus:validate   # validates all corpus records
 ```
 
 ## Development
 
 ```bash
 npm run dev           # local dev server (port 8787)
-npm test              # run 618 tests
+npm test              # run tests
 npm run test:watch    # watch mode
 ```
 

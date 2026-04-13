@@ -41,7 +41,7 @@ The density panel has `padding-left: 0.5rem` to match the result card indent. Th
 
 ### Geometric invariants (tested in `test/density-geometry.test.ts`)
 
-These spatial relationships are enforced by 21 tests:
+These spatial relationships are enforced by geometric relationship tests in test/density-geometry.test.ts:
 
 1. Y-axis x == left edge of the first bar
 2. Baseline starts at Y-axis x
@@ -89,6 +89,8 @@ Year ticks are clamped to `x >= 0`. If the first data quarter is Q2+ of a year, 
 - **Top padding:** 12px above y=0 for the scale label.
 - **Panel padding:** `0.125rem 0.125rem 0 0.5rem` — 8px left to align with result card content grid.
 
+Current values; verified by test/density-geometry.test.ts.
+
 ## Interactions
 
 - **Hover:** Native SVG `<title>` tooltips on invisible hit-area rects. Format: `"Q1 2022 — 8 results (Signposts: 5, Worth your time: 2, Essay: 1)"`.
@@ -123,6 +125,6 @@ The density strip receives `quarter_distribution` with section keys that are `Di
 - `frontend/js/lib/result-list.js` — SVG rendering (axes, bars, tooltips, labels)
 - `frontend/css/styles.css` — panel, bar, axis, and tooltip styles
 - `test/density-strip.test.ts` — unit tests for computation
-- `test/density-geometry.test.ts` — 21 geometric relationship tests
+- `test/density-geometry.test.ts` — geometric relationship tests
 - `docs/density-strip-research.md` — research on implementations and design patterns
 - `specs/density-strip.spec.md` — this specification

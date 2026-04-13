@@ -4,7 +4,7 @@ This document explains the reasoning behind the search system in flux-search. It
 
 ## The problem
 
-We have 234 newsletter issues spanning 2021-2026. Each issue is 2,000-5,000 words with a recurring internal structure: opening quote, lead essay, signposts, lens of the week, book recommendations, postcards. Users want to find specific ideas, phrases, and topics across this archive.
+We have the full FLUX Review newsletter archive (published weekly since 2021). Each issue is 2,000-5,000 words with a recurring internal structure: opening quote, lead essay, signposts, lens of the week, book recommendations, postcards. Users want to find specific ideas, phrases, and topics across this archive.
 
 A newsletter archive is an awkward size for search. It's too small for web-scale techniques (no PageRank, no click signals) but too large to browse manually. Every query has a small candidate pool, so ranking precision matters more than recall.
 
@@ -77,7 +77,7 @@ Vectorize returns chunk-level results. But the user wants to see issues, not chu
 4. Track the chunk count per issue (used for a ranking boost later -- multiple matching chunks are a stronger signal than one).
 5. Sort by the top score and assign ranks.
 
-Date filters (`before:`, `after:`, `year:`) can't be pushed into the Vectorize query, so they're applied after collapsing. This is less efficient than filtering at the index level, but with only ~7,800 vectors the cost is negligible.
+Date filters (`before:`, `after:`, `year:`) can't be pushed into the Vectorize query, so they're applied after collapsing. This is less efficient than filtering at the index level, but with a small corpus the cost is negligible.
 
 ## Fusing the two signals: reciprocal rank fusion
 
@@ -91,8 +91,8 @@ The naive approach -- normalising and averaging the raw scores -- doesn't work b
 rrf_score = lexical_weight / (k + lexical_rank) + semantic_weight / (k + semantic_rank)
 ```
 
-- `lexical_weight = 1.0`, `semantic_weight = 0.55` -- FTS gets roughly twice the influence
-- `k = 40` -- a smoothing constant that controls how much rank position matters
+- `lexical_weight = 1.0`, `semantic_weight = 0.55` (defaults; tunable via env vars) -- FTS gets roughly twice the influence
+- `k = 40` (defaults; tunable via env vars) -- a smoothing constant that controls how much rank position matters
 
 The `k` parameter determines how steeply the score drops with rank. With `k=40`, rank 1 scores `1/41 = 0.0244` and rank 10 scores `1/50 = 0.02` -- a gentle decline. With `k=1`, rank 1 scores `1/2 = 0.5` and rank 10 scores `1/11 = 0.09` -- much steeper. A higher `k` makes the fusion more democratic (lower ranks still contribute); a lower `k` makes it more winner-take-all.
 
@@ -106,16 +106,7 @@ The weights are exposed as environment variables (`LEXICAL_WEIGHT`, `SEMANTIC_WE
 
 RRF produces a base ranking. We then apply deterministic boosts that encode domain knowledge about what makes a good result:
 
-| Boost | Value | What it solves |
-|-------|-------|----------------|
-| Exact issue number | +10.0 | `issue:198` should always show issue 198 first, regardless of other signals |
-| Phrase in title | +6.0 | If the user quoted a phrase and it appears in a title, that's almost certainly the right result |
-| Phrase in heading | +4.0 | A quoted phrase in a section heading means the section is *about* that phrase |
-| Phrase in body | +3.0 | A quoted phrase in body text is a confirmed match, just less specific than a title hit |
-| Title term overlap | +1.5 | When 2+ query terms appear in the title, the issue is likely on-topic even without a phrase match |
-| Lexical+semantic agreement | +1.25 | When both FTS and Vectorize independently find the same issue, it's a strong signal -- reward consensus |
-| Multiple chunks | +0.75 | An issue with 3 matching chunks is more thoroughly about the topic than one with 1 chunk |
-| Semantic-only penalty | -3.5 | When strong lexical results exist but this result only appeared via Vectorize, it's probably noise |
+See the boost table in docs/architecture.md for current values.
 
 The boosts are additive. An issue matching a quoted phrase in its title gets `+6.0`, which at the scale of RRF scores (typically 0.01-0.05) is a decisive promotion.
 
@@ -240,4 +231,4 @@ Calls the live API and verifies:
 
 ### Level 6: Comprehensive search quality suite (test/search-quality.test.ts)
 
-77 tests across 8 categories: ranking quality, section filters, date filters, aggregate consistency, result quality, pagination, and edge cases. This is the broadest suite — it exercises the search end-to-end against the deployed API with diverse queries and verifies the full contract.
+Comprehensive test suite covering ranking quality, section filters, date filters, aggregate consistency, result quality, pagination, and edge cases. This is the broadest suite — it exercises the search end-to-end against the deployed API with diverse queries and verifies the full contract.

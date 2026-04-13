@@ -1,10 +1,12 @@
 # FLUX Review Search — Product Spec (v2)
 
+> **Note:** This spec is a frozen snapshot from the initial build. For current architecture, see docs/architecture.md.
+
 *Updated to reflect what was actually built. The original spec is preserved as `flux.spec.v1.md`.*
 
 ## Summary
 
-A search app for the FLUX Review newsletter archive, running on Cloudflare Workers. Provides hybrid lexical + semantic search across 234 issues (2012–2026) with FTS5 term highlighting, lead essay extraction, and a density strip visualization.
+A search app for the FLUX Review newsletter archive, running on Cloudflare Workers. Provides hybrid lexical + semantic search across all issues (2021–present) with FTS5 term highlighting, lead essay extraction, and a density strip visualization.
 
 Live at: https://flux-search.adewale-883.workers.dev
 
@@ -31,7 +33,7 @@ There is no separate pre-Substack archive. The original spec assumed one existed
 
 ## Issue structure
 
-The FLUX Review has published 234 issues since May 2021. The format evolved over time but settled into a consistent template by approximately issue #4.
+The FLUX Review publishes weekly since May 2021. The format evolved over time but settled into a consistent template by approximately issue #4.
 
 ### Header block (every issue)
 
@@ -111,7 +113,7 @@ Features:
 ### Bootstrap
 Triggered via `POST /admin/bootstrap`. Discovers all issue URLs from the sitemap, fetches each page, normalizes into structured records, chunks for semantic indexing, embeds via Workers AI, and upserts into D1 + Vectorize.
 
-Processes in batches of 50 per invocation (Worker CPU time limit). Idempotent — re-running skips already-ingested issues via source URL dedup. Typically completes in 3-4 invocations for the full 234-issue archive.
+Processes in batches per invocation (Worker CPU time limit). Idempotent — re-running skips already-ingested issues via source URL dedup. Typically completes in 3-4 invocations for the full 234-issue archive.
 
 ### Weekly sync
 Cron trigger: Saturdays at 06:00 UTC. Diffs the sitemap against D1, ingests only missing episodes. Bounded to 20 per run.
@@ -153,7 +155,7 @@ Deliberately excluded (present in v1 spec but removed during implementation):
 
 ## Testing
 
-189 tests across 14 files. Property-based testing with fast-check found 8 bugs during development:
+189 tests across 14 files (at time of initial spec freeze, v2). Property-based testing with fast-check found 8 bugs during development:
 - Invalid date acceptance (Sep 31, month 00, month 99)
 - Issue number extraction failure for `/p/N-slug` URLs
 - Opening quote stripping edge cases

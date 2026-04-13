@@ -1,5 +1,7 @@
 # Density Strip Research: Temporal Distribution Visualizations in Search UIs
 
+> **Note:** This research was conducted at project inception. The "Current flux-search state" sections describe the system at that time, not the current implementation.
+
 Research into density strips, distribution visualizations, and temporal frequency charts as used in search engines, digital libraries, and data exploration tools. Covers real-world implementations, academic literature, and design patterns for interactive, delightful temporal displays.
 
 ---

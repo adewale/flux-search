@@ -2,7 +2,7 @@
 
 ## System overview
 
-Flux Search is a Cloudflare Workers application that provides hybrid lexical + semantic search across the FLUX Review newsletter archive. It serves 234 issues from 2012-2026.
+Flux Search is a Cloudflare Workers application that provides hybrid lexical + semantic search across the FLUX Review newsletter archive. It serves all issues from 2021 to present.
 
 ```
                     ┌─────────────────────────────────┐
@@ -18,7 +18,7 @@ Flux Search is a Cloudflare Workers application that provides hybrid lexical + s
 
 Three Cloudflare bindings:
 - **D1** — SQLite database with FTS5 for lexical search and issue storage
-- **Vectorize** — 768-dimensional vector index for semantic search (7,773 vectors)
+- **Vectorize** — 768-dimensional vector index for semantic search (one vector per chunk, typically 30-35 chunks per issue)
 - **Workers AI** — `@cf/baai/bge-base-en-v1.5` for embedding generation
 
 No R2, no Browser Rendering, no KV. The architecture was simplified from the original spec after discovering these services weren't needed.
@@ -151,9 +151,14 @@ fields (`issue_id`, `title`, `issue_number`, `published_at`, `snippet`,
 - `weekly-sync.ts` — Runs every Saturday at 06:00 UTC. Diffs the sitemap against D1 and ingests only missing episodes. Bounded to 20 per run.
 
 ### Frontend (`frontend/`)
-- `js/app.js` — Router: wires autocomplete, search, and result rendering.
-- `js/lib/autocomplete.js` — Reusable autocomplete pattern. Debounced, keyboard-navigable.
-- `js/lib/result-list.js` — Renders results with density strip (SVG area silhouette with year ticks and landmark annotations), confidence tiers, FTS term highlighting, and direct Substack links.
+- `js/app.js` — Router: wires state machine, search, autocomplete, and result rendering.
+- `js/issue-page.js` — Issue section landing page with tabs and prev/next nav.
+- `js/lib/autocomplete.js` — Reusable autocomplete with ARIA support.
+- `js/lib/density.js` — Pure computation for density strip bar positions and sizes.
+- `js/lib/result-list.js` — Result rendering, density strip SVG, section facets.
+- `js/lib/search-state.js` — State machine (LANDING, FEATURED_RESULTS, RESULTS, BROWSING).
+- `js/lib/search-state.d.ts` — TypeScript declarations for the state machine.
+- `js/lib/section-labels.js` — Shared section label map.
 - `js/lib/utils.js` — Shared: escapeHtml, formatDate, cleanSnippet, markdownToHtml.
 
 ### Middleware (`src/middleware/`)
@@ -162,7 +167,7 @@ fields (`issue_id`, `title`, `issue_number`, `published_at`, `snippet`,
 ## Database schema
 
 ### D1 tables
-- `issues` — Primary record. 23 columns including `title`, `headings`, `lead_essay_title`, `opening_quote`, `full_text_markdown`, `full_text_plain`.
+- `issues` — Primary record. Notable columns include `title`, `headings`, `lead_essay_title`, `opening_quote`, `full_text_markdown`, `full_text_plain`.
 - `issue_chunks` — Chunked text for semantic indexing. Linked to issues by `issue_id`.
 - `crawl_runs` — Audit log for bootstrap and sync operations.
 - `issues_fts` — FTS5 virtual table over title, subtitle, headings, summary, full_text_plain, contributors. Synced via triggers.
@@ -172,12 +177,13 @@ fields (`issue_id`, `title`, `issue_number`, `published_at`, `snippet`,
 ```
 title: 16 | subtitle: 8 | headings: 8 | summary: 4 | body: 1 | contributors: 2
 ```
+Source of truth: `bm25()` call in `src/db/queries.ts`
 
 ### Vectorize index
 - Name: `flux-search-chunks`
 - Dimensions: 768 (bge-base-en-v1.5)
 - Metric: cosine
-- Vector count: ~7,773 (234 issues × ~33 chunks average)
+- Vector count: one vector per chunk, typically 30-35 chunks per issue
 - Metadata: issue_id, issue_number, published_at, title, section_label, chunk_text
 
 ## Ranking algorithm
@@ -205,6 +211,8 @@ Post-fusion boosts:
 | Multiple chunks | +0.75 | ≥2 semantic chunks from same issue |
 | Semantic-only penalty | -3.5 | Result only from Vectorize when ≥3 FTS results exist |
 
+Source of truth: `BOOSTS` constant in `src/lib/hybrid-ranker.ts`
+
 ## Configuration
 
 All tuning parameters are Cloudflare Worker env vars, changeable without redeploying code:
@@ -215,14 +223,14 @@ All tuning parameters are Cloudflare Worker env vars, changeable without redeplo
 
 ## Testing
 
-618 tests across 44 files:
+Test categories:
 - Unit tests for all pure-logic modules (query parser, chunker, normalizer, ranker, auth, crawl client, sitemap parser)
 - Property-based tests with fast-check for regex-heavy functions, mathematical invariants, and string transformations
-- Corpus validation tests: crud removal and content survival across all 234 raw HTML files
+- Corpus validation tests: crud removal and content survival across all raw HTML files
 - Search consistency PBT: aggregate totals must equal total_hits across all query paths
 - Integration tests against the live API: response shape, aggregate consistency, pagination stability
-- Relevance evaluation harness: 13 hand-labeled {query → expected result} cases
-- Visual regression tests: 12 Playwright screenshot comparisons (6 pages × 2 viewports)
+- Relevance evaluation harness: hand-labeled evaluation set of {query → expected result} cases
+- Playwright visual regression tests across multiple pages and viewports
 - Shared test helpers in `test/helpers.ts`
 
 PBT found 8+ real bugs during development, all fixed.
