@@ -710,12 +710,12 @@ describe('edge cases', () => {
     expect(data.applied_filters.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('query with unrecognized operator returns 500 (known limitation)', async () => {
-    // The API currently returns 500 for unknown operators like foo:bar.
-    // This test documents the current behavior. If the API is fixed to
-    // treat unknown operators as free text, update this test.
+  it('query with unrecognized operator is treated as free text', async () => {
     const resp = await searchRaw('foo:bar');
-    expect(resp.status).toBe(500);
+    expect(resp.status).toBe(200);
+    const data = await resp.json() as any;
+    // foo:bar is left in free text, colon is sanitized for FTS safety
+    expect(data.parsed_query.free_text).toContain('foo');
   });
 
   it('single character query returns results without error', async () => {
@@ -747,13 +747,10 @@ describe('edge cases', () => {
     expect(data.parsed_query).toBeDefined();
   });
 
-  it('issue:9999 (non-existent) falls back to listing all issues', async () => {
-    // When an issue number is not found, the API returns all issues
-    // rather than 0 results. This documents the current behavior.
+  it('issue:9999 (non-existent) returns 0 results', async () => {
     const data = await search('issue:9999');
-    expect(data.total_hits).toBeGreaterThan(200);
-    expect(data.applied_filters).toContain('issue:9999');
-    expect(data.parsed_query).toBeDefined();
+    expect(data.total_hits).toBe(0);
+    expect(data.results).toHaveLength(0);
   });
 
   it('conceptual/semantic query returns results even without exact match', async () => {

@@ -28,7 +28,18 @@ searchRoutes.get('/search', async (c) => {
   // Direct issue number lookup — short circuit
   if (parsed.filters.issueNumber && !parsed.freeText.trim() && parsed.phrases.length === 0) {
     const issue = await getIssueByNumber(c.env.DB, parsed.filters.issueNumber);
-    if (issue) {
+    if (!issue) {
+      return c.json({
+        parsed_query: parsed,
+        applied_filters: parsed.operators,
+        total_hits: 0,
+        year_distribution: {},
+        quarter_distribution: {},
+        section_facets: {},
+        results: [],
+      });
+    }
+    {
       // Detect section from summary snippet
       let snippetSection: string | null = null;
       if (issue.full_text_markdown) {
@@ -206,14 +217,23 @@ searchRoutes.get('/autocomplete', async (c) => {
   });
 });
 
+/** Strip FTS5 special characters that would be interpreted as syntax. */
+function sanitizeFtsInput(text: string): string {
+  // Strip everything that isn't a word character, space, or hyphen.
+  // FTS5 interprets many characters as syntax: ' : * ( ) < > & " / ^
+  // Rather than listing them all, keep only safe characters.
+  return text.replace(/[^\w\s-]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 export function buildFtsQuery(parsed: ReturnType<typeof parseQuery>): string {
   const parts: string[] = [];
 
   for (const phrase of parsed.phrases) {
-    parts.push(`"${phrase}"`);
+    // Phrases are user-quoted — sanitize content but keep the quotes
+    parts.push(`"${sanitizeFtsInput(phrase)}"`);
   }
 
-  const freeTerms = parsed.freeText.trim();
+  const freeTerms = sanitizeFtsInput(parsed.freeText);
   if (freeTerms) {
     parts.push(freeTerms);
   }
