@@ -576,6 +576,21 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Y-axis scale labels (max and 0) */
+.density-axis-label {
+  font-size: 12px;
+  font-family: var(--font);
+  fill: var(--text-tertiary);
+  text-anchor: end;
+  font-variant-numeric: tabular-nums;
+  dominant-baseline: middle;
+}
+
+.density-axis-tick {
+  stroke: var(--text-tertiary);
+  stroke-width: 0.75;
+}
+
 /* Milestone annotations — thin dashed lines for archive landmarks */
 .density-milestone {
   stroke: var(--text-tertiary);

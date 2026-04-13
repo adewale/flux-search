@@ -113,15 +113,18 @@ function renderDensityStrip(dist) {
   var el = document.getElementById('density-content') || panel;
   if (!el) return;
 
-  var W = 600;
+  var AXIS_W = 24; // left margin for Y-axis label
+  var W = 560;     // chart area width (after axis)
   var H = 80;
-  var LABEL_H = 14;
+  var LABEL_H = 16;
   var data = computeDensityBars(dist, W, H);
   if (data.bars.length === 0) return;
 
+  var effectiveMax = Math.max(data.maxCount, 5);
+
   // Stacked bars with section-type colors
   var barsSvg = data.bars.map(function (b) {
-    var bx = b.x - data.barWidth / 2;
+    var bx = AXIS_W + b.x - data.barWidth / 2;
     var baseY = H;
     return b.segments.map(function (seg) {
       var segY = baseY - seg.y - seg.height;
@@ -130,6 +133,13 @@ function renderDensityStrip(dist) {
         '" rx="1" />';
     }).join('');
   }).join('');
+
+  // Y-axis scale — max value at top, thin tick
+  var yAxis =
+    '<text x="' + (AXIS_W - 4) + '" y="4" class="density-axis-label">' + data.maxCount + '</text>' +
+    '<line x1="' + (AXIS_W - 2) + '" y1="0" x2="' + AXIS_W + '" y2="0" class="density-axis-tick" />' +
+    '<text x="' + (AXIS_W - 4) + '" y="' + H + '" class="density-axis-label">0</text>' +
+    '<line x1="' + (AXIS_W - 2) + '" y1="' + H + '" x2="' + AXIS_W + '" y2="' + H + '" class="density-axis-tick" />';
 
   // Milestone annotations
   var milestones = LANDMARKS.filter(function (lm) {
@@ -140,20 +150,22 @@ function renderDensityStrip(dist) {
     var minPos = data.yearTicks[0].year;
     var maxPos = new Date().getFullYear() + Math.floor(new Date().getMonth() / 3) * 0.25;
     var span = maxPos - minPos || 1;
-    var lx = ((lm.year - minPos) / span) * W;
+    var lx = AXIS_W + ((lm.year - minPos) / span) * W;
     return '<line x1="' + lx + '" y1="0" x2="' + lx + '" y2="' + H + '" class="density-milestone" />' +
       '<text x="' + lx + '" y="-3" class="density-milestone-label">' + lm.label + '</text>';
   }).join('');
 
-  // Year labels inside SVG at baseline
-  var yearLabels = data.yearTicks.map(function (t) {
-    return '<text x="' + t.x + '" y="' + (H + LABEL_H - 2) +
+  // Year labels — thin when crowded (>4 years: show only every other year)
+  var skipYears = data.yearTicks.length > 5;
+  var yearLabels = data.yearTicks.map(function (t, i) {
+    if (skipYears && i % 2 !== 0 && i !== data.yearTicks.length - 1) return '';
+    return '<text x="' + (AXIS_W + t.x) + '" y="' + (H + LABEL_H - 2) +
       '" class="density-year-text">\u2019' + String(t.year).slice(2) + '</text>';
   }).join('');
 
   // Tooltip hit areas
   var tooltips = data.bars.map(function (b) {
-    var bx = b.x - data.barWidth / 2 - 2;
+    var bx = AXIS_W + b.x - data.barWidth / 2 - 2;
     var parts = b.key.split('-Q');
     var label = 'Q' + parts[1] + ' ' + parts[0];
     var sectionList = b.segments.map(function (s) {
@@ -165,16 +177,19 @@ function renderDensityStrip(dist) {
       '" height="' + H + '" class="density-tooltip-area"><title>' + title + '</title></rect>';
   }).join('');
 
+  var totalW = AXIS_W + W;
   el.innerHTML =
-    '<svg class="density-svg" viewBox="0 -8 ' + W + ' ' + (H + LABEL_H + 8) + '">' +
+    '<svg class="density-svg" viewBox="0 -12 ' + totalW + ' ' + (H + LABEL_H + 12) + '">' +
+      yAxis +
       milestones +
       barsSvg +
       tooltips +
-      '<line x1="0" y1="' + H + '" x2="' + W + '" y2="' + H + '" class="density-baseline" />' +
+      '<line x1="' + AXIS_W + '" y1="' + H + '" x2="' + totalW + '" y2="' + H + '" class="density-baseline" />' +
       yearLabels +
     '</svg>';
 
   el.querySelector('svg').setAttribute('aria-label',
+    'Distribution: max ' + data.maxCount + ' per quarter. ' +
     data.bars.map(function (b) { return b.key + ': ' + b.totalCount; }).join(', '));
 
   if (panel) panel.hidden = false;
