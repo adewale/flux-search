@@ -134,25 +134,11 @@ function renderDensityStrip(dist) {
     }).join('');
   }).join('');
 
-  // Y-axis scale — max value at top only. The baseline communicates zero;
-  // labeling it would overlap with the first bar.
+  // Y-axis: vertical line from baseline to max, with max label
   var yAxis =
+    '<line x1="' + AXIS_W + '" y1="0" x2="' + AXIS_W + '" y2="' + H + '" class="density-axis-line" />' +
     '<text x="' + (AXIS_W - 4) + '" y="4" class="density-axis-label">' + data.maxCount + '</text>' +
     '<line x1="' + (AXIS_W - 2) + '" y1="0" x2="' + AXIS_W + '" y2="0" class="density-axis-tick" />';
-
-  // Milestone annotations
-  var milestones = LANDMARKS.filter(function (lm) {
-    var minPos = data.yearTicks.length > 0 ? data.yearTicks[0].year : 0;
-    var maxYear = data.yearTicks.length > 0 ? data.yearTicks[data.yearTicks.length - 1].year : 0;
-    return lm.year >= minPos && lm.year <= maxYear;
-  }).map(function (lm) {
-    var minPos = data.yearTicks[0].year;
-    var maxPos = new Date().getFullYear() + Math.floor(new Date().getMonth() / 3) * 0.25;
-    var span = maxPos - minPos || 1;
-    var lx = AXIS_W + ((lm.year - minPos) / span) * W;
-    return '<line x1="' + lx + '" y1="0" x2="' + lx + '" y2="' + H + '" class="density-milestone" />' +
-      '<text x="' + lx + '" y="-3" class="density-milestone-label">' + lm.label + '</text>';
-  }).join('');
 
   // Year labels — thin when crowded (>4 years: show only every other year)
   var skipYears = data.yearTicks.length > 5;
@@ -184,7 +170,6 @@ function renderDensityStrip(dist) {
   el.innerHTML =
     '<svg class="density-svg" viewBox="0 -12 ' + totalW + ' ' + (H + LABEL_H + 12) + '">' +
       yAxis +
-      milestones +
       barsSvg +
       tooltips +
       '<line x1="' + AXIS_W + '" y1="' + H + '" x2="' + totalW + '" y2="' + H + '" class="density-baseline" />' +

@@ -586,25 +586,14 @@ body {
   dominant-baseline: middle;
 }
 
+.density-axis-line {
+  stroke: var(--text-tertiary);
+  stroke-width: 0.5;
+}
+
 .density-axis-tick {
   stroke: var(--text-tertiary);
   stroke-width: 0.75;
-}
-
-/* Milestone annotations — thin dashed lines for archive landmarks */
-.density-milestone {
-  stroke: var(--text-tertiary);
-  stroke-width: 0.5;
-  stroke-dasharray: 2 2;
-  opacity: 0.6;
-}
-
-.density-milestone-label {
-  font-size: 12px;
-  font-family: var(--font);
-  fill: var(--text-tertiary);
-  text-anchor: middle;
-  font-weight: 600;
 }
 
 /* Tooltip hit areas — invisible rects that show native tooltips */
