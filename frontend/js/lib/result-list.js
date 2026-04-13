@@ -132,14 +132,14 @@ function renderDensityStrip(dist) {
     }).join('');
   }).join('');
 
-  // Y-axis: vertical line from baseline to max, labeled with the visual scale max.
-  // scaleMax may be > maxCount due to MIN_SCALE — the label must match
-  // what the bar heights are proportional to.
+  // Y-axis: vertical line at the left edge of the chart area.
+  // The axis aligns with the left edge of the first possible bar position.
+  var axisX = AXIS_W - data.barWidth / 2;
   var scaleLabel = data.scaleMax || data.maxCount;
   var yAxis =
-    '<line x1="' + AXIS_W + '" y1="0" x2="' + AXIS_W + '" y2="' + H + '" class="density-axis-line" />' +
-    '<text x="' + (AXIS_W - 4) + '" y="4" class="density-axis-label">' + scaleLabel + '</text>' +
-    '<line x1="' + (AXIS_W - 2) + '" y1="0" x2="' + AXIS_W + '" y2="0" class="density-axis-tick" />';
+    '<line x1="' + axisX + '" y1="0" x2="' + axisX + '" y2="' + H + '" class="density-axis-line" />' +
+    '<text x="' + (axisX - 4) + '" y="4" class="density-axis-label">' + scaleLabel + '</text>' +
+    '<line x1="' + (axisX - 2) + '" y1="0" x2="' + axisX + '" y2="0" class="density-axis-tick" />';
 
   // Year labels — show every year; fixed-width bars leave enough room
   var yearLabels = data.yearTicks.map(function (t, i) {
@@ -171,7 +171,7 @@ function renderDensityStrip(dist) {
       yAxis +
       barsSvg +
       tooltips +
-      '<line x1="' + AXIS_W + '" y1="' + H + '" x2="' + totalW + '" y2="' + H + '" class="density-baseline" />' +
+      '<line x1="' + axisX + '" y1="' + H + '" x2="' + totalW + '" y2="' + H + '" class="density-baseline" />' +
       yearLabels +
     '</svg>';
 

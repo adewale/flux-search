@@ -75,12 +75,14 @@ export function computeDensityBars(quarterSectionDist, width, height, now) {
     bars.push({ key: key, x: x, height: barH, totalCount: totalCount, segments: segments });
   }
 
-  // Year ticks
+  // Year ticks — start from first data year's Q1 so the year label
+  // aligns with or precedes the first bar. Clamp to x >= 0 so ticks
+  // don't go off the left edge of the chart.
   var minYear = Math.floor(minPos);
   var maxYear = today.getFullYear();
   var yearTicks = [];
   for (var y = minYear; y <= maxYear; y++) {
-    var tx = ((y - minPos) / span) * width;
+    var tx = Math.max(0, ((y - minPos) / span) * width);
     yearTicks.push({ year: y, x: tx });
   }
 

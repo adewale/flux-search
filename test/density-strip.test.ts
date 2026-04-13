@@ -51,6 +51,17 @@ describe('computeDensityBars', () => {
     expect(result.yearTicks[0].year).toBe(2022);
   });
 
+  it('first year tick x is >= 0 (never off the left edge)', () => {
+    // 2021-Q2 is the first data point; the year tick for 2021 should
+    // be clamped to x=0, not negative.
+    const result = computeDensityBars(
+      { '2021-Q2': { signposts: 1 } }, 560, 80
+    );
+    for (const tick of result.yearTicks) {
+      expect(tick.x).toBeGreaterThanOrEqual(0);
+    }
+  });
+
   it('returns empty for empty distribution', () => {
     const result = computeDensityBars({}, 300, 48);
     expect(result.bars).toHaveLength(0);
