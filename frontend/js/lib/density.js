@@ -38,7 +38,12 @@ export function computeDensityBars(quarterSectionDist, width, height, now) {
   var maxCount = Math.max.apply(null, totals);
   var effectiveMax = Math.max(maxCount, MIN_SCALE);
 
-  var barWidth = Math.max(4, Math.min(40, (width / (span / 0.25 + 2)) * 0.65));
+  // Fixed bar width derived from the maximum possible density (21 quarters
+  // across the full archive). Bars are always the same width regardless of
+  // query — sparse queries show narrow bars with empty space (correct),
+  // dense queries fill the chart (correct).
+  var MAX_QUARTERS = 21;
+  var barWidth = Math.max(4, (width / MAX_QUARTERS) * 0.8);
 
   var bars = [];
   for (var i = 0; i < keys.length; i++) {
