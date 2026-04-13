@@ -177,7 +177,11 @@ function renderDensityStrip(dist) {
       '" height="' + H + '" class="density-tooltip-area"><title>' + title + '</title></rect>';
   }).join('');
 
-  var totalW = AXIS_W + W;
+  // Extend baseline to cover the rightmost bar's full width
+  var lastBarRight = data.bars.length > 0
+    ? AXIS_W + data.bars[data.bars.length - 1].x + data.barWidth / 2
+    : AXIS_W + W;
+  var totalW = Math.max(AXIS_W + W, lastBarRight + 2);
   el.innerHTML =
     '<svg class="density-svg" viewBox="0 -12 ' + totalW + ' ' + (H + LABEL_H + 12) + '">' +
       yAxis +
