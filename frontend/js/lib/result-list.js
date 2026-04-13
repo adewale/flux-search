@@ -113,16 +113,20 @@ function renderDensityStrip(dist) {
   var el = document.getElementById('density-content') || panel;
   if (!el) return;
 
-  var AXIS_W = 14; // left margin for Y-axis label (aligned with header text)
-  var W = 576;     // chart area width (reclaimed from tighter axis margin)
+  var W = 576;
   var H = 80;
   var LABEL_H = 16;
+  var AXIS_W = 2;
   var data = computeDensityBars(dist, W, H);
+  // Bars are centered at AXIS_W + bar.x, so the first bar's left edge
+  // is at AXIS_W - barWidth/2, which is negative. Shift all bars right
+  // by barWidth/2 so the first bar's left edge aligns with AXIS_W.
+  var barShift = AXIS_W + data.barWidth / 2;
   if (data.bars.length === 0) return;
 
   // Stacked bars with section-type colors
   var barsSvg = data.bars.map(function (b) {
-    var bx = AXIS_W + b.x - data.barWidth / 2;
+    var bx = barShift + b.x - data.barWidth / 2;
     var baseY = H;
     return b.segments.map(function (seg) {
       var segY = baseY - seg.y - seg.height;
@@ -132,24 +136,24 @@ function renderDensityStrip(dist) {
     }).join('');
   }).join('');
 
-  // Y-axis: vertical line at the left edge of the chart area.
-  // The axis aligns with the left edge of the first possible bar position.
-  var axisX = AXIS_W - data.barWidth / 2;
+  // Y-axis: label above the chart, vertical line at the left edge.
+  // axisX = AXIS_W so the axis aligns with the panel's content padding.
+  var axisX = AXIS_W;
   var scaleLabel = data.scaleMax || data.maxCount;
   var yAxis =
+    '<text x="' + axisX + '" y="-4" class="density-axis-label">' + scaleLabel + '</text>' +
     '<line x1="' + axisX + '" y1="0" x2="' + axisX + '" y2="' + H + '" class="density-axis-line" />' +
-    '<text x="2" y="4" class="density-axis-label">' + scaleLabel + '</text>' +
     '<line x1="' + (axisX - 2) + '" y1="0" x2="' + axisX + '" y2="0" class="density-axis-tick" />';
 
   // Year labels — show every year; fixed-width bars leave enough room
   var yearLabels = data.yearTicks.map(function (t, i) {
-    return '<text x="' + (AXIS_W + t.x) + '" y="' + (H + LABEL_H - 2) +
+    return '<text x="' + (barShift + t.x) + '" y="' + (H + LABEL_H - 2) +
       '" class="density-year-text">\u2019' + String(t.year).slice(2) + '</text>';
   }).join('');
 
   // Tooltip hit areas
   var tooltips = data.bars.map(function (b) {
-    var bx = AXIS_W + b.x - data.barWidth / 2 - 2;
+    var bx = barShift + b.x - data.barWidth / 2 - 2;
     var parts = b.key.split('-Q');
     var label = 'Q' + parts[1] + ' ' + parts[0];
     var sectionList = b.segments.map(function (s) {
@@ -163,9 +167,9 @@ function renderDensityStrip(dist) {
 
   // Extend baseline to cover the rightmost bar's full width
   var lastBarRight = data.bars.length > 0
-    ? AXIS_W + data.bars[data.bars.length - 1].x + data.barWidth / 2
-    : AXIS_W + W;
-  var totalW = Math.max(AXIS_W + W, lastBarRight + 2);
+    ? barShift + data.bars[data.bars.length - 1].x + data.barWidth / 2
+    : barShift + W;
+  var totalW = Math.max(barShift + W, lastBarRight + 2);
   el.innerHTML =
     '<svg class="density-svg" viewBox="0 -12 ' + totalW + ' ' + (H + LABEL_H + 12) + '">' +
       yAxis +

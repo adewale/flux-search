@@ -12,8 +12,8 @@ import { describe, it, expect } from 'vitest';
 import { computeDensityBars } from '../frontend/js/lib/density.js';
 
 // Layout constants from result-list.js
-const AXIS_W = 14;
-const W = 576;
+const AXIS_W = 2;
+const W = 588;
 const H = 80;
 
 function barLeft(bar: any, barWidth: number) { return AXIS_W + bar.x - barWidth / 2; }

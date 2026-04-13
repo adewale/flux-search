@@ -582,7 +582,6 @@ body {
   fill: var(--text-tertiary);
   text-anchor: start;
   font-variant-numeric: tabular-nums;
-  dominant-baseline: middle;
 }
 
 .density-axis-line {
