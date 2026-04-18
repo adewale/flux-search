@@ -40,15 +40,14 @@ const keywords = extract(text, {
 
 ## Extraction scopes
 
-Three levels, all derived from the same `extract()` function:
+Two levels, both derived from the same `extract()` function:
 
 | Scope | Input | Storage | When computed |
 |---|---|---|---|
-| **Chunk/section** | `issue_chunks.chunk_text` | `issue_topics` with `section_label` set | During `rechunkAndEmbed` |
-| **Issue** | `issues.full_text_plain` | `issue_topics` with `section_label = NULL` | During `ingestPage` |
+| **Issue** | `issues.full_text_plain` | `issue_topics` | During `ingestPage` |
 | **Corpus** | aggregation over `issue_topics` | `corpus_topics`, `topic_timeline` | Cron + admin route |
 
-Section-level extraction is recommended: a four-line Book recommendation's author is buried in whole-issue extraction, and it feeds the existing `section:` facet.
+Section-level extraction is intentionally out of scope: it complicates the data model, doubles extraction cost per ingest, and the UI does not currently use section-grouped topics. The existing `section:` facet is unaffected.
 
 ## Data model
 
@@ -60,10 +59,9 @@ CREATE TABLE issue_topics (
   keyword        TEXT NOT NULL,           -- normalized: lowercased, punctuation stripped
   keyword_display TEXT NOT NULL,          -- original casing, for UI
   score          REAL NOT NULL,           -- YAKE score (lower = better)
-  rank           INTEGER NOT NULL,        -- 1..top_n within scope
+  rank           INTEGER NOT NULL,        -- 1..top_n
   ngram_size     INTEGER NOT NULL,
-  section_label  TEXT,                    -- NULL for whole-issue; otherwise chunk section
-  PRIMARY KEY (issue_id, keyword, section_label)
+  PRIMARY KEY (issue_id, keyword)
 );
 CREATE INDEX idx_issue_topics_keyword ON issue_topics(keyword);
 CREATE INDEX idx_issue_topics_rank    ON issue_topics(issue_id, rank);
@@ -96,8 +94,6 @@ CREATE TABLE topic_blocklist (
 );
 ```
 
-Optional FTS5 virtual table over `corpus_topics(keyword_display)` for topic autocomplete.
-
 ### Aggregation score
 
 `aggregate_score = doc_frequency / avg_score`
@@ -126,12 +122,10 @@ export interface ExtractedTopic {
   score: number;
   rank: number;
   ngram_size: number;
-  section_label: string | null;
 }
 
 export function extractTopics(
   text: string,
-  section_label: string | null = null,
   opts: { top?: number; n?: number } = {}
 ): ExtractedTopic[] {
   const results = extract(text, {
@@ -146,7 +140,6 @@ export function extractTopics(
     score,
     rank: i + 1,
     ngram_size: kw.trim().split(/\s+/).length,
-    section_label,
   }));
 }
 ```
@@ -155,11 +148,8 @@ Wire into `rechunkAndEmbed` (`src/crawler/ingestor.ts`), next to the embedder ca
 
 ```ts
 try {
-  const issueTopics = extractTopics(issue.full_text_plain);
-  const sectionTopics = chunks.flatMap(c =>
-    extractTopics(c.chunk_text, c.section_label, { top: 8 })
-  );
-  await replaceIssueTopics(env.DB, issue.id, [...issueTopics, ...sectionTopics]);
+  const topics = extractTopics(issue.full_text_plain);
+  await replaceIssueTopics(env.DB, issue.id, topics);
 } catch (err) {
   console.error(`Topic extraction skipped for issue ${issue.id}:`, err);
 }
@@ -186,8 +176,7 @@ SELECT
   datetime('now')
 FROM issue_topics t
 JOIN issues i ON i.id = t.issue_id
-WHERE t.section_label IS NULL
-  AND t.keyword NOT IN (SELECT keyword FROM topic_blocklist)
+WHERE t.keyword NOT IN (SELECT keyword FROM topic_blocklist)
 GROUP BY t.keyword
 HAVING doc_frequency >= 2;
 ```
@@ -200,7 +189,6 @@ INSERT INTO topic_timeline
 SELECT t.keyword, i.year, i.month, COUNT(*) AS occurrences
 FROM issue_topics t
 JOIN issues i ON i.id = t.issue_id
-WHERE t.section_label IS NULL
 GROUP BY t.keyword, i.year, i.month;
 ```
 
@@ -210,7 +198,7 @@ Scale: 234 issues × ~25 topics = ~6k rows. Single D1 transaction, no batching n
 
 | Trigger | Action |
 |---|---|
-| `ingestPage` | Per-issue + per-chunk extraction for that issue |
+| `ingestPage` | Per-issue extraction for the newly-ingested issue |
 | `runReindex` | Walks all issues → rebuilds `issue_topics` |
 | `POST /admin/rebuild-topics` | Backfill + aggregate; `?backfill=true` re-extracts every issue |
 | Weekly cron (`src/cron/weekly-sync.ts`) | Calls `rebuild-topics` after ingest |
@@ -221,23 +209,25 @@ Scale: 234 issues × ~25 topics = ~6k rows. Single D1 transaction, no batching n
 
 ## Surfacing on the website
 
-### Issue page (`frontend/issue.html`)
-- Row of up to 8 topic chips under the title. Click → search with `topic:"…"`.
-- Collapsible "Topics by section" panel reusing `--section-lead-essay` etc. colors.
-- "Issues sharing these topics" strip: Jaccard over top-10 keyword sets.
+### Landing page (`frontend/index.html`)
+- Reading order: quote → search box → example queries → **Latest issue** card → **Recurring themes** strip.
+- The latest-issue card adds a `Topics: a · b · c` subtitle (top 3 from `issue_topics`).
+- "Recurring themes" strip: top 12 `corpus_topics` by `aggregate_score`. Tufte-friendly — font size proportional to `log(doc_frequency)`, single hue, no word-cloud bubbles. Each theme links to `/?q=topic:"…"`.
 
 ### Search result cards (`frontend/js/app.js`)
-- One subtitle line: "Topics: trust · legitimacy · civic repair" (top 3 from `issue_topics`).
-- Improves scannability for queries that span sections.
+- One subtitle line per card: `Topics: trust · legitimacy · civic repair` (top 3 from `issue_topics`).
+- Rendered on its own row below the snippet — not inline with section metadata — so it wraps cleanly on mobile.
+
+### Issue page (`frontend/issue.html`)
+- **Topics side panel** (desktop ≥900px): `<aside>` column, ~220px wide, right of the article. `position: sticky; top: 1rem` so it stays visible while scrolling. Layout: `grid-template-columns: minmax(0, 1fr) 220px; gap: 2rem`.
+  - Panel header "Topics" with up to 8 topic chips from `issue_topics` ordered by `rank`. Each chip links to `/?q=topic:"…"`.
+  - Below topics, same panel: "Related issues" — Jaccard over top-10 keyword sets, top 3 shown.
+- **Mobile (<900px)**: grid collapses to a single column; the aside becomes two inline `<details>` blocks — "Topics (N)" above the article (collapsed by default, so the first paragraph stays above the fold) and "Related issues" below the article.
 
 ### `topic:` query operator (`src/lib/query-parser.ts`)
 - `topic:"institutional trust"` → `WHERE EXISTS (SELECT 1 FROM issue_topics WHERE issue_id = issues.id AND keyword = ?)`.
 - Cheaper than FTS5 MATCH, so it can combine with free-text queries.
-- Exempt from the FTS5 sanitizer — parameterized binds only.
-
-### Landing page
-- "Recurring themes" strip above the example queries: top 12 corpus topics by `aggregate_score`.
-- Tufte-friendly rendering: font size proportional to `log(doc_frequency)`, single hue — no word cloud bubbles.
+- Exempt from the FTS5 sanitizer — parameterized binds only. Must be extracted from the query string **before** FTS5 sanitization in `src/routes/search.ts`.
 
 ### `/topics` page (new)
 - Sortable full list: frequency / recency / alphabetical.
@@ -245,12 +235,22 @@ Scale: 234 issues × ~25 topics = ~6k rows. Single D1 transaction, no batching n
 - Click-through → filtered search.
 
 ### Autocomplete
-- Extend the existing `autocomplete-dropdown` to suggest from `corpus_topics.keyword_display`, ranked by `aggregate_score`.
+- **Unchanged**. The existing `autocomplete-dropdown` keeps its current behavior (history + operator hints). Topic discovery lives in the themes strip, `/topics`, issue-page chips, and result-card subtitles — not inside the search input. Adding a third category to the dropdown crowds a narrow affordance without obvious payoff.
+
+## Mobile rules (applies to every page)
+
+- Breakpoints: **900px** (issue-page grid collapse), **640px** (typography shrink, chip wrap behavior).
+- Tap targets ≥44×44px for every chip, theme, and sparkline row.
+- Topic chips use `flex-wrap: wrap` with `gap: 0.5rem`. Never horizontal-scroll — chips on FLUX can reach 4 words and a scroll strip hides them.
+- Density strip retains its aspect ratio at all widths. Existing Playwright bounding-box tests (`e2e/density-alignment.spec.ts`) must still pass on mobile viewports; add a `375×812` viewport case.
+- `position: sticky` is desktop-only; removed below 900px so it doesn't fight the iOS address bar.
+- `/topics` sparklines reflow: one year per line on <640px, 8–12 bars per line, no spaces between bars.
+- The themes strip and issue-page chip row share one React/HTML component so mobile wrapping is tested once.
 
 ## API changes (additive — preserves response contract)
 
-- `GET /issues/:id` — adds `topics: Array<{ keyword, score, rank, section_label }>`.
-- `GET /latest-issue` — adds `topics`.
+- `GET /issues/:id` — adds `topics: Array<{ keyword, keyword_display, score, rank }>` and `related_issues: Array<{ issue_id, issue_number, title, overlap }>`.
+- `GET /latest-issue` — adds `topics` (top 3).
 - `GET /search` — each result gains `topics: string[]` (top 3 for preview).
 - `GET /topics` (new) — paginated corpus topics with timeline data.
 - `GET /topics/:keyword` (new) — issues for that topic + timeline.
@@ -279,7 +279,7 @@ All additions are additive fields. The three query paths in `src/routes/search.t
 
 1. Add `@ade_oshineye/yaket` dependency and `src/lib/topic-extractor.ts` with unit + PBT tests.
 2. Migration `0006_topics.sql`.
-3. Wire per-issue + per-section extraction into `rechunkAndEmbed`.
+3. Wire per-issue extraction into `rechunkAndEmbed`.
 4. `POST /admin/rebuild-topics` + backfill path.
 5. Corpus aggregator + timeline builder + blocklist support.
 6. Weekly-cron integration.
@@ -287,3 +287,255 @@ All additions are additive fields. The three query paths in `src/routes/search.t
 8. Frontend: issue-page chips → result-card subtitles → landing theme strip → `/topics` page → autocomplete.
 9. `topic:` query operator in `query-parser.ts`.
 10. Relevance harness entries for topic-driven queries.
+
+## Appendix: page layouts
+
+### Landing page — desktop
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│  FLUX Review Search                                                 │
+│  Search every issue of The FLUX Review                              │
+├────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│    "The quote from the latest issue goes here, pulled from          │
+│     /latest-issue and rendered as a blockquote."                    │
+│     — Issue #235 · 2026-04-11                                       │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────┬──┐             │
+│  │ Try "institutional trust" or issue:198 ...      │🔍│             │
+│  └─────────────────────────────────────────────────┴──┘             │
+│  Try: "institutional trust" · before:2024 · issue:198 · section:lens│
+│                                                                     │
+│      ┌─ Latest issue ────────────────────────────┐                  │
+│      │ #235 · The Whatever Edition · 2026-04-11  │                  │
+│      │ Topics: trust · legitimacy · civic repair │ ◄── NEW subtitle │
+│      └───────────────────────────────────────────┘                  │
+│                                                                     │
+│  ┌─ Recurring themes ─────────────────────────────────────────┐ ◄── NEW
+│  │  institutional trust   legitimacy   civic repair           │   top 12 from
+│  │  large language models   AI safety   product strategy      │   corpus_topics
+│  │  decision making   founder mode   network effects          │   by aggregate_score
+│  │  ↑ font-size = log(doc_frequency), single hue              │   each → topic:"…"
+│  └────────────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### Landing page — mobile (≤640px)
+
+```
+┌───────────────────────┐
+│ FLUX Review Search    │
+│ Search every issue…   │
+├───────────────────────┤
+│ "The quote from the   │
+│  latest issue goes…"  │
+│  — #235 · 2026-04-11  │
+│                       │
+│ ┌─────────────────┬─┐ │
+│ │ Try "inst…"     │🔍│ │
+│ └─────────────────┴─┘ │
+│ Try: "institutional   │
+│  trust" · before:2024 │
+│  · issue:198 · …      │
+│                       │
+│ ┌─ Latest issue ────┐ │
+│ │ #235 · The Whate… │ │
+│ │ 2026-04-11        │ │
+│ │ Topics: trust ·   │ │
+│ │  legitimacy ·     │ │
+│ │  civic repair     │ │
+│ └───────────────────┘ │
+│                       │
+│ ┌─ Recurring themes ┐ │
+│ │ institutional     │ │ ◄─ one theme per
+│ │  trust            │ │   line on narrowest
+│ │ legitimacy        │ │   viewport; 2-col
+│ │ AI safety         │ │   at ≥480px
+│ │ civic repair      │ │
+│ │ product strategy  │ │
+│ │ …                 │ │
+│ └───────────────────┘ │
+└───────────────────────┘
+```
+
+### Search results — desktop
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│ [search input ……………………………………………………………… 🔍] [x]                    │
+│                                                                     │
+│ Refine: section:lead_essay · year:2023 · topic:"institutional trust"│
+│                                                                     │
+│ ┌─ 47 results ─────────────────────────────────────────────────┐   │
+│ │ 8 ┤ ██  ██    ██ ██ ██    ██ ██ ██ ██                        │   │
+│ │   ├────────────────────────────────────                      │   │
+│ │    '21 '22 '23 '24 '25 '26                                   │   │
+│ └──────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+│ #214 · The Trust Edition · 2025-11-08          [section: lens]      │
+│ …the failure of <mark>trust</mark> in institutions…                 │
+│ Topics: institutional trust · legitimacy · civic repair  ◄── NEW    │
+│                                                                     │
+│ #198 · Eat the Frog · 2025-06-21            [section: lead_essay]   │
+│ …only a radical rethink of public <mark>trust</mark>…               │
+│ Topics: public trust · governance · AI safety            ◄── NEW    │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+Autocomplete is unchanged: history + operator hints, no topic suggestions.
+
+### Search results — mobile
+
+```
+┌───────────────────────┐
+│ [search ………… 🔍] [x]  │
+│                       │
+│ Refine:               │
+│  section:lead_essay   │ ◄─ refine chips stack
+│  year:2023            │   vertically; tap
+│  topic:"inst. trust"  │   target ≥44px
+│                       │
+│ ┌─ 47 results ──────┐ │
+│ │ 8┤██ ██ ██ ██     │ │
+│ │  ├────────────    │ │
+│ │   '21'22'23'24'25 │ │
+│ └───────────────────┘ │
+│                       │
+│ #214 · The Trust      │
+│  Edition              │
+│ 2025-11-08            │
+│ [lens]                │
+│                       │
+│ …the failure of       │
+│  <mark>trust</mark>…  │
+│                       │
+│ Topics:               │ ◄─ topic line wraps
+│  institutional trust  │   onto its own row
+│  · legitimacy ·       │   (not inline with
+│  civic repair         │   metadata)
+└───────────────────────┘
+```
+
+### Issue page — desktop (side panel)
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│ ← FLUX Review Search                                                │
+├────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  Issue #214 · 2025-11-08                                            │
+│  The Trust Edition                                                  │
+│  Why institutional trust is the bottleneck for everything           │
+│                                                                     │
+│  ┌────────────────────────────────────────┐   ┌──────────────────┐ │
+│  │  ─── Lead Essay ───                    │   │ Topics       ◄── │ │ ◄─ side panel
+│  │  Full issue body renders here…         │   │ ───────────────  │ │   position:sticky
+│  │  …                                     │   │ institutional    │ │   top:1rem
+│  │  ─── Signposts ───                     │   │  trust           │ │   ~220px wide
+│  │  …                                     │   │ legitimacy       │ │
+│  │  ─── Lens ───                          │   │ civic repair     │ │
+│  │  …                                     │   │ governance       │ │
+│  │  ─── Book ───                          │   │ network effects  │ │
+│  │  …                                     │   │ AI safety        │ │
+│  │  ─── Postcard ───                      │   │ design trust     │ │
+│  │  …                                     │   │ decision making  │ │
+│  │                                        │   │                  │ │
+│  │                                        │   │ ───────────────  │ │
+│  │                                        │   │ Related issues   │ │ ◄─ same panel,
+│  │                                        │   │ ───────────────  │ │   below topics
+│  │                                        │   │ #198 · 4 shared  │ │
+│  │                                        │   │ #171 · 3 shared  │ │
+│  │                                        │   │ #142 · 3 shared  │ │
+│  │   ← article column ~640px              │   └──────────────────┘ │
+│  └────────────────────────────────────────┘   ← panel ~220px       │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### Issue page — mobile (<900px collapses to stack)
+
+```
+┌───────────────────────┐
+│ ← FLUX Review Search  │
+├───────────────────────┤
+│ Issue #214 · 2025-11  │
+│ The Trust Edition     │
+│ Why institutional     │
+│  trust is the …       │
+│                       │
+│ ▼ Topics (8)          │ ◄─ side panel
+│ ┌───────────────────┐ │   becomes inline
+│ │ [inst. trust]     │ │   <details>,
+│ │ [legitimacy]      │ │   collapsed by
+│ │ [civic repair]    │ │   default to keep
+│ │ [governance]      │ │   first paragraph
+│ │ [network effects] │ │   above the fold
+│ │ [AI safety]       │ │
+│ │ [design trust]    │ │
+│ │ [decision making] │ │
+│ └───────────────────┘ │
+│                       │
+│ ─── Lead Essay ───    │
+│ Full issue body       │
+│  renders here…        │
+│ …                     │
+│ ─── Signposts ───     │
+│ …                     │
+│                       │
+│ ▼ Related issues      │ ◄─ separate
+│ ┌───────────────────┐ │   <details> at
+│ │ #198 · 4 shared   │ │   bottom of
+│ │ #171 · 3 shared   │ │   article
+│ │ #142 · 3 shared   │ │
+│ └───────────────────┘ │
+└───────────────────────┘
+```
+
+### `/topics` page — desktop
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│ FLUX Review Search · Topics                                         │
+├────────────────────────────────────────────────────────────────────┤
+│ Sort: [Frequency ▾] [Recency] [Alphabetical]                        │
+│                                                                     │
+│ ┌─────────────────────────────────────────────────────────────┐    │
+│ │ institutional trust                              47 issues  │    │
+│ │ '21 ▁▁▁▂▁▁ '22 ▁▂▃▂▁▁▁▃▄▂ '23 ▃▄▅▄█▇▆▅▄ '24 … '25 … '26 …  │    │
+│ │ first seen 2021-08 · last seen 2026-04                      │    │
+│ ├─────────────────────────────────────────────────────────────┤    │
+│ │ large language models                            38 issues  │    │
+│ │ '22 ▁▁▁▂▁▂▃▃▄▅▆ '23 █▇▆▅▄▅▆▇ '24 … '25 … '26 …              │    │
+│ ├─────────────────────────────────────────────────────────────┤    │
+│ │ civic repair                                     22 issues  │    │
+│ │ '23 ▁▁▂▁▁▂▂▃ '24 ▆▅▄▅▆▇▆▅ '25 ▇▆▅▄▃▂ '26 …                  │    │
+│ └─────────────────────────────────────────────────────────────┘    │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### `/topics` page — mobile
+
+```
+┌───────────────────────┐
+│ FLUX · Topics         │
+├───────────────────────┤
+│ Sort:                 │
+│ [Frequency ▾]         │ ◄─ sort becomes a
+│                       │   single select
+│ ┌───────────────────┐ │
+│ │ institutional     │ │
+│ │  trust            │ │
+│ │            47 iss │ │
+│ │ '21▁▂ '22▁▃▁▃     │ │ ◄─ sparkline
+│ │ '23▃▅█▇ '24▅▆▇    │ │   reflows: one
+│ │ '25▆▇█ '26▂       │ │   year per line,
+│ │ 2021-08 → 2026-04 │ │   8-12 bars each
+│ ├───────────────────┤ │
+│ │ large language    │ │
+│ │  models           │ │
+│ │            38 iss │ │
+│ │ '22▁▂▃▄ '23█▇▆▅   │ │
+│ │ '24▄▅▆ '25▅▆ '26▂ │ │
+│ └───────────────────┘ │
+└───────────────────────┘
+```
