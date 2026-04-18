@@ -1,12 +1,13 @@
 import { Hono } from 'hono';
 import type { Env } from '../env';
-import type { IssueRow } from '../db/types';
+import type { IssueRow, IssueTopicRow } from '../db/types';
 import { getIssueById, getIssueByNumber } from '../db/queries';
+import { getTopicsByIssueId } from '../db/topic-queries';
 import { parseSections } from '../lib/sections';
 
 export const issueRoutes = new Hono<{ Bindings: Env }>();
 
-function formatIssueResponse(issue: IssueRow) {
+function formatIssueResponse(issue: IssueRow, topics: IssueTopicRow[] = []) {
   return {
     id: issue.id,
     issue_number: issue.issue_number,
@@ -22,6 +23,12 @@ function formatIssueResponse(issue: IssueRow) {
     word_count: issue.word_count,
     year: issue.year,
     month: issue.month,
+    topics: topics.map(t => ({
+      keyword: t.keyword,
+      keyword_display: t.keyword_display,
+      score: t.score,
+      rank: t.rank,
+    })),
   };
 }
 
@@ -29,7 +36,8 @@ issueRoutes.get('/issues/:id', async (c) => {
   const id = c.req.param('id');
   const issue = await getIssueById(c.env.DB, id);
   if (!issue) return c.json({ error: 'Issue not found' }, 404);
-  return c.json(formatIssueResponse(issue));
+  const topics = await getTopicsByIssueId(c.env.DB, issue.id);
+  return c.json(formatIssueResponse(issue, topics));
 });
 
 issueRoutes.get('/issues/issue/:number', async (c) => {
@@ -45,7 +53,8 @@ issueRoutes.get('/issues/issue/:number', async (c) => {
 
   const issue = await getIssueByNumber(c.env.DB, num);
   if (!issue) return c.json({ error: 'Issue not found' }, 404);
-  return c.json(formatIssueResponse(issue));
+  const topics = await getTopicsByIssueId(c.env.DB, issue.id);
+  return c.json(formatIssueResponse(issue, topics));
 });
 
 // Section-level landing page API

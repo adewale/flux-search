@@ -10,7 +10,7 @@ export interface ParsedQuery {
 const MAX_QUERY_LENGTH = 500;
 
 const VALID_OPERATORS = new Set([
-  'before', 'after', 'year', 'issue', 'section',
+  'before', 'after', 'year', 'issue', 'section', 'topic',
 ]);
 
 const VALID_SECTIONS = new Set([
@@ -24,8 +24,20 @@ export function parseQuery(raw: string): ParsedQuery {
   const operators: string[] = [];
   const filters: SearchFilters = {};
 
+  // Extract quoted-value operators first (e.g. topic:"institutional trust")
+  // so the phrase extractor below doesn't swallow their quoted value.
+  let remaining = input.replace(/(\w+):"([^"]+)"/g, (match, key: string, value: string) => {
+    const lowerKey = key.toLowerCase();
+    if (lowerKey !== 'topic') return match;
+    const normalized = value.toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!normalized) return '';
+    filters.topic = normalized;
+    operators.push(`${key}:${value}`);
+    return '';
+  });
+
   // Extract quoted phrases
-  let remaining = input.replace(/"([^"]+)"/g, (_match, phrase) => {
+  remaining = remaining.replace(/"([^"]+)"/g, (_match, phrase) => {
     phrases.push(phrase);
     return '';
   });
@@ -69,6 +81,15 @@ export function parseQuery(raw: string): ParsedQuery {
           // Unknown section — leave the whole operator as free text
           return _match;
         }
+        break;
+      }
+      case 'topic': {
+        // Reject values containing quote chars — those should have been
+        // caught by the quoted-value pass above; a stray quote here means
+        // the input was malformed (e.g. topic:"unclosed or topic:"").
+        if (value.includes('"')) break;
+        const normalized = value.toLowerCase().replace(/\s+/g, ' ').trim();
+        if (normalized) filters.topic = normalized;
         break;
       }
     }

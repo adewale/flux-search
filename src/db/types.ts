@@ -54,4 +54,33 @@ export interface SearchFilters {
   year?: number;
   issueNumber?: number;
   section?: string;
+  topic?: string;
+}
+
+export interface IssueTopicRow {
+  issue_id: string;
+  keyword: string;
+  keyword_display: string;
+  score: number;
+  rank: number;
+  ngram_size: number;
+}
+
+export interface CorpusTopicRow {
+  keyword: string;
+  keyword_display: string;
+  doc_frequency: number;
+  avg_score: number;
+  aggregate_score: number;
+  first_seen: string | null;
+  last_seen: string | null;
+  ngram_size: number | null;
+  updated_at: string;
+}
+
+export interface TopicTimelineRow {
+  keyword: string;
+  year: number;
+  month: number;
+  occurrences: number;
 }

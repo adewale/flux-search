@@ -4,6 +4,7 @@ import { logger } from 'hono/logger';
 import type { Env } from './env';
 import { searchRoutes } from './routes/search';
 import { issueRoutes } from './routes/issues';
+import { topicRoutes } from './routes/topics';
 import { adminRoutes } from './routes/admin';
 import { weeklySync } from './cron/weekly-sync';
 
@@ -14,6 +15,7 @@ app.use('*', cors());
 
 app.route('/', searchRoutes);
 app.route('/', issueRoutes);
+app.route('/', topicRoutes);
 app.route('/admin', adminRoutes);
 
 app.get('/health', (c) => c.json({ status: 'ok' }));

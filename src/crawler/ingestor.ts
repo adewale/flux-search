@@ -5,6 +5,7 @@ import { normalizePage, computeContentHash } from '../lib/normalizer';
 import { checkDuplicate } from '../lib/deduplicator';
 import { chunkIssue } from '../lib/chunker';
 import { embedChunks, upsertVectors } from '../lib/embedder';
+import { persistIssueTopics } from '../lib/topic-extractor';
 import {
   upsertIssue, insertChunks, deleteChunksByIssueId,
 } from '../db/queries';
@@ -74,6 +75,9 @@ async function rechunkAndEmbed(env: Env, issue: IssueRow): Promise<void> {
   }
 
   await insertChunks(env.DB, chunks);
+
+  // Topic extraction is best-effort — independent of embedding failures
+  await persistIssueTopics(env.DB, issue.id, issue.full_text_plain);
 
   // Embedding is best-effort — AI/Vectorize may be unavailable in local dev
   try {
