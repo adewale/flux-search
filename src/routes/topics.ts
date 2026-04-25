@@ -11,6 +11,11 @@ import type { IssueRow } from '../db/types';
 export const topicRoutes = new Hono<{ Bindings: Env }>();
 
 topicRoutes.get('/topics', async (c) => {
+  const accept = c.req.header('Accept') || '';
+  if (accept.includes('text/html')) {
+    return c.env.ASSETS.fetch(new Request(new URL('/topics.html', c.req.url)));
+  }
+
   const sortParam = c.req.query('sort');
   const sort: 'frequency' | 'recency' | 'alpha' =
     sortParam === 'recency' ? 'recency' :
@@ -24,6 +29,11 @@ topicRoutes.get('/topics', async (c) => {
 });
 
 topicRoutes.get('/topics/:keyword', async (c) => {
+  const accept = c.req.header('Accept') || '';
+  if (accept.includes('text/html')) {
+    return c.env.ASSETS.fetch(new Request(new URL('/topics.html', c.req.url)));
+  }
+
   const raw = decodeURIComponent(c.req.param('keyword'));
   const keyword = normalizeKeyword(raw);
   if (!keyword) return c.json({ error: 'Invalid topic' }, 400);

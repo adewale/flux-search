@@ -78,6 +78,8 @@ issueRoutes.get('/issues/issue/:number/sections', async (c) => {
     'SELECT issue_number FROM issues WHERE issue_number > ? AND status = ? ORDER BY issue_number ASC LIMIT 1'
   ).bind(num, 'active').first<{ issue_number: number }>();
 
+  const topics = await getTopicsByIssueId(c.env.DB, issue.id);
+
   return c.json({
     issue_number: issue.issue_number,
     title: issue.title,
@@ -91,5 +93,11 @@ issueRoutes.get('/issues/issue/:number/sections', async (c) => {
     })),
     prev_issue_number: prevResult?.issue_number ?? null,
     next_issue_number: nextResult?.issue_number ?? null,
+    topics: topics.map(t => ({
+      keyword: t.keyword,
+      keyword_display: t.keyword_display,
+      score: t.score,
+      rank: t.rank,
+    })),
   });
 });

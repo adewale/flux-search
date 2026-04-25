@@ -81,6 +81,25 @@ describe('GET /issues/:id → topics', () => {
   });
 });
 
+describe('GET /issues/issue/:number/sections → topics', () => {
+  it('includes topics for the issue page', async () => {
+    const db = makeD1();
+    await seedWithTopics(
+      db,
+      { issue_number: 7, source_url: 'x://7' },
+      [
+        { keyword: 'governance', display: 'Governance' },
+        { keyword: 'civic repair', display: 'Civic Repair' },
+      ],
+    );
+    const { app, env } = makeApp(db);
+    const res = await app.request('/issues/issue/7/sections', {}, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { topics: Array<{ keyword: string }> };
+    expect(body.topics.map(t => t.keyword)).toEqual(['governance', 'civic repair']);
+  });
+});
+
 describe('GET /search → per-result topics', () => {
   it('attaches topic chips to filter-only result cards', async () => {
     const db = makeD1();

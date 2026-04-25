@@ -5,6 +5,7 @@
 import { escapeHtml, escapeHtmlPreserveMark, formatDate, cleanSnippet } from './utils.js';
 import { SECTION_LABELS, formatSectionLabel } from './section-labels.js';
 import { computeDensityBars } from './density.js';
+import { topicChipsHtml } from './topic-render.js';
 
 export function renderResults(container, metaEl, countEl, invalidOpsEl, filterChipsEl, data, opts) {
   var countText = data.total_hits + ' result' + (data.total_hits !== 1 ? 's' : '');
@@ -40,6 +41,8 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
       ? '/issues/issue/' + r.issue_number + (r.snippet_section ? '#' + r.snippet_section : '')
       : escapeHtml(canonicalUrl);
 
+    var topicChips = topicChipsHtml(r.topics, { max: 3, className: 'result-topic-chip' });
+
     return '<div class="result-card confidence-' + confidenceCls + '"' +
       (r.snippet_section ? ' data-section="' + r.snippet_section + '"' : '') + '>' +
       '<a href="' + issueUrl + '">' +
@@ -52,6 +55,7 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
         '<div class="result-title">' + escapeHtml(title) + '</div>' +
         (snippet ? '<p class="result-snippet">' + escapeHtmlPreserveMark(snippet) + '</p>' : '') +
       '</a>' +
+      (topicChips ? '<div class="result-topics">' + topicChips + '</div>' : '') +
     '</div>';
   }).join('');
 
