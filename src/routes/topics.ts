@@ -4,6 +4,7 @@ import {
   getCorpusTopics,
   getTopicTimeline,
   getIssueIdsByTopic,
+  getAdjacentTopics,
 } from '../db/topic-queries';
 import { normalizeKeyword } from '../lib/topic-extractor';
 import type { IssueRow } from '../db/types';
@@ -49,6 +50,7 @@ topicRoutes.get('/topics/:keyword', async (c) => {
 
   const issues = issueIds.length === 0 ? [] : await fetchIssuesById(c.env.DB, issueIds);
   const timeline = await getTopicTimeline(c.env.DB, keyword);
+  const adjacent = await getAdjacentTopics(c.env.DB, keyword, 12);
 
   // Pick a display form: prefer the corpus row, else the first issue's display.
   const fallbackDisplay =
@@ -71,6 +73,7 @@ topicRoutes.get('/topics/:keyword', async (c) => {
       canonical_url: i.canonical_url || i.source_url,
     })),
     timeline: timeline.map(t => ({ year: t.year, month: t.month, occurrences: t.occurrences })),
+    adjacent,
   });
 });
 

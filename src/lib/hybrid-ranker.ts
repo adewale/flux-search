@@ -24,14 +24,21 @@ export interface DebugMeta {
   final_score: number;
 }
 
-// Tuning defaults from spec section 12
+// Tuning defaults from spec section 12.
+//
+// `lexicalSemanticAgreement` is the crossover bonus described in
+// Bobbin's search.md: a result that appears in *both* the FTS and
+// vector indices gets an additive bump. `topicMatch` rewards results
+// whose extracted topics match query terms — Bobbin's +0.15 boost,
+// scaled to flux's RRF-based score range.
 const BOOSTS = {
   exactIssue: 10.0,
   phraseTitle: 6.0,
   phraseHeading: 4.0,
   phraseBody: 3.0,
   titleOverlap: 1.5,
-  lexicalSemanticAgreement: 1.25,
+  topicMatch: 1.5,
+  lexicalSemanticAgreement: 1.25, // crossover bonus
   multiChunkSupport: 0.75,
   semanticOnlyPenalty: -3.5,
 };
@@ -45,11 +52,21 @@ const SNIPPET_LEN_DEFAULT = 150; // rest
 // no lexical evidence corroborates the match.
 const SEMANTIC_MIN_SCORE = 0.75;
 
+export interface RankerOptions {
+  /**
+   * Map from a normalised query keyword to the set of issue ids whose
+   * extracted topics contain that keyword. Pre-computed by the route so
+   * the ranker stays synchronous.
+   */
+  topicMatches?: Map<string, Set<string>>;
+}
+
 export function rankResults(
   parsed: ParsedQuery,
   lexicalResults: FtsSearchResult[],
   semanticResults: SemanticCandidate[],
-  env: Env
+  env: Env,
+  opts: RankerOptions = {}
 ): RankedResult[] {
   const lexicalWeight = parseFloat(env.LEXICAL_WEIGHT) || 1.0;
   const semanticWeight = parseFloat(env.SEMANTIC_WEIGHT) || 0.55;
@@ -132,6 +149,20 @@ export function rankResults(
     if (lexical && semantic) {
       score += BOOSTS.lexicalSemanticAgreement;
       appliedBoosts.push('lexical_semantic_agreement');
+    }
+
+    // Topic boost: when the user's query (free text or phrase) matches
+    // an extracted topic on this issue, reward thematic alignment over
+    // incidental term occurrence.
+    if (opts.topicMatches && opts.topicMatches.size > 0) {
+      let topicBoosted = false;
+      for (const issueIds of opts.topicMatches.values()) {
+        if (issueIds.has(issue.id)) { topicBoosted = true; break; }
+      }
+      if (topicBoosted) {
+        score += BOOSTS.topicMatch;
+        appliedBoosts.push('topic_match');
+      }
     }
 
     if (semantic && semantic.chunkCount > 1) {

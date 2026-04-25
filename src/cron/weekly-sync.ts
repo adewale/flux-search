@@ -8,7 +8,12 @@ const MAX_NEW_EPISODES_PER_RUN = 20;
 
 export async function weeklySync(controller: ScheduledController, env: Env): Promise<void> {
   const runId = crypto.randomUUID();
-  console.log(`Weekly sync started: ${runId} (cron: ${controller.cron})`);
+  const startedAt = Date.now();
+  // Wide event log line — single canonical form. Mirrors Bobbin's
+  // `refresh` event so downstream tooling can grep `event=`.
+  console.log(JSON.stringify({
+    event: 'weekly_sync_start', run_id: runId, cron: controller.cron,
+  }));
 
   await startCrawlRun(env.DB, runId, 'weekly_sync', 'https://read.fluxcollective.org/sitemap.xml');
 
@@ -68,9 +73,18 @@ export async function weeklySync(controller: ScheduledController, env: Env): Pro
       ].filter(Boolean).join('. '),
     });
 
-    console.log(`Weekly sync complete: ${created} created, ${failed} failed`);
+    console.log(JSON.stringify({
+      event: 'weekly_sync_complete', run_id: runId,
+      elapsed_ms: Date.now() - startedAt,
+      processed: toProcess.length, created, failed,
+      total_missing: missing.length,
+    }));
   } catch (err) {
-    console.error('Weekly sync failed:', err);
+    console.error(JSON.stringify({
+      event: 'weekly_sync_failed', run_id: runId,
+      elapsed_ms: Date.now() - startedAt,
+      error: String(err),
+    }));
     await updateCrawlRun(env.DB, runId, {
       completed_at: new Date().toISOString(),
       status: 'failed',

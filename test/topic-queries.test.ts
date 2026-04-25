@@ -140,7 +140,10 @@ describe('getIssueIdsByTopic', () => {
 describe('blocklist', () => {
   it('round-trips entries', async () => {
     const db = makeD1();
-    expect((await getBlocklist(db as any)).size).toBe(0);
+    // Migration 0007 seeds a domain-specific blocklist; the test
+    // asserts user-added entries land alongside the seeds.
+    const initial = await getBlocklist(db as any);
+    const seedSize = initial.size;
 
     await addToBlocklist(db as any, 'flux review', 'masthead');
     await addToBlocklist(db as any, 'read more');
@@ -148,15 +151,17 @@ describe('blocklist', () => {
     const blocklist = await getBlocklist(db as any);
     expect(blocklist.has('flux review')).toBe(true);
     expect(blocklist.has('read more')).toBe(true);
-    expect(blocklist.size).toBe(2);
+    // 'flux review' is already a seed, so size grows by 1 (just 'read more').
+    expect(blocklist.size).toBe(seedSize + 1);
   });
 
   it('addToBlocklist is idempotent on repeated inserts', async () => {
     const db = makeD1();
-    await addToBlocklist(db as any, 'same', 'reason-1');
-    await addToBlocklist(db as any, 'same', 'reason-2');
+    const before = (await getBlocklist(db as any)).size;
+    await addToBlocklist(db as any, 'same-key-not-in-seed', 'reason-1');
+    await addToBlocklist(db as any, 'same-key-not-in-seed', 'reason-2');
     const blocklist = await getBlocklist(db as any);
-    expect(blocklist.size).toBe(1);
+    expect(blocklist.size).toBe(before + 1);
   });
 });
 
@@ -168,20 +173,20 @@ describe('buildCorpusTopics', () => {
     const c = await seedIssue(db as any, { issue_number: 3, published_at: '2024-12-01' });
 
     await replaceIssueTopics(db as any, a, [
-      topic({ keyword: 'trust', rank: 1, score: 0.05 }),
+      topic({ keyword: 'trust-rare', rank: 1, score: 0.05 }),
       topic({ keyword: 'once', rank: 2, score: 0.1 }),
     ]);
     await replaceIssueTopics(db as any, b, [
-      topic({ keyword: 'trust', rank: 1, score: 0.07 }),
+      topic({ keyword: 'trust-rare', rank: 1, score: 0.07 }),
     ]);
     await replaceIssueTopics(db as any, c, [
-      topic({ keyword: 'trust', rank: 1, score: 0.03 }),
+      topic({ keyword: 'trust-rare', rank: 1, score: 0.03 }),
     ]);
 
-    await buildCorpusTopics(db as any);
+    await buildCorpusTopics(db as any, { minDocFrequency: 3 });
 
     const corpus = await getCorpusTopics(db as any);
-    const trust = corpus.find(r => r.keyword === 'trust');
+    const trust = corpus.find(r => r.keyword === 'trust-rare');
     expect(trust).toBeDefined();
     expect(trust!.doc_frequency).toBe(3);
     expect(trust!.avg_score).toBeCloseTo(0.05, 2);
@@ -189,7 +194,7 @@ describe('buildCorpusTopics', () => {
     expect(trust!.last_seen).toBe('2024-12-01');
   });
 
-  it('drops keywords appearing in only one issue (doc_frequency < 2)', async () => {
+  it('drops keywords below the doc-frequency threshold', async () => {
     const db = makeD1();
     const a = await seedIssue(db as any, { issue_number: 1 });
 
@@ -207,11 +212,11 @@ describe('buildCorpusTopics', () => {
     const a = await seedIssue(db as any, { issue_number: 1 });
     const b = await seedIssue(db as any, { issue_number: 2 });
 
+    // 'subscribe' is in the seeded migration blocklist already.
     await replaceIssueTopics(db as any, a, [topic({ keyword: 'subscribe', rank: 1 })]);
     await replaceIssueTopics(db as any, b, [topic({ keyword: 'subscribe', rank: 1 })]);
 
-    await addToBlocklist(db as any, 'subscribe', 'boilerplate');
-    await buildCorpusTopics(db as any);
+    await buildCorpusTopics(db as any, { minDocFrequency: 2 });
 
     const corpus = await getCorpusTopics(db as any);
     expect(corpus.find(r => r.keyword === 'subscribe')).toBeUndefined();
@@ -222,10 +227,7 @@ describe('buildCorpusTopics', () => {
     const a = await seedIssue(db as any, { issue_number: 1 });
     const b = await seedIssue(db as any, { issue_number: 2 });
 
-    // rare but highly ranked (low score = more relevant)
-    await replaceIssueTopics(db as any, a, [topic({ keyword: 'rare', rank: 1, score: 0.01 })]);
-    await replaceIssueTopics(db as any, b, [topic({ keyword: 'rare', rank: 1, score: 0.01 })]);
-    // common but weakly ranked (high score = less relevant)
+    // Both keywords appear in 2 issues; differ only in YAKE score.
     await replaceIssueTopics(db as any, a, [
       topic({ keyword: 'rare', rank: 1, score: 0.01 }),
       topic({ keyword: 'weak', rank: 2, score: 0.5 }),
@@ -235,7 +237,7 @@ describe('buildCorpusTopics', () => {
       topic({ keyword: 'weak', rank: 2, score: 0.5 }),
     ]);
 
-    await buildCorpusTopics(db as any);
+    await buildCorpusTopics(db as any, { minDocFrequency: 2 });
 
     const rare = (await getCorpusTopics(db as any)).find(r => r.keyword === 'rare');
     const weak = (await getCorpusTopics(db as any)).find(r => r.keyword === 'weak');
@@ -252,10 +254,10 @@ describe('buildCorpusTopics', () => {
     await replaceIssueTopics(db as any, a, [topic({ keyword: 'trust', rank: 1, score: 0.05 })]);
     await replaceIssueTopics(db as any, b, [topic({ keyword: 'trust', rank: 1, score: 0.07 })]);
 
-    await buildCorpusTopics(db as any);
+    await buildCorpusTopics(db as any, { minDocFrequency: 2 });
     const first = await getCorpusTopics(db as any);
 
-    await buildCorpusTopics(db as any);
+    await buildCorpusTopics(db as any, { minDocFrequency: 2 });
     const second = await getCorpusTopics(db as any);
 
     // updated_at moves; everything else stays stable

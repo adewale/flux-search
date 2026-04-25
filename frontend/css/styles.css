@@ -1008,6 +1008,49 @@ body {
   color: var(--text);
 }
 
+/* Topic detail: sparkline + adjacent topics */
+.topic-sparkline-host {
+  margin: 0.5rem 0 1rem 0;
+  max-width: 100%;
+}
+
+.topic-sparkline {
+  width: 100%;
+  max-width: 320px;
+  height: 36px;
+  display: block;
+}
+
+.sparkline-path {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.sparkline-dot {
+  fill: var(--accent);
+}
+
+.topic-adjacent {
+  margin: 1rem 0 1.5rem 0;
+}
+
+.topic-adjacent-title {
+  font-family: var(--font);
+  font-size: var(--size-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: 0 0 0.5rem 0;
+}
+
+.topic-adjacent-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
 /* Pagination */
 .pagination {
   display: flex;

@@ -22,11 +22,12 @@ describe('rebuildAllTopics', () => {
       full_text_plain: SAMPLE,
     });
 
-    const stats = await rebuildAllTopics(db as any);
+    const stats = await rebuildAllTopics(db as any, { minDocFrequency: 2 });
 
     expect(stats.issues_processed).toBe(2);
     expect(stats.corpus_topics).toBeGreaterThan(0);
     expect(stats.timeline_rows).toBeGreaterThan(0);
+    expect(stats.lexicon_phrases).toBeGreaterThanOrEqual(0);
 
     const aTopics = await getTopicsByIssueId(db as any, a);
     const bTopics = await getTopicsByIssueId(db as any, b);
@@ -62,10 +63,10 @@ describe('rebuildAllTopics', () => {
       full_text_plain: SAMPLE,
     });
 
-    await rebuildAllTopics(db as any);
+    await rebuildAllTopics(db as any, { minDocFrequency: 2 });
     const first = await getCorpusTopics(db as any);
 
-    await rebuildAllTopics(db as any);
+    await rebuildAllTopics(db as any, { minDocFrequency: 2 });
     const second = await getCorpusTopics(db as any);
 
     const strip = (rows: typeof first) => rows.map(r => ({ ...r, updated_at: '_' }));

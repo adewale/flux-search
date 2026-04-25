@@ -149,7 +149,7 @@ describe('GET /topics (corpus index)', () => {
       { issue_number: 2, source_url: 'x://2', published_at: '2024-02-01', year: 2024, month: 2 },
       bothKeys,
     );
-    await buildCorpusTopics(db as any);
+    await buildCorpusTopics(db as any, { minDocFrequency: 2 });
     await buildTopicTimeline(db as any);
 
     const { app, env } = makeApp(db);
@@ -184,7 +184,7 @@ describe('GET /topics (corpus index)', () => {
       { issue_number: 4, source_url: 'x://4', published_at: '2024-02-01', year: 2024, month: 2 },
       [{ keyword: 'fresh', display: 'fresh', rank: 1, score: 0.1 }],
     );
-    await buildCorpusTopics(db as any);
+    await buildCorpusTopics(db as any, { minDocFrequency: 2 });
 
     const { app, env } = makeApp(db);
     const res = await app.request('/topics?sort=recency', {}, env);
@@ -211,7 +211,7 @@ describe('GET /topics/:keyword', () => {
       { issue_number: 3, source_url: 'x://3', published_at: '2024-07-01', year: 2024, month: 7 },
       [{ keyword: 'other', display: 'Other', rank: 1, score: 0.1 }],
     );
-    await buildCorpusTopics(db as any);
+    await buildCorpusTopics(db as any, { minDocFrequency: 2 });
     await buildTopicTimeline(db as any);
 
     const { app, env } = makeApp(db);

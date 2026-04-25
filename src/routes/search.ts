@@ -5,7 +5,7 @@ import { searchFts, searchFilterOnly, autocompleteWords, getIssueByNumber } from
 import { searchVectorize } from '../lib/vector-search';
 import { rankResults, computeYearDistribution, computeQuarterSectionDistribution, computeSectionFacets, detectSnippetSection } from '../lib/hybrid-ranker';
 import { parseSections, toDisplaySection } from '../lib/sections';
-import { getTopicsForIssueIds, getTopicsByIssueId } from '../db/topic-queries';
+import { getTopicsForIssueIds, getTopicsByIssueId, getIssuesMatchingQueryTopics } from '../db/topic-queries';
 
 export const searchRoutes = new Hono<{ Bindings: Env }>();
 
@@ -162,12 +162,22 @@ searchRoutes.get('/search', async (c) => {
   const ftsQuery = buildFtsQuery(parsed);
   const semanticQuery = [parsed.freeText, ...parsed.phrases].filter(Boolean).join(' ');
 
-  const [lexicalResults, semanticResults] = await Promise.all([
+  // Pre-compute topic-boost candidates: extract topic-shaped strings from
+  // the query (free text, phrases, topic operator) and look up which
+  // issues carry those topics. The ranker uses this to bump thematic
+  // matches above incidental term hits.
+  const topicCandidates: string[] = [];
+  if (parsed.freeText) topicCandidates.push(parsed.freeText);
+  for (const p of parsed.phrases) topicCandidates.push(p);
+  if (parsed.filters.topic) topicCandidates.push(parsed.filters.topic);
+
+  const [lexicalResults, semanticResults, topicMatches] = await Promise.all([
     ftsQuery ? searchFts(c.env.DB, ftsQuery, parsed.filters) : Promise.resolve([]),
     semanticQuery ? searchVectorize(c.env, semanticQuery, parsed.filters) : Promise.resolve([]),
+    getIssuesMatchingQueryTopics(c.env.DB, topicCandidates),
   ]);
 
-  let ranked = rankResults(parsed, lexicalResults, semanticResults, c.env);
+  let ranked = rankResults(parsed, lexicalResults, semanticResults, c.env, { topicMatches });
 
   // Detect section for ALL results first — must run before filtering
   // and aggregates so that FTS-only results (which have null snippetSection
