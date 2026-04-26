@@ -95,6 +95,40 @@ describe('discoverAllIssueUrls', () => {
     await expect(discoverAllIssueUrls()).rejects.toThrow('Failed to fetch sitemap: 500');
   });
 
+  it('sends crawler headers when fetching sitemaps', async () => {
+    mockFetch.mockResolvedValue(xmlResponse(`
+      <urlset>
+        <url><loc>https://example.com/p/1</loc></url>
+      </urlset>
+    `));
+
+    const entries = await discoverAllIssueUrls();
+
+    expect(entries).toHaveLength(1);
+    expect(mockFetch).toHaveBeenCalledWith('https://read.fluxcollective.org/sitemap.xml', {
+      headers: {
+        'User-Agent': 'FluxSearch/1.0 (archive indexer)',
+        'Accept': 'application/xml,text/xml;q=0.9,*/*;q=0.8',
+      },
+    });
+  });
+
+  it('retries a rate-limited top-level sitemap fetch once', async () => {
+    mockFetch
+      .mockResolvedValueOnce(new Response('', { status: 429 }))
+      .mockResolvedValueOnce(xmlResponse(`
+        <urlset>
+          <url><loc>https://example.com/p/1</loc></url>
+        </urlset>
+      `));
+
+    const entries = await discoverAllIssueUrls();
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0].loc).toBe('https://example.com/p/1');
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
   it('handles sub-sitemap fetch failure gracefully', async () => {
     mockFetch
       .mockResolvedValueOnce(xmlResponse(`

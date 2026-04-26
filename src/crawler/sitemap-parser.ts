@@ -4,9 +4,24 @@ export interface SitemapEntry {
 }
 
 const SITEMAP_URL = 'https://read.fluxcollective.org/sitemap.xml';
+const SITEMAP_FETCH_INIT: RequestInit = {
+  headers: {
+    'User-Agent': 'FluxSearch/1.0 (archive indexer)',
+    'Accept': 'application/xml,text/xml;q=0.9,*/*;q=0.8',
+  },
+};
+
+async function fetchSitemap(url: string, maxAttempts = 2): Promise<Response> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const response = await fetch(url, SITEMAP_FETCH_INIT);
+    if (response.ok || response.status !== 429 || attempt === maxAttempts) return response;
+  }
+
+  throw new Error('Unreachable sitemap retry state');
+}
 
 export async function discoverAllIssueUrls(): Promise<SitemapEntry[]> {
-  const response = await fetch(SITEMAP_URL);
+  const response = await fetchSitemap(SITEMAP_URL);
   if (!response.ok) {
     throw new Error(`Failed to fetch sitemap: ${response.status}`);
   }
@@ -22,7 +37,7 @@ export async function discoverAllIssueUrls(): Promise<SitemapEntry[]> {
 
     const fetchPromises = subSitemapUrls.map(async (url) => {
       try {
-        const resp = await fetch(url);
+        const resp = await fetchSitemap(url);
         if (!resp.ok) {
           console.error(`Sub-sitemap fetch failed for ${url}: ${resp.status}`);
           return [];
