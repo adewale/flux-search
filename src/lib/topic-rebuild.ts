@@ -2,13 +2,18 @@ import { extractTopicsMulti } from './topic-multi-extract';
 import { stemPhrase } from './porter-stem';
 import { buildPhraseLexicon } from './pmi-lexicon';
 import {
+  annotateCorpusTopics,
   buildCorpusTopics,
   buildTopicTimeline,
   clusterCorpusTopics,
   getBlocklist,
+  getPhraseLexicon,
   replaceIssueTopics,
   replacePhraseLexicon,
+  replaceTopicSimilarities,
 } from '../db/topic-queries';
+import { buildTopicSimilarities } from './topic-similarity';
+import type { EmbedFn } from './topic-embed';
 
 export interface RebuildStats {
   issues_processed: number;
@@ -17,6 +22,7 @@ export interface RebuildStats {
   lexicon_phrases: number;
   cluster_merges: number;
   topics_suppressed: number;
+  similarity_pairs: number;
 }
 
 /**
@@ -31,6 +37,12 @@ export interface RebuildStats {
 export interface RebuildOptions {
   minDocFrequency?: number;
   clusterThreshold?: number;
+  /** Optional embedder for the cross-validation similarity pass. When
+   *  omitted, the pass is skipped (corpus rebuild stays cheap and the
+   *  existing Jaccard adjacency keeps working). */
+  embed?: EmbedFn;
+  /** α blend between cosine and Jaccard (0..1). Default 0.6. */
+  similarityAlpha?: number;
 }
 
 export async function rebuildAllTopics(
@@ -71,10 +83,48 @@ export async function rebuildAllTopics(
     }
   }
 
-  // Phase 3: aggregate, cluster, and build the timeline.
+  // Phase 3: aggregate, cluster, build the timeline, then annotate with
+  // confidence + burst score so the API can sort/filter without
+  // recomputing on every request.
   const corpusCount = await buildCorpusTopics(db, { minDocFrequency: opts.minDocFrequency });
   const merges = await clusterCorpusTopics(db, opts.clusterThreshold);
   const timelineCount = await buildTopicTimeline(db);
+  await annotateCorpusTopics(db);
+
+  // Phase 4 (optional): cross-validation. When an embedder is provided
+  // we embed each surviving keyword, blend cosine with Jaccard, and
+  // store the result for the topic detail page.
+  let similarityPairs = 0;
+  if (opts.embed) {
+    const survivors = await db.prepare(
+      'SELECT keyword, keyword_display FROM corpus_topics',
+    ).all<{ keyword: string; keyword_display: string }>();
+    const keywords = survivors.results.map(r => r.keyword);
+
+    if (keywords.length >= 2) {
+      const vectors = await opts.embed(survivors.results.map(r => r.keyword_display));
+      const embeddings = keywords.map((kw, i) => ({ keyword: kw, vector: vectors[i] ?? [] }))
+        .filter(e => e.vector.length > 0);
+
+      // Build issue-set per keyword for Jaccard.
+      const issueSets = new Map<string, Set<string>>();
+      const placeholders = embeddings.map(() => '?').join(',');
+      const sets = embeddings.length === 0 ? null : await db.prepare(
+        `SELECT keyword, issue_id FROM issue_topics WHERE keyword IN (${placeholders})`,
+      ).bind(...embeddings.map(e => e.keyword)).all<{ keyword: string; issue_id: string }>();
+      for (const row of sets?.results ?? []) {
+        const set = issueSets.get(row.keyword) ?? new Set<string>();
+        set.add(row.issue_id);
+        issueSets.set(row.keyword, set);
+      }
+
+      const pairs = buildTopicSimilarities(embeddings, issueSets, {
+        alpha: opts.similarityAlpha ?? 0.6,
+      });
+      await replaceTopicSimilarities(db, pairs);
+      similarityPairs = pairs.length;
+    }
+  }
 
   const elapsed = Date.now() - startedAt;
   const stats: RebuildStats = {
@@ -84,6 +134,7 @@ export async function rebuildAllTopics(
     lexicon_phrases: lexicon.length,
     cluster_merges: merges,
     topics_suppressed: totalSuppressed,
+    similarity_pairs: similarityPairs,
   };
   // Wide event log line — single canonical form mirroring Bobbin's
   // `refresh` / `queue_batch` events. Easy to grep, easy to chart.
@@ -93,4 +144,141 @@ export async function rebuildAllTopics(
     ...stats,
   }));
   return stats;
+}
+
+/**
+ * Incremental update for one issue. The full rebuild is fine for our
+ * 240-issue corpus today, but it scales linearly with corpus size and
+ * dominates the cron path once we cross a few thousand issues.
+ *
+ * The cheaper path:
+ *   1. Re-extract topics for just this issue (using the cached
+ *      phrase_lexicon — no need to rebuild it).
+ *   2. Replace its rows in issue_topics. Keep track of the union of
+ *      old + new keywords.
+ *   3. Re-aggregate corpus_topics rows for those keys only.
+ *   4. Re-build topic_timeline rows for those keys.
+ *   5. Re-annotate the affected corpus_topics rows.
+ *
+ * We don't run the cluster step here — Dice clustering is global by
+ * nature and only makes sense after a full rebuild. Most incremental
+ * updates won't change the clustering anyway.
+ */
+export async function rebuildOneIssueTopics(
+  db: D1Database,
+  issueId: string,
+): Promise<{ kept: number; affected_keywords: number }> {
+  const issue = await db.prepare(
+    'SELECT id, full_text_plain FROM issues WHERE id = ? AND status = ?',
+  ).bind(issueId, 'active').first<{ id: string; full_text_plain: string | null }>();
+  if (!issue) return { kept: 0, affected_keywords: 0 };
+
+  const oldRows = await db.prepare(
+    'SELECT keyword FROM issue_topics WHERE issue_id = ?',
+  ).bind(issueId).all<{ keyword: string }>();
+  const oldKeywords = new Set(oldRows.results.map(r => r.keyword));
+
+  const lexicon = await getPhraseLexicon(db);
+  const blocklist = await getBlocklist(db);
+
+  const { kept } = extractTopicsMulti(
+    issue.full_text_plain,
+    { blocklist, phraseLexicon: lexicon },
+  );
+  const rows = kept.map(t => ({
+    ...t,
+    provenance: t.provenance,
+    stem: stemPhrase(t.keyword),
+  }));
+  await replaceIssueTopics(db, issueId, rows);
+
+  const newKeywords = new Set(kept.map(k => k.keyword));
+  const affected = new Set([...oldKeywords, ...newKeywords]);
+
+  // Re-aggregate corpus_topics + topic_timeline for affected keywords
+  // only. We delete the affected rows then re-insert with a per-keyword
+  // SELECT.
+  for (const kw of affected) {
+    await reaggregateOneKeyword(db, kw);
+  }
+
+  return { kept: rows.length, affected_keywords: affected.size };
+}
+
+async function reaggregateOneKeyword(db: D1Database, keyword: string): Promise<void> {
+  // Delete existing aggregates for this keyword so that disappearance
+  // (occurrences dropped to 0) is honoured.
+  await db.prepare('DELETE FROM corpus_topics WHERE keyword = ?').bind(keyword).run();
+  await db.prepare('DELETE FROM topic_timeline WHERE keyword = ?').bind(keyword).run();
+
+  const counts = await db.prepare(`
+    SELECT
+      t.keyword,
+      MAX(t.keyword_display) AS keyword_display,
+      COUNT(DISTINCT t.issue_id) AS df,
+      AVG(t.score) AS avg_score,
+      MIN(i.published_at) AS first_seen,
+      MAX(i.published_at) AS last_seen,
+      MAX(t.ngram_size) AS ngram_size
+    FROM issue_topics t
+    JOIN issues i ON i.id = t.issue_id
+    WHERE t.keyword = ?
+      AND t.suppression_reason IS NULL
+      AND t.keyword NOT IN (SELECT keyword FROM topic_blocklist)
+    GROUP BY t.keyword
+  `).bind(keyword).first<{
+    keyword: string; keyword_display: string; df: number; avg_score: number;
+    first_seen: string | null; last_seen: string | null; ngram_size: number | null;
+  }>();
+
+  if (!counts || counts.df < 2) return; // disappear gracefully
+
+  await db.prepare(`
+    INSERT INTO corpus_topics (
+      keyword, keyword_display, doc_frequency, avg_score, aggregate_score,
+      first_seen, last_seen, ngram_size, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    counts.keyword, counts.keyword_display, counts.df, counts.avg_score,
+    (counts.df * 1.0) / Math.max(counts.avg_score || 1e-9, 1e-9),
+    counts.first_seen, counts.last_seen, counts.ngram_size,
+    new Date().toISOString(),
+  ).run();
+
+  // Re-insert timeline rows for this keyword.
+  const timelineRows = await db.prepare(`
+    SELECT i.year, i.month, COUNT(*) AS occurrences
+    FROM issue_topics t
+    JOIN issues i ON i.id = t.issue_id
+    WHERE t.keyword = ? AND i.year IS NOT NULL AND i.month IS NOT NULL
+    GROUP BY i.year, i.month
+  `).bind(keyword).all<{ year: number; month: number; occurrences: number }>();
+  for (const r of timelineRows.results) {
+    await db.prepare(
+      'INSERT INTO topic_timeline (keyword, year, month, occurrences) VALUES (?, ?, ?, ?)',
+    ).bind(keyword, r.year, r.month, r.occurrences).run();
+  }
+
+  // Re-annotate just this row (cheap: one timeline + one suppression query).
+  const { computeBurstScore } = await import('./topic-burst');
+  const { classifyTopicConfidence } = await import('./topic-quality');
+
+  const burst = computeBurstScore(timelineRows.results);
+  const provRow = await db.prepare(
+    `SELECT MAX(json_array_length(provenance)) AS pmax
+     FROM issue_topics WHERE keyword = ? AND provenance IS NOT NULL`,
+  ).bind(keyword).first<{ pmax: number | null }>();
+  const suppRow = await db.prepare(
+    'SELECT COUNT(*) AS c FROM issue_topics WHERE keyword = ? AND suppression_reason IS NOT NULL',
+  ).bind(keyword).first<{ c: number }>();
+  const confidence = classifyTopicConfidence({
+    provenanceCount: provRow?.pmax ?? 1,
+    docFrequency: counts.df,
+    suppressionHits: suppRow?.c ?? 0,
+  });
+  await db.prepare(
+    `UPDATE corpus_topics
+       SET confidence = ?, burst_score = ?, burst_quarter = ?
+     WHERE keyword = ?`,
+  ).bind(confidence, burst.burstScore, burst.burstQuarter, keyword).run();
 }

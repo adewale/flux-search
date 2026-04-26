@@ -219,11 +219,18 @@ export async function buildCorpusTopics(
 }
 
 /**
- * Dice-similarity clustering pass over the keys already in corpus_topics.
- * Merges near-duplicates (e.g. "loose coupling" / "loosely coupled") that
- * survived stem-based grouping. Keeps the row with the lowest avg_score
- * (most distinctive YAKE keyphrase) as canonical and folds the others'
- * doc_frequency into it. Returns the number of pairs merged.
+ * Two-pass clustering over corpus_topics.
+ *
+ *   Pass A — alias-driven: KNOWN_ENTITIES carries explicit aliases
+ *            (e.g. "llm" / "llms" → "large language models"). These are
+ *            hard merges because Dice on character bigrams misses them
+ *            for short acronyms.
+ *   Pass B — Dice character-bigram similarity ≥ `threshold`. Catches
+ *            morphological near-duplicates that survive stem-grouping
+ *            ("loose coupling" / "loosely coupled").
+ *
+ * Keeps the row with the lowest avg_score (most distinctive YAKE
+ * keyphrase) as canonical. Returns the number of pairs merged.
  */
 export async function clusterCorpusTopics(
   db: D1Database,
@@ -235,8 +242,12 @@ export async function clusterCorpusTopics(
   const list = rows.results;
   if (list.length < 2) return 0;
 
-  const { diceSimilarity } = await import('../lib/porter-stem');
-  // Single-pass union-find over rows sorted by avg_score asc (best first).
+  const [{ diceSimilarity }, { buildAliasMap }] = await Promise.all([
+    import('../lib/porter-stem'),
+    import('../lib/known-entities'),
+  ]);
+  const aliasMap = buildAliasMap();
+
   const sorted = [...list].sort((a, b) => a.avg_score - b.avg_score);
   const parent = new Map<string, string>();
   const find = (x: string): string => {
@@ -247,6 +258,19 @@ export async function clusterCorpusTopics(
   for (const row of sorted) parent.set(row.keyword, row.keyword);
 
   let merges = 0;
+
+  // Pass A: alias-driven hard merges.
+  for (const row of sorted) {
+    const canonical = aliasMap.get(row.keyword);
+    if (!canonical || canonical === row.keyword) continue;
+    // Only merge if the alias's canonical is itself a corpus row.
+    if (!parent.has(canonical)) continue;
+    const ra = find(canonical);
+    const rb = find(row.keyword);
+    if (ra !== rb) { parent.set(rb, ra); merges++; }
+  }
+
+  // Pass B: Dice similarity within the surviving rows.
   for (let i = 0; i < sorted.length; i++) {
     for (let j = i + 1; j < sorted.length; j++) {
       if (diceSimilarity(sorted[i].keyword, sorted[j].keyword) >= threshold) {
@@ -257,8 +281,9 @@ export async function clusterCorpusTopics(
     }
   }
 
-  // Apply merges: for each non-canonical row, fold its frequency into
-  // the canonical and delete it.
+  // Apply merges: fold each non-canonical row's frequency into its root
+  // and delete the original. Order doesn't matter — the final state is
+  // a single row per equivalence class.
   for (const row of list) {
     const canonical = find(row.keyword);
     if (canonical === row.keyword) continue;
@@ -270,6 +295,58 @@ export async function clusterCorpusTopics(
   }
 
   return merges;
+}
+
+/**
+ * Stamp confidence + burst_score onto each corpus_topic row.
+ * Pure SQL would force us to hand-compute log/lift in SQLite; doing it
+ * in JS with the helpers in topic-quality / topic-burst keeps the
+ * logic auditable.
+ */
+export async function annotateCorpusTopics(db: D1Database): Promise<void> {
+  const [
+    { computeBurstScore },
+    { classifyTopicConfidence },
+  ] = await Promise.all([
+    import('../lib/topic-burst'),
+    import('../lib/topic-quality'),
+  ]);
+
+  const rows = await db.prepare(
+    'SELECT keyword, doc_frequency FROM corpus_topics',
+  ).all<{ keyword: string; doc_frequency: number }>();
+
+  const stmts = await Promise.all(rows.results.map(async r => {
+    const timeline = await db.prepare(
+      'SELECT year, month, occurrences FROM topic_timeline WHERE keyword = ?',
+    ).bind(r.keyword).all<{ year: number; month: number; occurrences: number }>();
+    const burst = computeBurstScore(timeline.results);
+
+    const provenanceCounts = await db.prepare(
+      `SELECT MAX(json_array_length(provenance)) AS pmax
+       FROM issue_topics WHERE keyword = ? AND provenance IS NOT NULL`,
+    ).bind(r.keyword).first<{ pmax: number | null }>();
+    const provenanceCount = provenanceCounts?.pmax ?? 1;
+
+    const suppressionRow = await db.prepare(
+      'SELECT COUNT(*) AS c FROM issue_topics WHERE keyword = ? AND suppression_reason IS NOT NULL',
+    ).bind(r.keyword).first<{ c: number }>();
+    const suppressionHits = suppressionRow?.c ?? 0;
+
+    const confidence = classifyTopicConfidence({
+      provenanceCount,
+      docFrequency: r.doc_frequency,
+      suppressionHits,
+    });
+
+    return db.prepare(
+      `UPDATE corpus_topics
+         SET confidence = ?, burst_score = ?, burst_quarter = ?
+       WHERE keyword = ?`,
+    ).bind(confidence, burst.burstScore, burst.burstQuarter, r.keyword);
+  }));
+
+  if (stmts.length > 0) await db.batch(stmts);
 }
 
 export async function buildTopicTimeline(db: D1Database): Promise<number> {
@@ -291,11 +368,12 @@ export async function buildTopicTimeline(db: D1Database): Promise<number> {
 
 export async function getCorpusTopics(
   db: D1Database,
-  opts: { sort?: 'frequency' | 'recency' | 'alpha'; limit?: number; offset?: number } = {}
+  opts: { sort?: 'frequency' | 'recency' | 'alpha' | 'burst'; limit?: number; offset?: number } = {}
 ): Promise<CorpusTopicRow[]> {
   const orderBy =
     opts.sort === 'recency' ? 'last_seen DESC' :
     opts.sort === 'alpha' ? 'keyword ASC' :
+    opts.sort === 'burst' ? 'burst_score DESC NULLS LAST, aggregate_score DESC' :
     'aggregate_score DESC';
   const limit = opts.limit ?? 50;
   const offset = opts.offset ?? 0;
@@ -330,6 +408,46 @@ export async function replacePhraseLexicon(
     ).bind(e.phrase, e.pmi, e.cooccurrence, e.quality, updatedAt),
   );
   await db.batch(stmts);
+}
+
+/**
+ * Replace the topic_similarity table with a precomputed pair list.
+ * Pairs are bidirectional — each input pair is stored once for (a,b)
+ * and once for (b,a) — so route lookups are single-key.
+ */
+export async function replaceTopicSimilarities(
+  db: D1Database,
+  pairs: Array<{ keyword_a: string; keyword_b: string; cosine: number; jaccard: number; blended: number }>,
+): Promise<void> {
+  await db.prepare('DELETE FROM topic_similarity').run();
+  if (pairs.length === 0) return;
+  const updatedAt = new Date().toISOString();
+  const stmts = pairs.map(p =>
+    db.prepare(
+      `INSERT OR REPLACE INTO topic_similarity (keyword_a, keyword_b, cosine, jaccard, blended, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).bind(p.keyword_a, p.keyword_b, p.cosine, p.jaccard, p.blended, updatedAt),
+  );
+  await db.batch(stmts);
+}
+
+/**
+ * Read precomputed similarity rows for a keyword. Empty when the
+ * embedding pass never ran or no pair cleared the threshold.
+ */
+export async function getTopicSimilarities(
+  db: D1Database,
+  keyword: string,
+  limit = 10,
+): Promise<Array<{ keyword: string; cosine: number; jaccard: number; blended: number }>> {
+  const result = await db.prepare(
+    `SELECT keyword_b AS keyword, cosine, jaccard, blended
+     FROM topic_similarity
+     WHERE keyword_a = ?
+     ORDER BY blended DESC
+     LIMIT ?`,
+  ).bind(keyword, limit).all<{ keyword: string; cosine: number; jaccard: number; blended: number }>();
+  return result.results;
 }
 
 export async function getPhraseLexicon(

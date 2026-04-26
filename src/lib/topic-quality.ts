@@ -135,6 +135,41 @@ export function classifyTopicQuality(
   return { suppress: false, reason: null };
 }
 
+/**
+ * Topic-level confidence — analogous to result confidence in the
+ * hybrid ranker. Driven by:
+ *   - provenance breadth (how many strategies produced the topic)
+ *   - doc_frequency (how often the corpus uses it)
+ *   - whether quality gates ever rejected the keyword
+ *
+ * Used to weight chips in the UI without baking thresholds into CSS.
+ */
+export type TopicConfidence = 'high' | 'medium' | 'low';
+
+export interface ConfidenceInputs {
+  provenanceCount: number;
+  docFrequency: number;
+  /** Number of issues that suppressed this keyword for any reason. */
+  suppressionHits?: number;
+}
+
+export function classifyTopicConfidence(input: ConfidenceInputs): TopicConfidence {
+  const provenance = Math.max(0, input.provenanceCount);
+  const df = Math.max(0, input.docFrequency);
+  const suppressed = Math.max(0, input.suppressionHits ?? 0);
+
+  // Suppression is a louder signal than provenance: a topic the quality
+  // gate rejected even once should drop a tier.
+  const tierAdjust = suppressed > 0 ? -1 : 0;
+
+  let tier: 0 | 1 | 2 = 0; // 0=low, 1=medium, 2=high
+  if (provenance >= 2 && df >= 5) tier = 2;
+  else if (provenance >= 2 || df >= 3) tier = 1;
+
+  const final = Math.max(0, Math.min(2, tier + tierAdjust));
+  return (['low', 'medium', 'high'] as const)[final];
+}
+
 export interface FilterResult<T extends QualityTopic> {
   kept: T[];
   suppressed: Array<T & { suppression_reason: SuppressionReason }>;

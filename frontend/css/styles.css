@@ -1051,6 +1051,80 @@ body {
   gap: 0.375rem;
 }
 
+/* Topics index: confidence tiers */
+.topics-row.confidence-low .topics-row-link { opacity: 0.55; }
+.topics-row.confidence-medium .topics-row-link { opacity: 0.85; }
+.topics-row.confidence-high .topics-row-link { opacity: 1; }
+
+.topics-row-burst {
+  font-size: var(--size-xs);
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-left: 0.375rem;
+}
+
+.topic-sparkline-caption {
+  font-family: var(--font);
+  font-size: var(--size-xs);
+  color: var(--text-tertiary);
+  margin: 0.25rem 0 0 0;
+}
+
+/* Terminology drift */
+.topic-drift {
+  margin: 1rem 0 1.5rem 0;
+}
+
+.topic-drift-title {
+  font-family: var(--font);
+  font-size: var(--size-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: 0 0 0.5rem 0;
+}
+
+.topic-drift-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.topic-drift-bucket {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px dotted var(--border);
+}
+
+.topic-drift-quarter {
+  font-family: var(--font);
+  font-size: var(--size-xs);
+  color: var(--text-tertiary);
+}
+
+.topic-drift-words {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0;
+  margin: 0;
+  gap: 0.375rem;
+}
+
+.topic-drift-word-text {
+  font-family: var(--font-body);
+  font-size: var(--size-sm);
+  color: var(--text);
+}
+
 /* Pagination */
 .pagination {
   display: flex;

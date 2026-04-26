@@ -62,6 +62,10 @@ export function extractTopics(
  * Extract and persist topics for an issue. Best-effort: any failure is
  * logged and swallowed so it cannot block ingestion (matches the embedder
  * contract in ingestor.ts).
+ *
+ * Uses the incremental rebuild path so corpus_topics + topic_timeline +
+ * confidence + burst_score for the keys this issue touched all stay in
+ * sync — without running the global cluster pass on every ingestion.
  */
 export async function persistIssueTopics(
   db: D1Database,
@@ -69,8 +73,14 @@ export async function persistIssueTopics(
   text: string | null | undefined
 ): Promise<void> {
   try {
-    const topics = extractTopics(text);
-    await replaceIssueTopics(db, issueId, topics);
+    if (text == null) {
+      await replaceIssueTopics(db, issueId, []);
+      return;
+    }
+    // Lazy import to avoid a load-time cycle (topic-rebuild → topic-queries
+    // → topic-extractor would otherwise pull rebuild on the hot path).
+    const { rebuildOneIssueTopics } = await import('./topic-rebuild');
+    await rebuildOneIssueTopics(db, issueId);
   } catch (err) {
     console.error(`Topic extraction failed for issue ${issueId}:`, err);
   }

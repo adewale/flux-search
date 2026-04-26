@@ -37,6 +37,24 @@ export interface KnownEntityHit {
   occurrences: number;
 }
 
+/**
+ * Build a quick alias→canonical lookup for the cluster step. Each alias
+ * (canonical included) maps to its canonical keyword. Used by
+ * clusterCorpusTopics to do hard merges before character-bigram Dice
+ * similarity — which is too coarse for acronyms like "LLM" / "large
+ * language models".
+ */
+export function buildAliasMap(entities: KnownEntity[] = KNOWN_ENTITIES): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const e of entities) {
+    out.set(e.canonical.toLowerCase(), e.canonical.toLowerCase());
+    for (const a of e.aliases) {
+      out.set(a.toLowerCase(), e.canonical.toLowerCase());
+    }
+  }
+  return out;
+}
+
 export function findKnownEntities(text: string, entities: KnownEntity[] = KNOWN_ENTITIES): KnownEntityHit[] {
   if (!text) return [];
   const lower = text.toLowerCase();

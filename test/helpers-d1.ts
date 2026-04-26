@@ -75,6 +75,7 @@ export function makeD1(): D1Like {
   sqlite.exec(readFileSync(join(MIGRATIONS_DIR, '0006_topics.sql'), 'utf-8'));
   sqlite.exec(readFileSync(join(MIGRATIONS_DIR, '0007_topic_quality.sql'), 'utf-8'));
   sqlite.exec(readFileSync(join(MIGRATIONS_DIR, '0008_phrase_lexicon.sql'), 'utf-8'));
+  sqlite.exec(readFileSync(join(MIGRATIONS_DIR, '0009_topic_enrichment.sql'), 'utf-8'));
   return wrap(sqlite);
 }
 

@@ -76,6 +76,9 @@ export interface CorpusTopicRow {
   last_seen: string | null;
   ngram_size: number | null;
   updated_at: string;
+  confidence: 'high' | 'medium' | 'low' | null;
+  burst_score: number | null;
+  burst_quarter: string | null;
 }
 
 export interface TopicTimelineRow {

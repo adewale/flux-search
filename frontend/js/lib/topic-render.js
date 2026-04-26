@@ -102,6 +102,10 @@ export function topicLandingStripHtml(corpusTopics) {
 /**
  * /topics page: full corpus list with frequency. Unlike the landing strip
  * it lists everything and does no slicing.
+ *
+ * Each row is annotated with the topic's confidence tier (high/medium/low)
+ * so CSS can shade lower-confidence entries lighter without baking
+ * thresholds into the DOM.
  */
 export function topicsIndexHtml(corpusTopics) {
   if (!Array.isArray(corpusTopics) || corpusTopics.length === 0) {
@@ -112,9 +116,15 @@ export function topicsIndexHtml(corpusTopics) {
     var display = t.keyword_display || t.keyword || '';
     if (!keyword) return '';
     var href = '/topics/' + encodeURIComponent(keyword);
-    return '<li class="topics-row">' +
+    var conf = t.confidence ? ' confidence-' + t.confidence : '';
+    var burst = (typeof t.burst_score === 'number' && t.burst_score >= 2)
+      ? ' <span class="topics-row-burst" title="Concentrated in ' +
+        escapeHtml(t.burst_quarter || '') + '">burst</span>'
+      : '';
+    return '<li class="topics-row' + conf + '">' +
       '<a class="topics-row-link" href="' + href + '">' + escapeHtml(display) + '</a>' +
       ' <span class="topics-row-freq">' + escapeHtml(String(t.doc_frequency || 0)) + '</span>' +
+      burst +
       '</li>';
   }).filter(Boolean).join('');
   return '<ul class="topics-index">' + rows + '</ul>';

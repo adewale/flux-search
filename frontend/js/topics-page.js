@@ -64,7 +64,31 @@ async function loadTopicDetail(keyword) {
     var sparkline = data.timeline && data.timeline.length > 0
       ? '<div class="topic-sparkline-host" aria-label="Mentions over time">' +
         topicSparklineSvg(data.timeline, { width: 320, height: 36 }) +
+        (typeof data.burst_score === 'number' && data.burst_score >= 2
+          ? '<p class="topic-sparkline-caption">Most concentrated in ' +
+            escapeHtml(data.burst_quarter || '') +
+            ' (burst ' + escapeHtml(data.burst_score.toFixed(2)) + ')</p>'
+          : '') +
         '</div>'
+      : '';
+
+    var drift = (data.drift && data.drift.length > 0)
+      ? '<aside class="topic-drift" aria-label="Terminology drift over time">' +
+        '<h3 class="topic-drift-title">Context shifts</h3>' +
+        '<ol class="topic-drift-list">' +
+        data.drift.map(function (b) {
+          var words = (b.topContextWords || []).slice(0, 5).map(function (w) {
+            return '<li class="topic-drift-word"><span class="topic-drift-word-text">' +
+              escapeHtml(w.word) + '</span></li>';
+          }).join('');
+          return '<li class="topic-drift-bucket">' +
+            '<span class="topic-drift-quarter">' +
+              escapeHtml(b.year + ' Q' + b.quarter) +
+            '</span>' +
+            '<ul class="topic-drift-words">' + words + '</ul>' +
+            '</li>';
+        }).join('') +
+        '</ol></aside>'
       : '';
 
     var adjacent = (data.adjacent || []).length > 0
@@ -100,6 +124,7 @@ async function loadTopicDetail(keyword) {
       sparkline +
       '<a class="topics-search-link" href="/search?q=' +
         encodeURIComponent('topic:"' + data.keyword + '"') + '">Search this topic</a>' +
+      drift +
       adjacent +
       (issueRows ? '<ul class="topic-issues-list">' + issueRows + '</ul>' : '');
     detailEl.hidden = false;

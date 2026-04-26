@@ -5,8 +5,10 @@ import {
   getTopicTimeline,
   getIssueIdsByTopic,
   getAdjacentTopics,
+  getTopicSimilarities,
 } from '../db/topic-queries';
 import { normalizeKeyword } from '../lib/topic-extractor';
+import { computeTerminologyDrift } from '../lib/terminology-drift';
 import type { IssueRow } from '../db/types';
 
 export const topicRoutes = new Hono<{ Bindings: Env }>();
@@ -18,9 +20,10 @@ topicRoutes.get('/topics', async (c) => {
   }
 
   const sortParam = c.req.query('sort');
-  const sort: 'frequency' | 'recency' | 'alpha' =
+  const sort: 'frequency' | 'recency' | 'alpha' | 'burst' =
     sortParam === 'recency' ? 'recency' :
     sortParam === 'alpha' ? 'alpha' :
+    sortParam === 'burst' ? 'burst' :
     'frequency';
   const limit = Math.min(200, Math.max(1, parseInt(c.req.query('limit') ?? '50') || 50));
   const offset = Math.max(0, parseInt(c.req.query('offset') ?? '0') || 0);
@@ -41,7 +44,12 @@ topicRoutes.get('/topics/:keyword', async (c) => {
 
   const corpusRow = await c.env.DB.prepare(
     'SELECT * FROM corpus_topics WHERE keyword = ?',
-  ).bind(keyword).first<{ keyword: string; keyword_display: string; doc_frequency: number; aggregate_score: number; first_seen: string | null; last_seen: string | null }>();
+  ).bind(keyword).first<{
+    keyword: string; keyword_display: string; doc_frequency: number;
+    aggregate_score: number; first_seen: string | null; last_seen: string | null;
+    confidence: 'high' | 'medium' | 'low' | null;
+    burst_score: number | null; burst_quarter: string | null;
+  }>();
 
   const issueIds = await getIssueIdsByTopic(c.env.DB, keyword);
   if (!corpusRow && issueIds.length === 0) {
@@ -51,6 +59,25 @@ topicRoutes.get('/topics/:keyword', async (c) => {
   const issues = issueIds.length === 0 ? [] : await fetchIssuesById(c.env.DB, issueIds);
   const timeline = await getTopicTimeline(c.env.DB, keyword);
   const adjacent = await getAdjacentTopics(c.env.DB, keyword, 12);
+  // Cosine-validated adjacency. Empty when the embedding pass hasn't
+  // run; the route still falls back to Jaccard adjacency above.
+  const similar = await getTopicSimilarities(c.env.DB, keyword, 12);
+  // Terminology drift: walk the issue texts and compute per-quarter
+  // distinctive context. Cheap because we already have the texts in
+  // memory from the issues query above.
+  const drift = computeTerminologyDrift(
+    keyword,
+    issues
+      .filter(i => i.full_text_plain && i.published_at)
+      .map(i => {
+        const d = new Date((i.published_at ?? '') + 'T00:00:00Z');
+        return {
+          text: i.full_text_plain ?? '',
+          year: d.getUTCFullYear(),
+          month: d.getUTCMonth() + 1,
+        };
+      }),
+  );
 
   // Pick a display form: prefer the corpus row, else the first issue's display.
   const fallbackDisplay =
@@ -63,8 +90,13 @@ topicRoutes.get('/topics/:keyword', async (c) => {
     keyword_display: corpusRow?.keyword_display ?? fallbackDisplay,
     doc_frequency: corpusRow?.doc_frequency ?? issueIds.length,
     aggregate_score: corpusRow?.aggregate_score ?? null,
+    confidence: (corpusRow as any)?.confidence ?? null,
+    burst_score: (corpusRow as any)?.burst_score ?? null,
+    burst_quarter: (corpusRow as any)?.burst_quarter ?? null,
     first_seen: corpusRow?.first_seen ?? null,
     last_seen: corpusRow?.last_seen ?? null,
+    drift,
+    similar,
     issues: issues.map(i => ({
       issue_id: i.id,
       issue_number: i.issue_number,
