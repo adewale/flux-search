@@ -110,7 +110,15 @@ function extractIssueStructure(markdown: string): {
         .replace(/^[""\u201C>]+/, '')
         .replace(/[""\u201D]+$/, '')
         .trim();
-      if (!openingQuote) { openingQuote = null; continue; }
+      // Reject if the cleaned result is empty, whitespace, or contains
+      // only quote/punctuation characters \u2014 those occur when a single
+      // bare quote hid inside whitespace and got exposed by trimming
+      // (e.g. `> " "     "` \u2192 `"`). Such inputs are not real opening
+      // quotes; keep walking lines for a real one.
+      if (!openingQuote || /^[\s"">\u201C\u201D]*$/.test(openingQuote)) {
+        openingQuote = null;
+        continue;
+      }
       break;
     }
   }

@@ -6,6 +6,7 @@
 import { initAutocomplete } from './lib/autocomplete.js';
 import { renderResults, clearResults, renderPagination } from './lib/result-list.js';
 import { createSearchMachine } from './lib/search-state.js';
+import { topicLandingStripHtml } from './lib/topic-render.js';
 
 initSearchPage();
 
@@ -56,10 +57,13 @@ function initSearchPage() {
 
     if (s.name === 'RESULTS' || s.name === 'FEATURED_RESULTS') {
       performSearch(s.query, 1);
+      if (s.name === 'FEATURED_RESULTS') loadRecurringThemes();
+      else hideRecurringThemes();
     } else if (s.name === 'LANDING' || s.name === 'LANDING_FEATURED') {
       clearAll(s);
       loadLandingQuote();
       if (s.autoLoadLatest) loadLatestSearch();
+      hideRecurringThemes();
     }
     // BROWSING: intentionally no DOM side effects beyond the input-value
     // sync above. Results, chips, pagination and quote stay as they were.
@@ -236,6 +240,28 @@ function initSearchPage() {
   // the reducer owns the query, the ✕ visibility, and the search run. If
   // the response arrives after the user has typed or dismissed, the
   // reducer ignores the event.
+  async function loadRecurringThemes() {
+    var host = document.getElementById('recurring-themes');
+    if (!host) return;
+    try {
+      var resp = await fetch('/topics?sort=frequency&limit=12');
+      if (!resp.ok) return;
+      var data = await resp.json();
+      var html = topicLandingStripHtml(data.topics || []);
+      if (html) {
+        host.innerHTML = html;
+        host.hidden = false;
+      } else {
+        hideRecurringThemes();
+      }
+    } catch (e) { /* silently degrade */ }
+  }
+
+  function hideRecurringThemes() {
+    var host = document.getElementById('recurring-themes');
+    if (host) { host.innerHTML = ''; host.hidden = true; }
+  }
+
   async function loadLatestSearch() {
     try {
       var resp = await fetch('/latest-issue');

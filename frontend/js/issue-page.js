@@ -4,6 +4,7 @@
 
 import { formatDate, markdownToHtml } from './lib/utils.js';
 import { formatSectionLabel as formatSectionType } from './lib/section-labels.js';
+import { topicSidePanelHtml, topicMobileDetailsHtml } from './lib/topic-render.js';
 
 function renderMarkdown(md) {
   // Use marked if available (loaded async from CDN), otherwise use the
@@ -79,6 +80,8 @@ async function loadIssue(num, targetSection) {
       renderSection(activeSection);
     }
 
+    renderTopics(data.topics || []);
+
     // Tab click handlers
     navEl.querySelectorAll('.section-tab').forEach(function (tab) {
       tab.addEventListener('click', function () {
@@ -114,6 +117,19 @@ async function loadIssue(num, targetSection) {
   } catch (err) {
     console.error('Failed to load issue:', err);
     showError();
+  }
+}
+
+function renderTopics(topics) {
+  var sideEl = document.getElementById('issue-topics-side');
+  var mobileEl = document.getElementById('issue-topics-mobile');
+  if (sideEl) {
+    sideEl.innerHTML = topicSidePanelHtml(topics);
+    sideEl.hidden = topics.length === 0;
+  }
+  if (mobileEl) {
+    mobileEl.innerHTML = topicMobileDetailsHtml(topics);
+    mobileEl.hidden = topics.length === 0;
   }
 }
 

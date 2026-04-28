@@ -4,6 +4,7 @@ import { adminAuth } from '../middleware/admin-auth';
 import { getCrawlRun, getIssueCount, getIssueDateRange, getMissingIssueNumbers } from '../db/queries';
 import { runBootstrap } from '../crawler/bootstrap';
 import { runReindex } from '../crawler/ingestor';
+import { rebuildAllTopics } from '../lib/topic-rebuild';
 
 export const adminRoutes = new Hono<{ Bindings: Env }>();
 
@@ -51,6 +52,16 @@ adminRoutes.get('/crawl-runs/:id', async (c) => {
   }
 
   return c.json(run);
+});
+
+adminRoutes.post('/rebuild-topics', async (c) => {
+  c.executionCtx.waitUntil(
+    rebuildAllTopics(c.env.DB)
+      .then(stats => console.log('rebuild-topics done:', stats))
+      .catch(err => console.error('rebuild-topics failed:', err))
+  );
+
+  return c.json({ message: 'Topic rebuild started' }, 202);
 });
 
 adminRoutes.get('/coverage', async (c) => {

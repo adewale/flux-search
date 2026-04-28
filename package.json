@@ -17,6 +17,7 @@
     "corpus:pipeline": "npm run corpus:fetch && npm run corpus:process && npm run corpus:validate"
   },
   "dependencies": {
+    "@ade_oshineye/yaket": "^0.4.0",
     "hono": "^4.7.0"
   },
   "devDependencies": {

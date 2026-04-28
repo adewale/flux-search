@@ -5,6 +5,7 @@ import { searchFts, searchFilterOnly, autocompleteWords, getIssueByNumber } from
 import { searchVectorize } from '../lib/vector-search';
 import { rankResults, computeYearDistribution, computeQuarterSectionDistribution, computeSectionFacets, detectSnippetSection } from '../lib/hybrid-ranker';
 import { parseSections, toDisplaySection } from '../lib/sections';
+import { getTopicsForIssueIds, getTopicsByIssueId, getIssuesMatchingQueryTopics } from '../db/topic-queries';
 
 export const searchRoutes = new Hono<{ Bindings: Env }>();
 
@@ -60,6 +61,7 @@ searchRoutes.get('/search', async (c) => {
       const quarterDist: Record<string, Record<string, number>> = {};
       if (qKey) quarterDist[qKey] = { [snippetSection || 'other']: 1 };
 
+      const topics = await getTopicsByIssueId(c.env.DB, issue.id, 3);
       return c.json({
         parsed_query: parsed,
         applied_filters: parsed.operators,
@@ -77,6 +79,7 @@ searchRoutes.get('/search', async (c) => {
           confidence: 'high',
           canonical_url: issue.canonical_url || issue.source_url,
           matched_by: ['issue_number'],
+          topics: topics.map(t => t.keyword_display),
           ...(debug ? { debug: { final_score: 10, lexical_rank: null, semantic_rank: null } } : {}),
         }],
       });
@@ -126,6 +129,12 @@ searchRoutes.get('/search', async (c) => {
     }
 
     const offset = (page - 1) * limit;
+    const paged = withSections.slice(offset, offset + limit);
+    const topicsByIssue = await getTopicsForIssueIds(
+      c.env.DB,
+      paged.map(({ issue }) => issue.id),
+      3,
+    );
 
     return c.json({
       parsed_query: { free_text: parsed.freeText, phrases: parsed.phrases, filters: parsed.filters },
@@ -134,7 +143,7 @@ searchRoutes.get('/search', async (c) => {
       year_distribution: yearDist,
       quarter_distribution: quarterSectionDist,
       section_facets: sectionFacets,
-      results: withSections.slice(offset, offset + limit).map(({ issue, snippetSection }) => ({
+      results: paged.map(({ issue, snippetSection }) => ({
         issue_id: issue.id,
         title: issue.title,
         issue_number: issue.issue_number,
@@ -144,6 +153,7 @@ searchRoutes.get('/search', async (c) => {
         confidence: 'medium',
         canonical_url: issue.canonical_url || issue.source_url,
         matched_by: ['filter'],
+        topics: topicsByIssue.get(issue.id) ?? [],
       })),
     });
   }
@@ -152,12 +162,22 @@ searchRoutes.get('/search', async (c) => {
   const ftsQuery = buildFtsQuery(parsed);
   const semanticQuery = [parsed.freeText, ...parsed.phrases].filter(Boolean).join(' ');
 
-  const [lexicalResults, semanticResults] = await Promise.all([
+  // Pre-compute topic-boost candidates: extract topic-shaped strings from
+  // the query (free text, phrases, topic operator) and look up which
+  // issues carry those topics. The ranker uses this to bump thematic
+  // matches above incidental term hits.
+  const topicCandidates: string[] = [];
+  if (parsed.freeText) topicCandidates.push(parsed.freeText);
+  for (const p of parsed.phrases) topicCandidates.push(p);
+  if (parsed.filters.topic) topicCandidates.push(parsed.filters.topic);
+
+  const [lexicalResults, semanticResults, topicMatches] = await Promise.all([
     ftsQuery ? searchFts(c.env.DB, ftsQuery, parsed.filters) : Promise.resolve([]),
     semanticQuery ? searchVectorize(c.env, semanticQuery, parsed.filters) : Promise.resolve([]),
+    getIssuesMatchingQueryTopics(c.env.DB, topicCandidates),
   ]);
 
-  let ranked = rankResults(parsed, lexicalResults, semanticResults, c.env);
+  let ranked = rankResults(parsed, lexicalResults, semanticResults, c.env, { topicMatches });
 
   // Detect section for ALL results first — must run before filtering
   // and aggregates so that FTS-only results (which have null snippetSection
@@ -181,6 +201,11 @@ searchRoutes.get('/search', async (c) => {
   // Paginate
   const offset = (page - 1) * limit;
   const paged = ranked.slice(offset, offset + limit);
+  const topicsByIssue = await getTopicsForIssueIds(
+    c.env.DB,
+    paged.map(r => r.issue.id),
+    3,
+  );
 
   return c.json({
     parsed_query: {
@@ -203,6 +228,7 @@ searchRoutes.get('/search', async (c) => {
       confidence: r.confidence,
       canonical_url: r.issue.canonical_url || r.issue.source_url,
       matched_by: r.matchedBy,
+      topics: topicsByIssue.get(r.issue.id) ?? [],
       ...(debug ? { debug: r.debugMeta } : {}),
     })),
   });
@@ -250,19 +276,21 @@ export function buildFtsQuery(parsed: ReturnType<typeof parseQuery>): string {
 // Latest issue for the landing page
 searchRoutes.get('/latest-issue', async (c) => {
   const result = await c.env.DB.prepare(`
-    SELECT issue_number, title, lead_essay_title, published_at, opening_quote, summary,
+    SELECT id, issue_number, title, lead_essay_title, published_at, opening_quote, summary,
            canonical_url, source_url
     FROM issues
     WHERE status = 'active' AND issue_number IS NOT NULL
     ORDER BY published_at DESC
     LIMIT 1
   `).first<{
-    issue_number: number; title: string; lead_essay_title: string | null;
+    id: string; issue_number: number; title: string; lead_essay_title: string | null;
     published_at: string; opening_quote: string | null; summary: string | null;
     canonical_url: string | null; source_url: string;
   }>();
 
   if (!result) return c.json({ issue: null });
+
+  const topics = await getTopicsByIssueId(c.env.DB, result.id, 5);
 
   return c.json({
     issue_number: result.issue_number,
@@ -271,6 +299,7 @@ searchRoutes.get('/latest-issue', async (c) => {
     opening_quote: result.opening_quote,
     summary: result.summary,
     canonical_url: result.canonical_url || result.source_url,
+    topics: topics.map(t => t.keyword_display),
   });
 });
 

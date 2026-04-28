@@ -80,6 +80,7 @@
   --shadow: rgba(28, 25, 23, 0.08);
   --radius-sm: 3px;
   --radius: 6px;
+  --radius-pill: 999px;        /* chip primitive — distinct from corner radii */
   --max-width: 640px;
 
   /* Type scale — 1.5× ratio, 5 steps */
@@ -102,6 +103,15 @@
   /* Tracking */
   --tracking-tight: -0.02em;
   --tracking-open: 0.02em;
+
+  /*
+   * Breakpoints (CSS custom properties can't be referenced inside @media,
+   * so this is a documentation token — the values must be repeated in
+   * @media queries below):
+   *   --bp-mobile-portrait:  640px (max)  — handheld portrait
+   *   --bp-tablet:           900px (min)  — issue-page side panel appears
+   *   --bp-mobile-landscape: 920px (max)  — handheld landscape
+   */
 
   /* Section colors — oklch(65% 0.08 H), varying only hue */
   --section-lead-essay: oklch(65% 0.08 60);
@@ -808,6 +818,300 @@ body {
   color: var(--text);
   padding: 0.05em 0.15em;
   border-radius: 2px;
+}
+
+/*
+ * Eyebrow — small uppercased section label sitting above grouped content.
+ * Shared between issue-page topics, recurring themes, drift, adjacent.
+ * Tracks with --tracking-open (the system's small-text tracking value);
+ * the existing `2 trackings` rule is preserved.
+ */
+.eyebrow {
+  font-family: var(--font);
+  font-size: var(--size-sm);
+  font-weight: 600;
+  letter-spacing: var(--tracking-open);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: 0 0 0.5rem 0;
+}
+
+/*
+ * Chip — pill-shaped link primitive used for topics on result cards,
+ * the issue side panel, the landing themes strip, and adjacent topics
+ * on /topics/:keyword. One class, four placements; modifiers may
+ * decorate (e.g. .chip-burst) but the base shape is invariant.
+ */
+.chip {
+  display: inline-block;
+  font-family: var(--font);
+  font-size: var(--size-sm);
+  color: var(--text-tertiary);
+  background: var(--tag-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 0.125rem 0.625rem;
+  text-decoration: none;
+  line-height: 1.6;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Group containers for chip rows. */
+.result-topics,
+.issue-topics-chips,
+.topic-adjacent-chips {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.recurring-themes-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.theme-freq {
+  margin-left: 0.25rem;
+  color: var(--text-tertiary);
+  opacity: 0.7;
+}
+
+/* Issue page: topics side panel + mobile collapse.
+ * 900px is the tablet breakpoint — see :root for the documented scale. */
+.issue-body-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 900px) {
+  .issue-body-grid {
+    grid-template-columns: minmax(0, 1fr) 16rem;
+  }
+  .issue-topics-mobile-host { display: none; }
+}
+
+@media (max-width: 899px) {
+  .issue-topics-side-host { display: none; }
+}
+
+.issue-topics-panel {
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+  border-left: 1px solid var(--border);
+  padding-left: 1rem;
+}
+
+.issue-topics-mobile {
+  margin: 0.75rem 0;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.issue-topics-mobile > summary {
+  font-family: var(--font);
+  font-size: var(--size-sm);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+
+/* Recurring themes strip on landing */
+.recurring-themes {
+  margin: 1.5rem 0;
+}
+
+/* /topics page */
+.topics-index {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.5rem 1.5rem;
+}
+
+.topics-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px dotted var(--border);
+  padding: 0.25rem 0;
+}
+
+.topics-row-link {
+  font-family: var(--font-body);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.topics-row-link:hover { color: var(--accent); }
+
+.topics-row-freq {
+  font-family: var(--font);
+  font-size: var(--size-sm);
+  color: var(--text-tertiary);
+}
+
+.topics-detail-meta {
+  font-family: var(--font);
+  font-size: var(--size-sm);
+  color: var(--text-tertiary);
+  margin: 0 0 0.75rem 0;
+}
+
+.topics-search-link {
+  display: inline-block;
+  margin-bottom: 1rem;
+  font-family: var(--font);
+  font-size: var(--size-sm);
+  color: var(--accent);
+}
+
+.topic-issues-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.topic-issue-row a {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--text);
+}
+
+.topic-issue-row a:hover { background: var(--tag-bg); }
+
+.topic-issue-number {
+  font-family: var(--font);
+  font-size: var(--size-sm);
+  color: var(--text-tertiary);
+  min-width: 3rem;
+}
+
+.topic-issue-date {
+  font-family: var(--font);
+  font-size: var(--size-sm);
+  color: var(--text-tertiary);
+  min-width: 6rem;
+}
+
+.topic-issue-title {
+  font-family: var(--font-body);
+  font-size: var(--size-sm);
+  color: var(--text);
+}
+
+/* Topic detail: sparkline + adjacent topics */
+.topic-sparkline-host {
+  margin: 0.5rem 0 1rem 0;
+  max-width: 100%;
+}
+
+.topic-sparkline {
+  width: 100%;
+  max-width: 320px;
+  height: 36px;
+  display: block;
+}
+
+.sparkline-path {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  fill: none;
+}
+
+.sparkline-dot {
+  fill: var(--accent);
+}
+
+.topic-adjacent {
+  margin: 1rem 0 1.5rem 0;
+}
+
+/*
+ * Topics index — confidence tiers mirror the result-card pattern:
+ * high gets bold, low gets lighter weight + opacity, medium is the
+ * default. One mechanism for one concept.
+ */
+.topics-row.confidence-high .topics-row-link {
+  font-weight: 700;
+}
+.topics-row.confidence-low {
+  opacity: 0.6;
+}
+.topics-row.confidence-low .topics-row-link {
+  font-weight: 400;
+}
+
+.topics-row-burst {
+  font-size: var(--size-sm);
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: var(--tracking-open);
+  text-transform: uppercase;
+  margin-left: 0.375rem;
+}
+
+.topic-sparkline-caption {
+  font-family: var(--font);
+  font-size: var(--size-sm);
+  color: var(--text-tertiary);
+  margin: 0.25rem 0 0 0;
+}
+
+/* Terminology drift */
+.topic-drift {
+  margin: 1rem 0 1.5rem 0;
+}
+
+.topic-drift-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.topic-drift-bucket {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px dotted var(--border);
+}
+
+.topic-drift-quarter {
+  font-family: var(--font);
+  font-size: var(--size-sm);
+  color: var(--text-tertiary);
+}
+
+.topic-drift-words {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  padding: 0;
+  margin: 0;
+  gap: 0.375rem;
+}
+
+.topic-drift-word-text {
+  font-family: var(--font-body);
+  font-size: var(--size-sm);
+  color: var(--text);
 }
 
 /* Pagination */

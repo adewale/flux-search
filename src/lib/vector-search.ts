@@ -1,5 +1,6 @@
 import type { Env } from '../env';
 import type { SearchFilters, IssueRow } from '../db/types';
+import { getIssueIdsByTopic } from '../db/topic-queries';
 
 export interface SemanticCandidate {
   issueId: string;
@@ -85,12 +86,18 @@ async function doVectorSearch(
   const issues = await fetchIssues(env.DB, issueIds);
 
   // Apply date filters that Vectorize can't handle
-  const filtered = issues.filter(issue => {
+  let filtered = issues.filter(issue => {
     if (filters.before && issue.published_at && issue.published_at >= filters.before) return false;
     if (filters.after && issue.published_at && issue.published_at <= filters.after) return false;
     if (filters.year && issue.year !== filters.year) return false;
     return true;
   });
+
+  // Topic filter: intersect with issues carrying the keyword
+  if (filters.topic) {
+    const topicIssueIds = new Set(await getIssueIdsByTopic(env.DB, filters.topic));
+    filtered = filtered.filter(i => topicIssueIds.has(i.id));
+  }
 
   // Build candidates sorted by top score
   const candidates: SemanticCandidate[] = filtered
