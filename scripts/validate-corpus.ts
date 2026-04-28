@@ -7,6 +7,7 @@
 
 import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
+import { stripEmoji } from '../src/lib/emoji';
 
 const PROCESSED_DIR = 'data/processed';
 
@@ -41,7 +42,7 @@ for (const file of files) {
   // Title quality
   check(`${prefix} has title`, !!data.title && data.title !== 'Untitled', `title: ${data.title}`);
   check(`${prefix} title no FLUX boilerplate`, !data.title?.includes('by The FLUX Collective'), `title: ${data.title}`);
-  check(`${prefix} title no leading emoji`, !/^[\u{1F000}-\u{1FFFF}]/.test(data.title || ''), `title starts with emoji`);
+  check(`${prefix} title no leading emoji`, stripEmoji(data.title || '') === (data.title || '').trim(), `title starts with emoji`);
 
   // Content quality
   if (data.full_text_plain) {

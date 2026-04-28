@@ -17,14 +17,17 @@
 // and executing side effects (URL updates, network requests, focus).
 //
 // @typedef {Object} State
-// @property {'LANDING_FEATURED'|'LANDING'|'RESULTS'} name
+// @property {'LANDING_FEATURED'|'FEATURED_RESULTS'|'LANDING'|'RESULTS'|'BROWSING'} name
 // @property {string} query
 // @property {boolean} quoteVisible
 // @property {boolean} autoLoadLatest
 // @property {boolean} clearVisible
 // @property {boolean} resultsVisible
+// @property {boolean} densityVisible
+// @property {boolean} booted
 //
 // @typedef {{ type: 'LOAD', query: string }
+//          | { type: 'LATEST_LOADED', query: string }
 //          | { type: 'SUBMIT', query: string }
 //          | { type: 'EXAMPLE', query: string }
 //          | { type: 'FACET', section: string }

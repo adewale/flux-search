@@ -19,6 +19,9 @@ searchRoutes.get('/search', async (c) => {
       parsed_query: null,
       applied_filters: [],
       total_hits: 0,
+      year_distribution: {},
+      quarter_distribution: {},
+      section_facets: {},
       results: [],
     });
   }

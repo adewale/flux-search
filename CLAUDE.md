@@ -75,6 +75,7 @@ Run `npx vitest run` for unit/PBT/corpus tests. Run `npx playwright test` for e2
 ```bash
 npm run dev              # local dev server (port 8787)
 npm test                 # Run `npx vitest run` for unit/PBT/corpus tests
+npm run typecheck         # generate Worker types and run TypeScript checks
 npm run corpus:fetch     # download raw HTML from Substack
 npm run corpus:process   # normalize locally
 npm run corpus:validate  # validates all corpus records

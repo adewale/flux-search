@@ -6,6 +6,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "cf-typegen": "wrangler types",
+    "typecheck": "wrangler types && tsc --noEmit",
     "db:migrate:local": "wrangler d1 migrations apply flux-search-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply flux-search-db --remote",
     "test": "vitest run",
