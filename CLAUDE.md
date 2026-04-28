@@ -100,6 +100,27 @@ npx playwright test e2e/visual-regression.spec.ts --update-snapshots
 - **Typography:** 5 sizes (1.5× ratio), 4 weights, 3 fonts (Lora/Literata/DM Sans), zero raw CSS values
 - **Section colors:** oklch(65% 0.08 H) — same lightness/chroma, vary only hue. Defined as CSS custom properties (`--section-lead-essay` etc.)
 
+### Tokens that must be used (no raw values)
+
+- **Sizes:** `--size-sm` / `--size-base` / `--size-lg` / `--size-xl` / `--size-hero`. Do not introduce a `--size-xs`; the 13px floor was raised for accessibility.
+- **Radii:** `--radius-sm` (3px corners), `--radius` (6px corners), `--radius-pill` (999px chip primitive).
+- **Tracking:** `--tracking-tight` (large text) / `--tracking-open` (small text). Two values total — uppercase microcopy uses `--tracking-open`, not a third token.
+- **Backgrounds:** `--surface` (white panels) and `--tag-bg` (chip / hover-row tint). Do not write raw `rgba(0,0,0,…)` for hover or chip surfaces.
+
+### Shared UI primitives
+
+- **`.chip`** — pill-shaped link primitive. Used on result cards, the issue-page topic side panel, the landing themes strip, and adjacent topics on `/topics/:keyword`. One class, no per-surface variants. Modifiers (e.g. `.chip-burst`) decorate; the base shape is invariant.
+- **`.eyebrow`** — small uppercased section label (e.g. "Topics", "Recurring themes", "Context shifts"). `--size-sm`, weight 600, `--tracking-open`, `text-transform: uppercase`. Use this instead of redeclaring the same rules per surface.
+- **Confidence tiers** — one mechanism only: high gets `font-weight: 700`, low gets `font-weight: 400` plus `opacity: 0.6`. Used on `.result-card` and `.topics-row`. Never render confidence as opacity-only — that loses the typographic hierarchy.
+
+### Breakpoints
+
+CSS custom properties cannot be referenced from `@media` queries, so the breakpoint scale is documented in `:root` as a comment and the values are repeated in each query. Three breakpoints, no more:
+
+- `(max-width: 640px) and (orientation: portrait)` — handheld portrait.
+- `(min-width: 900px)` — tablet+. The issue page swaps from inline `<details>` to a sticky side panel here.
+- `(max-width: 920px) and (orientation: landscape)` — handheld landscape.
+
 ## Where to find things
 
 - Search design rationale: `docs/search.md`

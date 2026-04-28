@@ -74,7 +74,7 @@ async function loadTopicDetail(keyword) {
 
     var drift = (data.drift && data.drift.length > 0)
       ? '<aside class="topic-drift" aria-label="Terminology drift over time">' +
-        '<h3 class="topic-drift-title">Context shifts</h3>' +
+        '<h3 class="eyebrow">Context shifts</h3>' +
         '<ol class="topic-drift-list">' +
         data.drift.map(function (b) {
           var words = (b.topContextWords || []).slice(0, 5).map(function (w) {
@@ -93,13 +93,13 @@ async function loadTopicDetail(keyword) {
 
     var adjacent = (data.adjacent || []).length > 0
       ? '<aside class="topic-adjacent" aria-label="Related topics">' +
-        '<h3 class="topic-adjacent-title">Frequently appears with</h3>' +
+        '<h3 class="eyebrow">Frequently appears with</h3>' +
         '<div class="topic-adjacent-chips">' +
         data.adjacent.map(function (a) {
           var k = a.keyword || '';
           var d = a.keyword_display || k;
           if (!k) return '';
-          return '<a class="topic-chip" href="/topics/' + encodeURIComponent(k) +
+          return '<a class="chip" href="/topics/' + encodeURIComponent(k) +
             '">' + escapeHtml(d) + ' <span class="theme-freq">' + escapeHtml(String(a.cooccurrence)) + '</span></a>';
         }).filter(Boolean).join('') +
         '</div>' +

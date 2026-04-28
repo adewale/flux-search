@@ -35,7 +35,7 @@ describe('topicChipsHtml', () => {
     expect(html).toContain('Institutional Trust');
     expect(html).toContain('Governance');
     expect(html).toContain('Civic Repair');
-    expect((html.match(/topic-chip/g) ?? [])).toHaveLength(3);
+    expect((html.match(/class="chip"/g) ?? [])).toHaveLength(3);
   });
 
   it('chip links go to /search?q=topic:"keyword"', () => {
@@ -154,7 +154,7 @@ describe('topicLandingStripHtml', () => {
       doc_frequency: 30 - i,
     }));
     const html = topicLandingStripHtml(many);
-    const matches = html.match(/theme-chip/g) ?? [];
+    const matches = html.match(/class="chip"/g) ?? [];
     expect(matches.length).toBe(12);
   });
 

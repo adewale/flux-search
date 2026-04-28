@@ -26,17 +26,19 @@ function escapeHtml(s) {
  * - Returns '' for empty/missing topics. The caller decides how to handle
  *   the blank state (hide container, fall back to a placeholder, etc.).
  * - `max` clamps the chip count.
+ *
+ * The chip class is the shared `.chip` primitive defined in styles.css —
+ * one visual, one set of rules, no per-surface duplication.
  */
 export function topicChipsHtml(topics, opts) {
   if (!Array.isArray(topics) || topics.length === 0) return '';
   var max = (opts && Number.isFinite(opts.max)) ? opts.max : 5;
-  var className = (opts && opts.className) || 'topic-chip';
 
   return topics.slice(0, max).map(function (t) {
     if (typeof t === 'string') {
       if (!t) return '';
       var href0 = '/search?q=' + encodeURIComponent('topic:"' + t + '"');
-      return '<a class="' + className + '" href="' + href0 + '">' + escapeHtml(t) + '</a>';
+      return '<a class="chip" href="' + href0 + '">' + escapeHtml(t) + '</a>';
     }
     // Object form: keyword is the canonical, lowercased form. Without it,
     // a topic chip can't link back into search — drop the row entirely.
@@ -44,7 +46,7 @@ export function topicChipsHtml(topics, opts) {
     if (!keyword) return '';
     var display = t.keyword_display || keyword;
     var href = '/search?q=' + encodeURIComponent('topic:"' + keyword + '"');
-    return '<a class="' + className + '" href="' + href + '">' +
+    return '<a class="chip" href="' + href + '">' +
       escapeHtml(display) + '</a>';
   }).filter(Boolean).join('');
 }
@@ -58,7 +60,7 @@ export function topicChipsHtml(topics, opts) {
 export function topicSidePanelHtml(topics) {
   if (!Array.isArray(topics) || topics.length === 0) return '';
   return '<aside class="issue-topics-panel" aria-label="Topics in this issue">' +
-    '<h3 class="issue-topics-title">Topics</h3>' +
+    '<h3 class="eyebrow">Topics</h3>' +
     '<div class="issue-topics-chips">' + topicChipsHtml(topics, { max: 12 }) + '</div>' +
     '</aside>';
 }
@@ -90,11 +92,11 @@ export function topicLandingStripHtml(corpusTopics) {
     if (!keyword) return '';
     var href = '/topics/' + encodeURIComponent(keyword);
     var freq = t.doc_frequency != null ? ' <span class="theme-freq">' + escapeHtml(String(t.doc_frequency)) + '</span>' : '';
-    return '<a class="theme-chip" href="' + href + '">' + escapeHtml(display) + freq + '</a>';
+    return '<a class="chip" href="' + href + '">' + escapeHtml(display) + freq + '</a>';
   }).filter(Boolean).join('');
 
   return '<section class="recurring-themes" aria-label="Recurring themes">' +
-    '<h2 class="recurring-themes-title">Recurring themes</h2>' +
+    '<h2 class="eyebrow">Recurring themes</h2>' +
     '<div class="recurring-themes-strip">' + chips + '</div>' +
     '</section>';
 }

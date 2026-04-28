@@ -41,7 +41,7 @@ export function renderResults(container, metaEl, countEl, invalidOpsEl, filterCh
       ? '/issues/issue/' + r.issue_number + (r.snippet_section ? '#' + r.snippet_section : '')
       : escapeHtml(canonicalUrl);
 
-    var topicChips = topicChipsHtml(r.topics, { max: 3, className: 'result-topic-chip' });
+    var topicChips = topicChipsHtml(r.topics, { max: 3 });
 
     return '<div class="result-card confidence-' + confidenceCls + '"' +
       (r.snippet_section ? ' data-section="' + r.snippet_section + '"' : '') + '>' +
