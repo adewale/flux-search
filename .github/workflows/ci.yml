@@ -13,7 +13,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 22 is required for the built-in node:sqlite module that
+          # test/helpers-d1.ts uses in place of better-sqlite3 (no native
+          # build, no extra dependency). Stable LTS as of 2024-10.
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm test
