@@ -4,6 +4,29 @@
 
 ### Added
 
+- Improved topic quality:
+  - suppresses editorial boilerplate topics including `signposts clues` and `editor note`
+  - suppresses generic singleton navigation noise such as `people`, `world`, `time`, `move`, `point`, and `direction`
+  - boosts meaningful multi-word phrases in corpus-topic ranking
+  - adds a topic-quality blocklist migration (`0013_topic_quality_blocklist.sql`)
+  - adds deployed smoke tests for topic-quality regressions
+- Expanded `/admin/topic-audit` with suspicious corpus-topic diagnostics.
+
+### Changed
+
+- Reaggregated production topic tables after applying the quality blocklist; `/topics/signposts%20clues` and `/topics/editor%20note` now return 404.
+
+### Verified
+
+- `npm test` → 854 passing tests.
+- `npm run typecheck` → passed.
+- Remote D1 migration `0013_topic_quality_blocklist.sql` applied.
+- Deployed Worker version `938620da-474a-4a5f-a12e-2998889bd8d6`.
+
+---
+
+### Added
+
 - Added Flux-native topic enrichment queue durability:
   - versioned `EnrichmentMessage` contract with `kind`, `schemaVersion`, `jobId`, `correlationId`, and `queuedAt`
   - legacy `type` / `run_id` compatibility during migration

@@ -10,6 +10,7 @@
  *   weak_singleton    — singleton with low occurrences AND low sentence spread
  *   phrase_component  — single word dominated by an established multi-word phrase
  *   blocklist         — explicit blocklist hit
+ *   boilerplate_phrase — recurring editorial/navigation phrase
  *
  * Inputs assume topics from extractTopics(...), augmented with
  * occurrence/sentence-spread counts the multi-strategy extractor records.
@@ -43,7 +44,8 @@ export type SuppressionReason =
   | 'weak_suffix'
   | 'weak_singleton'
   | 'phrase_component'
-  | 'blocklist';
+  | 'blocklist'
+  | 'boilerplate_phrase';
 
 /** Topics we never auto-suppress, even if they trip generic rules. */
 export const PROTECTED_TOPICS: ReadonlySet<string> = new Set([
@@ -66,6 +68,8 @@ export const NOISE_WORDS: ReadonlySet<string> = new Set([
   'system', 'systems', 'data', 'thing', 'things', 'stuff',
   'piece', 'parts', 'part', 'kind', 'sort', 'type', 'way', 'ways',
   'time', 'times', 'place', 'places', 'case', 'cases',
+  'move', 'moves', 'point', 'points', 'direction', 'directions',
+  'life', 'work', 'idea', 'ideas', 'story', 'stories', 'problem', 'problems',
   'someone', 'everyone', 'anyone', 'something', 'everything', 'anything',
   // filler adverbs
   'really', 'actually', 'basically', 'literally', 'obviously',
@@ -79,6 +83,20 @@ export const NOISE_WORDS: ReadonlySet<string> = new Set([
 const PRONOUN_LEAD: ReadonlySet<string> = new Set([
   'someone', 'everyone', 'anyone', 'something', 'everything', 'anything',
   'this', 'that', 'these', 'those', 'their', 'them',
+]);
+
+const BOILERPLATE_PHRASES: ReadonlySet<string> = new Set([
+  'signposts clues',
+  'signpost clues',
+  'editor note',
+  'editors note',
+  'editor s note',
+  'clues trails',
+  'worth your time',
+  'lens of the week',
+  'book for your shelf',
+  'postcard from the future',
+  'more from fluxers',
 ]);
 
 const WEAK_SUFFIX_RX = /(ly|ize|ise|ify|ment|oes|ays|akes|ives)$/;
@@ -99,6 +117,10 @@ export function classifyTopicQuality(
 
   if (opts.blocklist && opts.blocklist.has(keyword)) {
     return { suppress: true, reason: 'blocklist' };
+  }
+
+  if (BOILERPLATE_PHRASES.has(keyword)) {
+    return { suppress: true, reason: 'boilerplate_phrase' };
   }
 
   if (isSingleton && NOISE_WORDS.has(keyword)) {

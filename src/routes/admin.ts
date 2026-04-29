@@ -153,7 +153,23 @@ adminRoutes.get('/topic-audit', async (c) => {
     });
   }
 
-  return c.json({ samples });
+  const suspiciousRows = await c.env.DB.prepare(`
+    SELECT keyword, keyword_display, doc_frequency, distinctiveness, aggregate_score,
+           CASE
+             WHEN ngram_size = 1 AND doc_frequency >= 10 THEN 'generic_singleton_high_df'
+             WHEN lower(keyword) IN ('signposts clues', 'editor note', 'editors note', 'editor s note') THEN 'editorial_boilerplate'
+             WHEN distinctiveness IS NOT NULL AND distinctiveness < 0.25 THEN 'low_distinctiveness'
+             ELSE 'review'
+           END AS reason
+    FROM corpus_topics
+    WHERE ngram_size = 1
+       OR lower(keyword) IN ('signposts clues', 'editor note', 'editors note', 'editor s note')
+       OR (distinctiveness IS NOT NULL AND distinctiveness < 0.25)
+    ORDER BY aggregate_score DESC
+    LIMIT 25
+  `).all();
+
+  return c.json({ samples, suspicious_corpus_topics: suspiciousRows.results });
 });
 
 adminRoutes.get('/coverage', async (c) => {

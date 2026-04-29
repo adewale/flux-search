@@ -191,7 +191,8 @@ export async function buildCorpusTopics(
       cluster.df AS doc_frequency,
       cluster.avg_score AS avg_score,
       ((cluster.df * 1.0) / NULLIF(cluster.avg_score, 0)) *
-        MAX(0.01, 1.0 - (cluster.df * 1.0 / ?)) AS aggregate_score,
+        MAX(0.01, 1.0 - (cluster.df * 1.0 / ?)) *
+        CASE WHEN cluster.ngram_size >= 2 THEN 1.5 ELSE 1.0 END AS aggregate_score,
       MAX(0.01, 1.0 - (cluster.df * 1.0 / ?)) AS distinctiveness,
       cluster.first_seen,
       cluster.last_seen,
