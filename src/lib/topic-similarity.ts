@@ -30,7 +30,10 @@ export function cosine(a: number[], b: number[]): number {
     nb += b[i] * b[i];
   }
   if (na === 0 || nb === 0) return 0;
-  return dot / (Math.sqrt(na) * Math.sqrt(nb));
+  const value = dot / (Math.sqrt(na) * Math.sqrt(nb));
+  // Floating-point underflow on tiny vectors can nudge the quotient just
+  // outside the mathematical cosine bounds; clamp to the invariant.
+  return Math.max(-1, Math.min(1, value));
 }
 
 /** Jaccard over the issue-set of each topic (cardinalities pre-computed). */

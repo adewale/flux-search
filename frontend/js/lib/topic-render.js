@@ -20,7 +20,7 @@ function escapeHtml(s) {
 
 /**
  * Render a horizontal row of chip-shaped links for an issue's topics.
- * Each chip links to /search?q=topic:"<keyword>"  so a click drills into
+ * Each chip links to /?q=topic:"<keyword>" so the SPA loads search results
  * issues sharing that topic.
  *
  * - Returns '' for empty/missing topics. The caller decides how to handle
@@ -37,7 +37,7 @@ export function topicChipsHtml(topics, opts) {
   return topics.slice(0, max).map(function (t) {
     if (typeof t === 'string') {
       if (!t) return '';
-      var href0 = '/search?q=' + encodeURIComponent('topic:"' + t + '"');
+      var href0 = '/?q=' + encodeURIComponent('topic:"' + t + '"');
       return '<a class="chip" href="' + href0 + '">' + escapeHtml(t) + '</a>';
     }
     // Object form: keyword is the canonical, lowercased form. Without it,
@@ -45,7 +45,7 @@ export function topicChipsHtml(topics, opts) {
     var keyword = t.keyword || '';
     if (!keyword) return '';
     var display = t.keyword_display || keyword;
-    var href = '/search?q=' + encodeURIComponent('topic:"' + keyword + '"');
+    var href = '/?q=' + encodeURIComponent('topic:"' + keyword + '"');
     return '<a class="chip" href="' + href + '">' +
       escapeHtml(display) + '</a>';
   }).filter(Boolean).join('');

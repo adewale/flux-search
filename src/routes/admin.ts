@@ -7,7 +7,7 @@ import { runReindex } from '../crawler/ingestor';
 import { rebuildAllTopics } from '../lib/topic-rebuild';
 import { extractTopicsMulti } from '../lib/topic-multi-extract';
 import { enqueueCorpusTopicEmbedding, type EnrichmentMessage } from '../jobs/enrichment-queue';
-import { listPipelineJobs } from '../lib/pipeline-jobs';
+import { getPipelineJob, listPipelineJobs } from '../lib/pipeline-jobs';
 
 export const adminRoutes = new Hono<{ Bindings: Env }>();
 
@@ -74,11 +74,45 @@ adminRoutes.get('/pipeline-runs', async (c) => {
   return c.json({ runs: rows.results });
 });
 
+adminRoutes.get('/pipeline-runs/:id', async (c) => {
+  const id = c.req.param('id');
+  const run = await c.env.DB.prepare('SELECT * FROM pipeline_runs WHERE id = ?').bind(id).first();
+  if (!run) return c.json({ error: 'Pipeline run not found' }, 404);
+  return c.json(run);
+});
+
 adminRoutes.get('/pipeline-runs/:id/jobs', async (c) => {
   const id = c.req.param('id');
   const limit = Math.min(500, Math.max(1, parseInt(c.req.query('limit') || '100')));
   const jobs = await listPipelineJobs(c.env.DB, id, limit);
   return c.json({ run_id: id, jobs });
+});
+
+adminRoutes.get('/pipeline-jobs/:id', async (c) => {
+  const id = c.req.param('id');
+  const job = await getPipelineJob(c.env.DB, id);
+  if (!job) return c.json({ error: 'Pipeline job not found' }, 404);
+  return c.json(job);
+});
+
+adminRoutes.post('/pipeline-jobs/:id/replay', async (c) => {
+  if (!c.env.ENRICHMENT_QUEUE) return c.json({ error: 'Queue binding unavailable' }, 503);
+  const id = c.req.param('id');
+  const job = await getPipelineJob(c.env.DB, id);
+  if (!job) return c.json({ error: 'Pipeline job not found' }, 404);
+  const message = JSON.parse(job.payload_json) as EnrichmentMessage;
+  await c.env.ENRICHMENT_QUEUE.send(message);
+  return c.json({ replayed: 1, job_id: id });
+});
+
+adminRoutes.post('/queue/dlq/:jobId/replay', async (c) => {
+  if (!c.env.ENRICHMENT_QUEUE) return c.json({ error: 'Queue binding unavailable' }, 503);
+  const id = c.req.param('jobId');
+  const job = await getPipelineJob(c.env.DB, id);
+  if (!job) return c.json({ error: 'Pipeline job not found' }, 404);
+  const message = JSON.parse(job.payload_json) as EnrichmentMessage;
+  await c.env.ENRICHMENT_QUEUE.send(message);
+  return c.json({ replayed: 1, job_id: id });
 });
 
 adminRoutes.post('/dlq/replay', async (c) => {

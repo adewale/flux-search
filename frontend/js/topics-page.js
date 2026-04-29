@@ -122,7 +122,7 @@ async function loadTopicDetail(keyword) {
     detailEl.innerHTML =
       freq +
       sparkline +
-      '<a class="topics-search-link" href="/search?q=' +
+      '<a class="topics-search-link" href="/?q=' +
         encodeURIComponent('topic:"' + data.keyword + '"') + '">Search this topic</a>' +
       drift +
       adjacent +

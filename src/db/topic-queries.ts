@@ -1,5 +1,6 @@
 import type { ExtractedTopic } from '../lib/topic-extractor';
 import type { CorpusTopicRow, IssueTopicRow, TopicTimelineRow } from './types';
+import { buildTopicSimilarities, type TopicEmbedding } from '../lib/topic-similarity';
 
 export async function replaceIssueTopics(
   db: D1Database,
@@ -421,6 +422,56 @@ export async function replacePhraseLexicon(
  * Pairs are bidirectional — each input pair is stored once for (a,b)
  * and once for (b,a) — so route lookups are single-key.
  */
+export async function replaceTopicEmbeddings(
+  db: D1Database,
+  embeddings: TopicEmbedding[],
+  model = '@cf/baai/bge-base-en-v1.5',
+): Promise<void> {
+  if (embeddings.length === 0) return;
+  const now = new Date().toISOString();
+  await db.batch(embeddings.map(e => db.prepare(
+    `INSERT OR REPLACE INTO topic_embeddings (keyword, model, vector_json, updated_at)
+     VALUES (?, ?, ?, ?)`,
+  ).bind(e.keyword, model, JSON.stringify(e.vector), now)));
+}
+
+export async function rebuildSimilaritiesFromStoredEmbeddings(
+  db: D1Database,
+  changedKeywords: string[] = [],
+  alpha = 0.6,
+): Promise<number> {
+  const rows = await db.prepare('SELECT keyword, vector_json FROM topic_embeddings')
+    .all<{ keyword: string; vector_json: string }>();
+  const embeddings = rows.results.map(r => ({
+    keyword: r.keyword,
+    vector: JSON.parse(r.vector_json) as number[],
+  })).filter(e => Array.isArray(e.vector) && e.vector.length > 0);
+
+  if (embeddings.length < 2) return 0;
+
+  const issueRows = await db.prepare('SELECT keyword, issue_id FROM issue_topics')
+    .all<{ keyword: string; issue_id: string }>();
+  const issueSets = new Map<string, Set<string>>();
+  for (const row of issueRows.results) {
+    const set = issueSets.get(row.keyword) ?? new Set<string>();
+    set.add(row.issue_id);
+    issueSets.set(row.keyword, set);
+  }
+
+  const pairs = buildTopicSimilarities(embeddings, issueSets, { alpha });
+  if (changedKeywords.length > 0) {
+    for (const keyword of changedKeywords) {
+      await db.prepare('DELETE FROM topic_similarity WHERE keyword_a = ? OR keyword_b = ?')
+        .bind(keyword, keyword).run();
+    }
+    const changed = new Set(changedKeywords);
+    await replaceTopicSimilarities(db, pairs.filter(p => changed.has(p.keyword_a) || changed.has(p.keyword_b)));
+  } else {
+    await replaceTopicSimilarities(db, pairs);
+  }
+  return pairs.length;
+}
+
 export async function replaceTopicSimilarities(
   db: D1Database,
   pairs: Array<{ keyword_a: string; keyword_b: string; cosine: number; jaccard: number; blended: number }>,

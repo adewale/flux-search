@@ -39,10 +39,12 @@ describe('topicChipsHtml', () => {
     expect((html.match(/class="chip"/g) ?? [])).toHaveLength(3);
   });
 
-  it('chip links go to /search?q=topic:"keyword"', () => {
+  it('chip links load the SPA with ?q=topic:"keyword"', () => {
     const html = topicChipsHtml(TOPICS);
-    // URL-encoded keyword inside topic:"…"
-    expect(html).toContain('href="/search?q=' + encodeURIComponent('topic:"institutional trust"') + '"');
+    // URL-encoded keyword inside topic:"…". Use /?q= rather than /search?q=
+    // because /search is the JSON API route.
+    expect(html).toContain('href="/?q=' + encodeURIComponent('topic:"institutional trust"') + '"');
+    expect(html).not.toContain('href="/search?q=');
   });
 
   it('respects the max option', () => {

@@ -59,6 +59,10 @@ describe('enrichment queue helpers', () => {
       correlationId: 'corr-1',
       now: '2026-01-01T00:00:00.000Z',
     })[0];
+    await db.prepare(`INSERT INTO corpus_topics
+      (keyword, keyword_display, doc_frequency, avg_score, aggregate_score, first_seen, last_seen, ngram_size, updated_at)
+      VALUES ('topic-1', 'topic-1', 1, 1, 1, '2026-01-01', '2026-01-01', 1, '2026-01-01'),
+             ('topic-2', 'topic-2', 1, 1, 1, '2026-01-01', '2026-01-01', 1, '2026-01-01')`).run();
     await createPipelineJob(db as any, {
       id: message.jobId,
       runId: message.runId,
@@ -69,7 +73,10 @@ describe('enrichment queue helpers', () => {
       queuedAt: message.queuedAt,
     });
 
-    await handleEnrichmentMessage(message, { DB: db as any } as any, 2);
+    await handleEnrichmentMessage(message, {
+      DB: db as any,
+      AI: { run: async () => ({ data: [[1, 0], [0, 1]] }) },
+    } as any, 2);
 
     const row = await db.prepare('SELECT status, attempts FROM pipeline_jobs WHERE id = ?')
       .bind(message.jobId).first<{ status: string; attempts: number }>();

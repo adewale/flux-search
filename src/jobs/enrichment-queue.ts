@@ -6,8 +6,10 @@ import {
   deferPipelineJob,
   failPipelineJob,
   idempotencyKeyForMessage,
+  recordPipelinePhase,
   succeedPipelineJob,
 } from '../lib/pipeline-jobs';
+import { rebuildSimilaritiesFromStoredEmbeddings, replaceTopicEmbeddings } from '../db/topic-queries';
 
 export type EmbedCorpusTopicsMessage = {
   schemaVersion: 1;
@@ -119,6 +121,17 @@ export async function enqueueCorpusTopicEmbedding(env: Env, runId: string, batch
   return sendable.length;
 }
 
+async function embedTopicKeywords(env: Env, keywords: string[]): Promise<number> {
+  if (keywords.length === 0) return 0;
+  const result = await env.AI.run('@cf/baai/bge-base-en-v1.5', { text: keywords });
+  if (!('data' in result) || !Array.isArray(result.data)) return 0;
+  const embeddings = keywords.map((keyword, i) => ({ keyword, vector: (result.data as number[][])[i] ?? [] }))
+    .filter(e => e.vector.length > 0);
+  await replaceTopicEmbeddings(env.DB, embeddings);
+  await rebuildSimilaritiesFromStoredEmbeddings(env.DB, embeddings.map(e => e.keyword));
+  return embeddings.length;
+}
+
 export async function handleEnrichmentMessage(message: EnrichmentMessage, env?: Env, attempts = 1): Promise<{ embedded: number }> {
   const kind = messageKind(message);
   const runId = messageRunId(message);
@@ -133,19 +146,31 @@ export async function handleEnrichmentMessage(message: EnrichmentMessage, env?: 
   try {
     switch (kind) {
       case 'embed-corpus-topics': {
-        await runStep('embed_corpus_topics', async () => {
+        const embedded = await runStep('embed_corpus_topics', async () => {
+          const count = env ? await embedTopicKeywords(env, message.keywords) : message.keywords.length;
           console.log(JSON.stringify({
-            event: 'embed_batch',
+            event: 'topic_enrichment_job',
             run_id: runId,
             job_id: jobId,
             correlation_id: correlationId,
+            kind,
+            status: 'succeeded',
             attempts,
             batch_size: message.keywords.length,
+            embedded: count,
             ack: true,
           }));
+          return count;
         });
-        if (env && jobId) await succeedPipelineJob(env.DB, jobId);
-        return { embedded: message.keywords.length };
+        if (env) await recordPipelinePhase(env.DB, {
+          runId,
+          jobId,
+          phase: 'topic_embedding',
+          status: 'succeeded',
+          summary: { keywords: message.keywords.length, embedded: embedded.result },
+        });
+        if (env && jobId) await succeedPipelineJob(env.DB, jobId, { embedded: embedded.result });
+        return { embedded: embedded.result };
       }
     }
   } catch (err) {

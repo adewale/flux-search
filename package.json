@@ -15,7 +15,13 @@
     "corpus:process": "npx tsx scripts/process-corpus.ts",
     "corpus:validate": "npx tsx scripts/validate-corpus.ts",
     "corpus:pipeline": "npm run corpus:fetch && npm run corpus:process && npm run corpus:validate",
-    "metrics:topic-queue": "node scripts/topic-queue-metrics.mjs"
+    "metrics:topic-queue": "node scripts/topic-queue-metrics.mjs",
+    "smoke:queue-metrics": "node scripts/topic-queue-metrics.mjs",
+    "smoke:operator-routes": "node scripts/smoke-operator-routes.mjs",
+    "smoke:queue-local": "node scripts/smoke-queue-local.mjs",
+    "characterize:topics:inline": "node scripts/characterize-topics.mjs inline",
+    "characterize:topics:queue": "node scripts/characterize-topics.mjs queue",
+    "compare:queue-public-surfaces": "node scripts/compare-queue-public-surfaces.mjs"
   },
   "dependencies": {
     "@ade_oshineye/yaket": "0.5.3",
