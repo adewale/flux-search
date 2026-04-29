@@ -21,7 +21,8 @@
     "smoke:queue-local": "node scripts/smoke-queue-local.mjs",
     "characterize:topics:inline": "node scripts/characterize-topics.mjs inline",
     "characterize:topics:queue": "node scripts/characterize-topics.mjs queue",
-    "compare:queue-public-surfaces": "node scripts/compare-queue-public-surfaces.mjs"
+    "compare:queue-public-surfaces": "node scripts/compare-queue-public-surfaces.mjs",
+    "smoke:admin-topic-rebuild": "node scripts/admin-topic-rebuild-smoke.mjs"
   },
   "dependencies": {
     "@ade_oshineye/yaket": "0.5.3",
