@@ -80,6 +80,7 @@ export function makeD1(): D1Like {
   sqlite.exec(readFileSync(join(MIGRATIONS_DIR, '0011_pipeline_jobs.sql'), 'utf-8'));
   sqlite.exec(readFileSync(join(MIGRATIONS_DIR, '0012_queue_spec_alignment.sql'), 'utf-8'));
   sqlite.exec(readFileSync(join(MIGRATIONS_DIR, '0013_topic_quality_blocklist.sql'), 'utf-8'));
+  sqlite.exec(readFileSync(join(MIGRATIONS_DIR, '0014_d1_hot_path_indexes.sql'), 'utf-8'));
   return wrap(sqlite);
 }
 

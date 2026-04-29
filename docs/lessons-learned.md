@@ -340,3 +340,29 @@ Wide JSON logs are useful for grep and dashboards, but they are not enough for o
 The initial queue handler wrapped processing in `ctx.waitUntil`, which made the queue handler return before the actual message work completed. That is appropriate for non-critical side effects, but queue message processing is the critical work. The handler now awaits processing directly.
 
 **Lesson: In a queue consumer, awaiting is the default.** Detach only when the work is explicitly non-critical and the ack/retry semantics are still correct.
+
+## What we learned about D1 after the topic-detail outage
+
+The `systems thinking` topic appeared in 106 issues. The first fix for its broken detail page was to chunk a large `WHERE id IN (?, ?, ...)` query into smaller queries. That made the page work, but it was still the wrong mental model: it treated D1 like a remote key-value store and moved relational work into JavaScript.
+
+The better fix was a single indexed join:
+
+```sql
+SELECT i.*
+FROM issue_topics it
+CROSS JOIN issues i ON i.id = it.issue_id
+WHERE it.keyword = ? AND i.status = 'active'
+ORDER BY i.published_at DESC
+```
+
+This uses one bind parameter, lets SQLite/D1 choose indexed access, and avoids statement-size/bind-count cliffs. We added query-plan tests and a remote `db:explain-hot-paths` script so this does not regress.
+
+### D1 rules for this project
+
+1. Prefer set-oriented SQL over JavaScript loops. If the data is already relational, join it in D1 instead of fetching IDs into JS and sending them back as a dynamic `IN` list.
+2. Avoid large dynamic bind lists. For small UI page lists, bind a single JSON array and join against `json_each(?)`; for relational lookups, use real joins.
+3. Add indexes only for measured hot paths, then verify them with `EXPLAIN QUERY PLAN` and `PRAGMA optimize`.
+4. Retry write queries on transient D1 errors with exponential backoff; D1 retries some reads automatically, but application writes need their own retry boundary.
+5. Long-running rebuilds should use queues for execution and D1 for durable state, but aggregation inside each phase should still be set-oriented SQL where possible.
+
+The Bobbin ingestion lesson applies here too: batching is necessary, but batching many tiny queries is not as good as asking the database the right set-based question once.

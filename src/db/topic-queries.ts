@@ -59,13 +59,15 @@ export async function getTopicsForIssueIds(
 ): Promise<Map<string, string[]>> {
   if (issueIds.length === 0) return new Map();
 
-  const placeholders = issueIds.map(() => '?').join(',');
   const result = await db.prepare(
-    `SELECT issue_id, keyword_display, rank
-     FROM issue_topics
-     WHERE issue_id IN (${placeholders})
-     ORDER BY issue_id, rank`
-  ).bind(...issueIds).all<{ issue_id: string; keyword_display: string; rank: number }>();
+    `WITH requested(issue_id) AS (
+       SELECT value FROM json_each(?)
+     )
+     SELECT it.issue_id, it.keyword_display, it.rank
+     FROM requested r
+     JOIN issue_topics it ON it.issue_id = r.issue_id
+     ORDER BY it.issue_id, it.rank`
+  ).bind(JSON.stringify(issueIds)).all<{ issue_id: string; keyword_display: string; rank: number }>();
 
   const byIssue = new Map<string, string[]>();
   for (const row of result.results) {
@@ -95,7 +97,7 @@ export async function getIssuesByTopic(
   const result = await db.prepare(
     `SELECT i.*
      FROM issue_topics it
-     JOIN issues i ON i.id = it.issue_id
+     CROSS JOIN issues i ON i.id = it.issue_id
      WHERE it.keyword = ? AND i.status = 'active'
      ORDER BY i.published_at DESC`,
   ).bind(keyword).all<IssueRow>();
@@ -119,10 +121,14 @@ export async function getIssuesMatchingQueryTopics(
     .filter(s => s.length > 0);
   if (normalized.length === 0) return out;
 
-  const placeholders = normalized.map(() => '?').join(',');
   const result = await db.prepare(
-    `SELECT keyword, issue_id FROM issue_topics WHERE keyword IN (${placeholders})`
-  ).bind(...normalized).all<{ keyword: string; issue_id: string }>();
+    `WITH requested(keyword) AS (
+       SELECT value FROM json_each(?)
+     )
+     SELECT it.keyword, it.issue_id
+     FROM requested r
+     JOIN issue_topics it ON it.keyword = r.keyword`
+  ).bind(JSON.stringify(normalized)).all<{ keyword: string; issue_id: string }>();
   for (const row of result.results) {
     const set = out.get(row.keyword) ?? new Set<string>();
     set.add(row.issue_id);
@@ -338,22 +344,38 @@ export async function annotateCorpusTopics(db: D1Database): Promise<void> {
     'SELECT keyword, doc_frequency FROM corpus_topics',
   ).all<{ keyword: string; doc_frequency: number }>();
 
-  const stmts = await Promise.all(rows.results.map(async r => {
-    const timeline = await db.prepare(
-      'SELECT year, month, occurrences FROM topic_timeline WHERE keyword = ?',
-    ).bind(r.keyword).all<{ year: number; month: number; occurrences: number }>();
-    const burst = computeBurstScore(timeline.results);
+  const [timelineRows, qualityRows] = await Promise.all([
+    db.prepare(
+      `SELECT keyword, year, month, occurrences
+       FROM topic_timeline
+       WHERE keyword IN (SELECT keyword FROM corpus_topics)
+       ORDER BY keyword, year, month`,
+    ).all<{ keyword: string; year: number; month: number; occurrences: number }>(),
+    db.prepare(
+      `SELECT
+         keyword,
+         COALESCE(MAX(CASE WHEN provenance IS NOT NULL THEN json_array_length(provenance) END), 1) AS provenance_count,
+         SUM(CASE WHEN suppression_reason IS NOT NULL THEN 1 ELSE 0 END) AS suppression_hits
+       FROM issue_topics
+       WHERE keyword IN (SELECT keyword FROM corpus_topics)
+       GROUP BY keyword`,
+    ).all<{ keyword: string; provenance_count: number | null; suppression_hits: number | null }>(),
+  ]);
 
-    const provenanceCounts = await db.prepare(
-      `SELECT MAX(json_array_length(provenance)) AS pmax
-       FROM issue_topics WHERE keyword = ? AND provenance IS NOT NULL`,
-    ).bind(r.keyword).first<{ pmax: number | null }>();
-    const provenanceCount = provenanceCounts?.pmax ?? 1;
+  const timelineByKeyword = new Map<string, Array<{ year: number; month: number; occurrences: number }>>();
+  for (const row of timelineRows.results) {
+    const list = timelineByKeyword.get(row.keyword) ?? [];
+    list.push({ year: row.year, month: row.month, occurrences: row.occurrences });
+    timelineByKeyword.set(row.keyword, list);
+  }
 
-    const suppressionRow = await db.prepare(
-      'SELECT COUNT(*) AS c FROM issue_topics WHERE keyword = ? AND suppression_reason IS NOT NULL',
-    ).bind(r.keyword).first<{ c: number }>();
-    const suppressionHits = suppressionRow?.c ?? 0;
+  const qualityByKeyword = new Map(qualityRows.results.map(row => [row.keyword, row]));
+
+  const stmts = rows.results.map(r => {
+    const burst = computeBurstScore(timelineByKeyword.get(r.keyword) ?? []);
+    const quality = qualityByKeyword.get(r.keyword);
+    const provenanceCount = quality?.provenance_count ?? 1;
+    const suppressionHits = quality?.suppression_hits ?? 0;
 
     const confidence = classifyTopicConfidence({
       provenanceCount,
@@ -366,7 +388,7 @@ export async function annotateCorpusTopics(db: D1Database): Promise<void> {
          SET confidence = ?, burst_score = ?, burst_quarter = ?
        WHERE keyword = ?`,
     ).bind(confidence, burst.burstScore, burst.burstQuarter, r.keyword);
-  }));
+  });
 
   if (stmts.length > 0) await db.batch(stmts);
 }

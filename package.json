@@ -22,7 +22,8 @@
     "characterize:topics:inline": "node scripts/characterize-topics.mjs inline",
     "characterize:topics:queue": "node scripts/characterize-topics.mjs queue",
     "compare:queue-public-surfaces": "node scripts/compare-queue-public-surfaces.mjs",
-    "smoke:admin-topic-rebuild": "node scripts/admin-topic-rebuild-smoke.mjs"
+    "smoke:admin-topic-rebuild": "node scripts/admin-topic-rebuild-smoke.mjs",
+    "db:explain-hot-paths": "node scripts/explain-d1-hot-paths.mjs"
   },
   "dependencies": {
     "@ade_oshineye/yaket": "0.5.3",

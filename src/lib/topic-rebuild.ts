@@ -154,12 +154,15 @@ export async function rebuildAllTopics(
         const embeddings = keywords.map((kw, i) => ({ keyword: kw, vector: vectors[i] ?? [] }))
           .filter(e => e.vector.length > 0);
 
-        // Build issue-set per keyword for Jaccard.
+        // Build issue-set per keyword for Jaccard. Survivors come from
+        // corpus_topics, so keep this set-oriented instead of sending a
+        // dynamic keyword IN-list back to D1.
         const issueSets = new Map<string, Set<string>>();
-        const placeholders = embeddings.map(() => '?').join(',');
         const sets = embeddings.length === 0 ? null : await db.prepare(
-          `SELECT keyword, issue_id FROM issue_topics WHERE keyword IN (${placeholders})`,
-        ).bind(...embeddings.map(e => e.keyword)).all<{ keyword: string; issue_id: string }>();
+          `SELECT it.keyword, it.issue_id
+           FROM issue_topics it
+           JOIN corpus_topics ct ON ct.keyword = it.keyword`,
+        ).all<{ keyword: string; issue_id: string }>();
         for (const row of sets?.results ?? []) {
           const set = issueSets.get(row.keyword) ?? new Set<string>();
           set.add(row.issue_id);
