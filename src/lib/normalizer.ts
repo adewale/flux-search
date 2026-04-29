@@ -107,7 +107,7 @@ function extractIssueStructure(markdown: string): {
       // Grab the quote text, strip > and quotes
       openingQuote = trimmed
         .replace(/^>\s*/, '')
-        .replace(/^[""\u201C>]+/, '')
+        .replace(/^\s*[""\u201C>]+\s*/, '')
         .replace(/[""\u201D]+$/, '')
         .trim();
       // Reject if the cleaned result is empty, whitespace, or contains
@@ -115,7 +115,7 @@ function extractIssueStructure(markdown: string): {
       // bare quote hid inside whitespace and got exposed by trimming
       // (e.g. `> " "     "` \u2192 `"`). Such inputs are not real opening
       // quotes; keep walking lines for a real one.
-      if (!openingQuote || /^[\s"">\u201C\u201D]*$/.test(openingQuote)) {
+      if (!openingQuote || /^[\s"">\u201C\u201D]*$/.test(openingQuote) || /^>/.test(openingQuote)) {
         openingQuote = null;
         continue;
       }

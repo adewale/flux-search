@@ -72,13 +72,19 @@ export function topicSidePanelHtml(topics, opts) {
  * Mobile-only inline collapsed form: a `<details>` element so it can be
  * toggled without JS. Same data, different chrome.
  */
-export function topicMobileDetailsHtml(topics, opts) {
+export function topicMobileDetailsHtml(topics) {
   if (!Array.isArray(topics) || topics.length === 0) return '';
-  var related = opts && Array.isArray(opts.relatedIssues) ? opts.relatedIssues : [];
   return '<details class="issue-topics-mobile">' +
-    '<summary>Topics in this issue</summary>' +
+    '<summary>Topics (' + topics.length + ')</summary>' +
     '<div class="issue-topics-chips">' + topicChipsHtml(topics, { max: 12 }) + '</div>' +
-    relatedIssuesHtml(related) +
+    '</details>';
+}
+
+export function relatedIssuesMobileDetailsHtml(relatedIssues) {
+  if (!Array.isArray(relatedIssues) || relatedIssues.length === 0) return '';
+  return '<details class="issue-topics-mobile issue-related-mobile">' +
+    '<summary>Related issues</summary>' +
+    relatedIssuesHtml(relatedIssues) +
     '</details>';
 }
 

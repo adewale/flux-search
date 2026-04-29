@@ -13,6 +13,7 @@ import {
   topicChipsHtml,
   topicSidePanelHtml,
   topicMobileDetailsHtml,
+  relatedIssuesMobileDetailsHtml,
   topicLandingStripHtml,
   topicsIndexHtml,
 } from '../frontend/js/lib/topic-render.js';
@@ -127,13 +128,13 @@ describe('topicMobileDetailsHtml', () => {
   it('uses <details>/<summary> for no-JS toggle', () => {
     const html = topicMobileDetailsHtml(TOPICS);
     expect(html.startsWith('<details')).toBe(true);
-    expect(html).toContain('<summary>');
+    expect(html).toContain('<summary>Topics (3)</summary>');
   });
 
-  it('includes related issues when provided', () => {
-    const html = topicMobileDetailsHtml(TOPICS, {
-      relatedIssues: [{ issue_number: 22, title: 'Mobile neighbor', overlap: 1 }],
-    });
+  it('renders related issues as a separate mobile details block', () => {
+    const html = relatedIssuesMobileDetailsHtml([
+      { issue_number: 22, title: 'Mobile neighbor', overlap: 1 },
+    ]);
     expect(html).toContain('Related issues');
     expect(html).toContain('Mobile neighbor');
   });

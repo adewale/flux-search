@@ -26,7 +26,7 @@ export default {
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
     ctx.waitUntil(weeklySync(controller, env));
   },
-  async queue(batch: MessageBatch<EnrichmentMessage>, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(processEnrichmentQueue(batch));
+  async queue(batch: MessageBatch<EnrichmentMessage>, env: Env, _ctx: ExecutionContext) {
+    await processEnrichmentQueue(batch, env);
   },
 };

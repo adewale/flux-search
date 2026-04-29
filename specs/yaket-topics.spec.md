@@ -14,7 +14,7 @@ Search today is lexical + semantic over chunks. Readers have no way to ask "what
 
 ## Library
 
-[`@ade_oshineye/yaket@0.4.0`](https://www.npmjs.com/package/@ade_oshineye/yaket) — a TypeScript port of YAKE with a `/worker` entry point, fully bundled stopwords, and no network dependency. Runs inside Cloudflare Workers.
+[`@ade_oshineye/yaket@0.5.3`](https://www.npmjs.com/package/@ade_oshineye/yaket) — a TypeScript port of YAKE with a `/worker` entry point, fully bundled stopwords, and no network dependency. Runs inside Cloudflare Workers.
 
 - Deterministic (same input → same output). Re-extraction is a no-op when `content_hash` is unchanged.
 - No LLM; no per-call cost.
@@ -222,7 +222,7 @@ Scale: 234 issues × ~25 topics = ~6k rows. Single D1 transaction, no batching n
 - **Topics side panel** (desktop ≥900px): `<aside>` column, ~220px wide, right of the article. `position: sticky; top: 1rem` so it stays visible while scrolling. Layout: `grid-template-columns: minmax(0, 1fr) 220px; gap: 2rem`.
   - Panel header "Topics" with up to 8 topic chips from `issue_topics` ordered by `rank`. Each chip links to `/?q=topic:"…"`.
   - Below topics, same panel: "Related issues" — Jaccard over top-10 keyword sets, top 3 shown.
-- **Mobile (<900px)**: grid collapses to a single column; the aside becomes two inline `<details>` blocks — "Topics (N)" above the article (collapsed by default, so the first paragraph stays above the fold) and "Related issues" below the article.
+- **Mobile (<900px)**: grid collapses to a single column; the aside becomes two inline `<details>` blocks — "Topics (N)" above the article (collapsed by default, so the first paragraph stays above the fold) and "Related issues" below the article body.
 
 ### `topic:` query operator (`src/lib/query-parser.ts`)
 - `topic:"institutional trust"` → `WHERE EXISTS (SELECT 1 FROM issue_topics WHERE issue_id = issues.id AND keyword = ?)`.

@@ -14,7 +14,8 @@
     "corpus:fetch": "bash scripts/fetch-corpus.sh",
     "corpus:process": "npx tsx scripts/process-corpus.ts",
     "corpus:validate": "npx tsx scripts/validate-corpus.ts",
-    "corpus:pipeline": "npm run corpus:fetch && npm run corpus:process && npm run corpus:validate"
+    "corpus:pipeline": "npm run corpus:fetch && npm run corpus:process && npm run corpus:validate",
+    "metrics:topic-queue": "node scripts/topic-queue-metrics.mjs"
   },
   "dependencies": {
     "@ade_oshineye/yaket": "0.5.3",

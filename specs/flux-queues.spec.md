@@ -760,13 +760,13 @@ These items are intentionally tracked here now so Flux Search has one queue/topi
 
 ## Immediate implementation checklist
 
-- [ ] Rename current queue message field `type` to `kind` or support both during migration.
-- [ ] Add `schemaVersion`, `jobId`, `correlationId`, `queuedAt` to `EnrichmentMessage`.
-- [ ] Add `pipeline_jobs` and `pipeline_phases` migration.
-- [ ] Record `message.attempts` in consumer logs/state.
-- [ ] Change queue handler to await processing directly.
-- [ ] Add durable job claim/succeed/fail/defer helpers.
-- [ ] Add idempotency-key helper and PBT.
-- [ ] Add `/admin/pipeline-runs/:id/jobs`.
-- [ ] Add DLQ replay route.
-- [ ] Add inline-vs-queue topic characterization scripts.
+- [x] Rename current queue message field `type` to `kind` or support both during migration.
+- [x] Add `schemaVersion`, `jobId`, `correlationId`, `queuedAt` to `EnrichmentMessage`.
+- [x] Add `pipeline_jobs` and `pipeline_phases` migration.
+- [x] Record `message.attempts` in consumer logs/state.
+- [x] Change queue handler to await processing directly.
+- [x] Add durable job claim/succeed/fail/defer helpers.
+- [x] Add idempotency-key helper and PBT.
+- [x] Add `/admin/pipeline-runs/:id/jobs`.
+- [x] Add DLQ replay route.
+- [x] Add inline-vs-queue topic characterization scripts.

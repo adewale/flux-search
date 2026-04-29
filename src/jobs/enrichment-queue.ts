@@ -1,29 +1,88 @@
 import type { Env } from '../env';
 import { runStep, shouldRetryError } from '../lib/topic-rebuild';
+import {
+  claimPipelineJob,
+  createPipelineJob,
+  deferPipelineJob,
+  failPipelineJob,
+  idempotencyKeyForMessage,
+  succeedPipelineJob,
+} from '../lib/pipeline-jobs';
 
-export type EnrichmentMessage = {
+export type EmbedCorpusTopicsMessage = {
+  schemaVersion: 1;
+  kind: 'embed-corpus-topics';
+  /** Legacy producer compatibility. Prefer kind. */
+  type?: 'embed-corpus-topics';
+  runId: string;
+  /** Legacy producer compatibility. Prefer runId. */
+  run_id?: string;
+  jobId: string;
+  correlationId: string;
+  queuedAt: string;
+  keywords: string[];
+};
+
+export type LegacyEnrichmentMessage = {
   type: 'embed-corpus-topics';
   run_id: string;
   keywords: string[];
 };
 
+export type EnrichmentMessage = EmbedCorpusTopicsMessage | LegacyEnrichmentMessage;
+
 export interface TopicKeywordRow {
   keyword: string;
+}
+
+function randomId(): string {
+  return crypto.randomUUID();
+}
+
+function messageKind(message: EnrichmentMessage): 'embed-corpus-topics' {
+  return ('kind' in message ? message.kind : message.type) as 'embed-corpus-topics';
+}
+
+function messageRunId(message: EnrichmentMessage): string {
+  return 'runId' in message ? message.runId : message.run_id;
+}
+
+function messageJobId(message: EnrichmentMessage): string | null {
+  return 'jobId' in message ? message.jobId : null;
+}
+
+function messageCorrelationId(message: EnrichmentMessage): string | null {
+  return 'correlationId' in message ? message.correlationId : null;
 }
 
 export function makeTopicEmbeddingMessages(
   rows: TopicKeywordRow[],
   runId: string,
-  batchSize = 25
-): EnrichmentMessage[] {
+  batchSize = 25,
+  opts: { correlationId?: string; now?: string } = {},
+): EmbedCorpusTopicsMessage[] {
   if (!Number.isInteger(batchSize) || batchSize < 1) {
     throw new Error('batchSize must be a positive integer');
   }
 
-  const messages: EnrichmentMessage[] = [];
+  const messages: EmbedCorpusTopicsMessage[] = [];
+  const correlationId = opts.correlationId ?? randomId();
+  const queuedAt = opts.now ?? new Date().toISOString();
   for (let i = 0; i < rows.length; i += batchSize) {
     const keywords = rows.slice(i, i + batchSize).map(row => row.keyword).filter(Boolean);
-    if (keywords.length > 0) messages.push({ type: 'embed-corpus-topics', run_id: runId, keywords });
+    if (keywords.length > 0) {
+      messages.push({
+        schemaVersion: 1,
+        kind: 'embed-corpus-topics',
+        type: 'embed-corpus-topics',
+        runId,
+        run_id: runId,
+        jobId: randomId(),
+        correlationId,
+        queuedAt,
+        keywords,
+      });
+    }
   }
   return messages;
 }
@@ -38,46 +97,84 @@ export async function enqueueCorpusTopicEmbedding(env: Env, runId: string, batch
   `).all<TopicKeywordRow>();
 
   const messages = makeTopicEmbeddingMessages(rows.results, runId, batchSize);
-  for (let i = 0; i < messages.length; i += 100) {
+  const sendable: EmbedCorpusTopicsMessage[] = [];
+  for (const message of messages) {
+    const created = await createPipelineJob(env.DB, {
+      id: message.jobId,
+      runId,
+      kind: message.kind,
+      semanticKey: idempotencyKeyForMessage(message),
+      payload: message,
+      correlationId: message.correlationId,
+      queuedAt: message.queuedAt,
+    });
+    if (created) sendable.push(message);
+  }
+
+  for (let i = 0; i < sendable.length; i += 100) {
     await env.ENRICHMENT_QUEUE.sendBatch(
-      messages.slice(i, i + 100).map(body => ({ body }))
+      sendable.slice(i, i + 100).map(body => ({ body }))
     );
   }
-  return messages.length;
+  return sendable.length;
 }
 
-export async function handleEnrichmentMessage(message: EnrichmentMessage): Promise<{ embedded: number }> {
-  switch (message.type) {
-    case 'embed-corpus-topics': {
-      // Flux does not yet persist topic embeddings; this queue variant is the
-      // fan-out seam. Keeping it as an acked, measured unit lets us move the
-      // expensive embedding implementation here later without changing
-      // producers or retry policy.
-      await runStep('embed_corpus_topics', async () => {
-        console.log(JSON.stringify({
-          event: 'embed_batch',
-          run_id: message.run_id,
-          batch_size: message.keywords.length,
-          ack: true,
-        }));
-      });
-      return { embedded: message.keywords.length };
+export async function handleEnrichmentMessage(message: EnrichmentMessage, env?: Env, attempts = 1): Promise<{ embedded: number }> {
+  const kind = messageKind(message);
+  const runId = messageRunId(message);
+  const jobId = messageJobId(message);
+  const correlationId = messageCorrelationId(message);
+
+  if (env && jobId) {
+    const claimed = await claimPipelineJob(env.DB, jobId, attempts);
+    if (!claimed) return { embedded: 0 };
+  }
+
+  try {
+    switch (kind) {
+      case 'embed-corpus-topics': {
+        await runStep('embed_corpus_topics', async () => {
+          console.log(JSON.stringify({
+            event: 'embed_batch',
+            run_id: runId,
+            job_id: jobId,
+            correlation_id: correlationId,
+            attempts,
+            batch_size: message.keywords.length,
+            ack: true,
+          }));
+        });
+        if (env && jobId) await succeedPipelineJob(env.DB, jobId);
+        return { embedded: message.keywords.length };
+      }
     }
+  } catch (err) {
+    if (env && jobId) {
+      if (shouldRetryError(err)) await deferPipelineJob(env.DB, jobId, err);
+      else await failPipelineJob(env.DB, jobId, err);
+    }
+    throw err;
   }
 }
 
-export async function processEnrichmentQueue(batch: MessageBatch<EnrichmentMessage>): Promise<void> {
+export async function processEnrichmentQueue(batch: MessageBatch<EnrichmentMessage>, env: Env): Promise<void> {
   for (const message of batch.messages) {
+    const attempts = typeof message.attempts === 'number' ? message.attempts : 1;
     try {
-      await handleEnrichmentMessage(message.body);
+      await handleEnrichmentMessage(message.body, env, attempts);
       message.ack();
     } catch (err) {
+      const jobId = messageJobId(message.body);
       if (shouldRetryError(err)) {
+        if (jobId) await deferPipelineJob(env.DB, jobId, err);
         message.retry({ delaySeconds: 5 });
       } else {
+        if (jobId) await failPipelineJob(env.DB, jobId, err);
         console.error(JSON.stringify({
           event: 'enrichment_message_failed',
-          type: message.body?.type,
+          type: message.body && ('kind' in message.body ? message.body.kind : message.body.type),
+          job_id: jobId,
+          attempts,
           error: String(err),
           ack: true,
         }));

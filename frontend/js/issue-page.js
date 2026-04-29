@@ -4,7 +4,7 @@
 
 import { formatDate, markdownToHtml } from './lib/utils.js';
 import { formatSectionLabel as formatSectionType } from './lib/section-labels.js';
-import { topicSidePanelHtml, topicMobileDetailsHtml } from './lib/topic-render.js';
+import { topicSidePanelHtml, topicMobileDetailsHtml, relatedIssuesMobileDetailsHtml } from './lib/topic-render.js';
 
 function renderMarkdown(md) {
   // Use marked if available (loaded async from CDN), otherwise use the
@@ -123,13 +123,18 @@ async function loadIssue(num, targetSection) {
 function renderTopics(topics, relatedIssues) {
   var sideEl = document.getElementById('issue-topics-side');
   var mobileEl = document.getElementById('issue-topics-mobile');
+  var relatedMobileEl = document.getElementById('issue-related-mobile');
   if (sideEl) {
     sideEl.innerHTML = topicSidePanelHtml(topics, { relatedIssues: relatedIssues });
     sideEl.hidden = topics.length === 0;
   }
   if (mobileEl) {
-    mobileEl.innerHTML = topicMobileDetailsHtml(topics, { relatedIssues: relatedIssues });
+    mobileEl.innerHTML = topicMobileDetailsHtml(topics);
     mobileEl.hidden = topics.length === 0;
+  }
+  if (relatedMobileEl) {
+    relatedMobileEl.innerHTML = relatedIssuesMobileDetailsHtml(relatedIssues);
+    relatedMobileEl.hidden = relatedIssues.length === 0;
   }
 }
 

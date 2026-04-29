@@ -6,7 +6,8 @@ import { runBootstrap } from '../crawler/bootstrap';
 import { runReindex } from '../crawler/ingestor';
 import { rebuildAllTopics } from '../lib/topic-rebuild';
 import { extractTopicsMulti } from '../lib/topic-multi-extract';
-import { enqueueCorpusTopicEmbedding } from '../jobs/enrichment-queue';
+import { enqueueCorpusTopicEmbedding, type EnrichmentMessage } from '../jobs/enrichment-queue';
+import { listPipelineJobs } from '../lib/pipeline-jobs';
 
 export const adminRoutes = new Hono<{ Bindings: Env }>();
 
@@ -71,6 +72,22 @@ adminRoutes.get('/pipeline-runs', async (c) => {
   const rows = await c.env.DB.prepare('SELECT * FROM pipeline_runs ORDER BY started_at DESC LIMIT ?')
     .bind(limit).all();
   return c.json({ runs: rows.results });
+});
+
+adminRoutes.get('/pipeline-runs/:id/jobs', async (c) => {
+  const id = c.req.param('id');
+  const limit = Math.min(500, Math.max(1, parseInt(c.req.query('limit') || '100')));
+  const jobs = await listPipelineJobs(c.env.DB, id, limit);
+  return c.json({ run_id: id, jobs });
+});
+
+adminRoutes.post('/dlq/replay', async (c) => {
+  if (!c.env.ENRICHMENT_QUEUE) return c.json({ error: 'Queue binding unavailable' }, 503);
+  const body = await c.req.json().catch(() => null) as null | { message?: EnrichmentMessage; messages?: EnrichmentMessage[] };
+  const messages = Array.isArray(body?.messages) ? body.messages : body?.message ? [body.message] : [];
+  if (messages.length === 0) return c.json({ error: 'Expected message or messages' }, 400);
+  await c.env.ENRICHMENT_QUEUE.sendBatch(messages.map(message => ({ body: message })));
+  return c.json({ replayed: messages.length });
 });
 
 adminRoutes.get('/topic-audit', async (c) => {
