@@ -47,6 +47,7 @@ export function shouldRetryError(err: unknown): boolean {
 }
 
 export interface RebuildStats {
+  run_id: string;
   issues_processed: number;
   corpus_topics: number;
   timeline_rows: number;
@@ -175,6 +176,7 @@ export async function rebuildAllTopics(
 
     const elapsed = Date.now() - startedAt;
     const stats: RebuildStats = {
+      run_id: runId,
       issues_processed: processed,
       corpus_topics: corpusCount,
       timeline_rows: timelineCount,

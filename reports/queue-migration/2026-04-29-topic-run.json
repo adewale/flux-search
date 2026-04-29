@@ -1,0 +1,47 @@
+{
+  "pipeline_run": {
+    "id": "50b587b8-4b7a-4997-ae62-3adacbfcefae",
+    "mode": "topic_rebuild",
+    "status": "completed",
+    "started_at": "2026-04-29T14:08:00.356Z",
+    "completed_at": "2026-04-29T14:08:25.410Z",
+    "duration_seconds": 25.054,
+    "notes": {
+      "run_id": "50b587b8-4b7a-4997-ae62-3adacbfcefae",
+      "issues_processed": 236,
+      "corpus_topics": 149,
+      "timeline_rows": 5345,
+      "lexicon_phrases": 16,
+      "cluster_merges": 3,
+      "topics_suppressed": 2311,
+      "similarity_pairs": 0
+    }
+  },
+  "planner_response_ms": 19,
+  "queue_jobs": {
+    "total": 6,
+    "by_status": {
+      "succeeded": 6
+    },
+    "failed": 0,
+    "deferred": 0,
+    "active_after_poll": 0
+  },
+  "public_surface_check": "passed",
+  "coverage": {
+    "total_issues": 236,
+    "missing_issue_numbers": []
+  },
+  "topic_surfaces": {
+    "top_topics": [
+      "systems thinking",
+      "large language models",
+      "climate change",
+      "mental models",
+      "machine learning"
+    ],
+    "issue_214_topic_count": 25,
+    "issue_214_related_count": 3
+  },
+  "notes": "Authenticated admin smoke passed with queue jobs linked to the pipeline_run id and all queue jobs succeeded."
+}

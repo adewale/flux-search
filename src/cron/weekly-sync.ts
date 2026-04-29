@@ -68,7 +68,7 @@ export async function weeklySync(controller: ScheduledController, env: Env): Pro
     let topicNote: string | null = null;
     if (created > 0) {
       const stats = await rebuildAllTopics(env.DB);
-      const queued = await enqueueCorpusTopicEmbedding(env, runId);
+      const queued = await enqueueCorpusTopicEmbedding(env, stats.run_id);
       topicNote = `Topic rebuild: ${stats.corpus_topics} corpus topics; queued ${queued} embedding batches`;
     }
 

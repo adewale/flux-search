@@ -60,7 +60,7 @@ adminRoutes.get('/crawl-runs/:id', async (c) => {
 adminRoutes.post('/rebuild-topics', async (c) => {
   c.executionCtx.waitUntil((async () => {
     const stats = await rebuildAllTopics(c.env.DB);
-    const queued = await enqueueCorpusTopicEmbedding(c.env, crypto.randomUUID());
+    const queued = await enqueueCorpusTopicEmbedding(c.env, stats.run_id);
     console.log('rebuild-topics done:', { ...stats, queued_embedding_batches: queued });
   })().catch(err => console.error('rebuild-topics failed:', err)));
 

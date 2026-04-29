@@ -1,0 +1,910 @@
+{
+  "generated_at": "2026-04-29T14:00:54.275Z",
+  "count": 100,
+  "summary": {
+    "keep": 91,
+    "review": 9
+  },
+  "topics": [
+    {
+      "rank": 1,
+      "keyword": "systems thinking",
+      "doc_frequency": 106,
+      "confidence": "high",
+      "distinctiveness": 0.5508474576271186,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 2,
+      "keyword": "large language models",
+      "doc_frequency": 86,
+      "confidence": "high",
+      "distinctiveness": 0.6610169491525424,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 3,
+      "keyword": "climate change",
+      "doc_frequency": 47,
+      "confidence": "high",
+      "distinctiveness": 0.8008474576271186,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 4,
+      "keyword": "mental models",
+      "doc_frequency": 34,
+      "confidence": "high",
+      "distinctiveness": 0.8559322033898304,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 5,
+      "keyword": "machine learning",
+      "doc_frequency": 30,
+      "confidence": "high",
+      "distinctiveness": 0.8728813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 6,
+      "keyword": "open source",
+      "doc_frequency": 30,
+      "confidence": "high",
+      "distinctiveness": 0.8728813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 7,
+      "keyword": "new york",
+      "doc_frequency": 26,
+      "confidence": "medium",
+      "distinctiveness": 0.9322033898305084,
+      "status": "review",
+      "reason": "entity/place rather than theme"
+    },
+    {
+      "rank": 8,
+      "keyword": "new york city",
+      "doc_frequency": 16,
+      "confidence": "medium",
+      "distinctiveness": 0.9322033898305084,
+      "status": "review",
+      "reason": "entity/place rather than theme"
+    },
+    {
+      "rank": 9,
+      "keyword": "united states",
+      "doc_frequency": 14,
+      "confidence": "high",
+      "distinctiveness": 0.940677966101695,
+      "status": "review",
+      "reason": "entity/place rather than theme"
+    },
+    {
+      "rank": 10,
+      "keyword": "silicon valley",
+      "doc_frequency": 13,
+      "confidence": "high",
+      "distinctiveness": 0.9449152542372882,
+      "status": "review",
+      "reason": "entity/place rather than theme"
+    },
+    {
+      "rank": 11,
+      "keyword": "venkatesh rao",
+      "doc_frequency": 9,
+      "confidence": "high",
+      "distinctiveness": 0.961864406779661,
+      "status": "review",
+      "reason": "person/entity rather than theme"
+    },
+    {
+      "rank": 12,
+      "keyword": "new york times",
+      "doc_frequency": 12,
+      "confidence": "medium",
+      "distinctiveness": 0.9491525423728814,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 13,
+      "keyword": "christopher alexander",
+      "doc_frequency": 9,
+      "confidence": "high",
+      "distinctiveness": 0.961864406779661,
+      "status": "review",
+      "reason": "person/entity rather than theme"
+    },
+    {
+      "rank": 14,
+      "keyword": "los angeles",
+      "doc_frequency": 11,
+      "confidence": "medium",
+      "distinctiveness": 0.9533898305084746,
+      "status": "review",
+      "reason": "entity/place rather than theme"
+    },
+    {
+      "rank": 15,
+      "keyword": "stable diffusion",
+      "doc_frequency": 10,
+      "confidence": "high",
+      "distinctiveness": 0.9576271186440678,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 16,
+      "keyword": "hong kong",
+      "doc_frequency": 6,
+      "confidence": "high",
+      "distinctiveness": 0.9745762711864406,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 17,
+      "keyword": "dimitri glazkov",
+      "doc_frequency": 7,
+      "confidence": "high",
+      "distinctiveness": 0.9703389830508474,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 18,
+      "keyword": "wendover productions",
+      "doc_frequency": 7,
+      "confidence": "high",
+      "distinctiveness": 0.9703389830508474,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 19,
+      "keyword": "san francisco",
+      "doc_frequency": 9,
+      "confidence": "medium",
+      "distinctiveness": 0.961864406779661,
+      "status": "review",
+      "reason": "entity/place rather than theme"
+    },
+    {
+      "rank": 20,
+      "keyword": "byrne hobart",
+      "doc_frequency": 6,
+      "confidence": "high",
+      "distinctiveness": 0.9745762711864406,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 21,
+      "keyword": "img src",
+      "doc_frequency": 6,
+      "confidence": "medium",
+      "distinctiveness": 0.9745762711864406,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 22,
+      "keyword": "noah smith",
+      "doc_frequency": 6,
+      "confidence": "high",
+      "distinctiveness": 0.9745762711864406,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 23,
+      "keyword": "bored ape",
+      "doc_frequency": 7,
+      "confidence": "high",
+      "distinctiveness": 0.9703389830508474,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 24,
+      "keyword": "bored ape yacht club",
+      "doc_frequency": 8,
+      "confidence": "medium",
+      "distinctiveness": 0.9661016949152542,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 25,
+      "keyword": "seeing like",
+      "doc_frequency": 8,
+      "confidence": "medium",
+      "distinctiveness": 0.9661016949152542,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 26,
+      "keyword": "app store",
+      "doc_frequency": 7,
+      "confidence": "high",
+      "distinctiveness": 0.9703389830508474,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 27,
+      "keyword": "data center",
+      "doc_frequency": 6,
+      "confidence": "medium",
+      "distinctiveness": 0.9745762711864406,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 28,
+      "keyword": "feedback loops",
+      "doc_frequency": 3,
+      "confidence": "medium",
+      "distinctiveness": 0.9872881355932204,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 29,
+      "keyword": "ben thompson",
+      "doc_frequency": 7,
+      "confidence": "medium",
+      "distinctiveness": 0.9703389830508474,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 30,
+      "keyword": "cold war",
+      "doc_frequency": 7,
+      "confidence": "medium",
+      "distinctiveness": 0.9703389830508474,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 31,
+      "keyword": "elon musk",
+      "doc_frequency": 7,
+      "confidence": "medium",
+      "distinctiveness": 0.9703389830508474,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 32,
+      "keyword": "european union",
+      "doc_frequency": 7,
+      "confidence": "medium",
+      "distinctiveness": 0.9703389830508474,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 33,
+      "keyword": "farnam street",
+      "doc_frequency": 7,
+      "confidence": "medium",
+      "distinctiveness": 0.9703389830508474,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 34,
+      "keyword": "harvard business review",
+      "doc_frequency": 7,
+      "confidence": "medium",
+      "distinctiveness": 0.9703389830508474,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 35,
+      "keyword": "timothy snyder",
+      "doc_frequency": 5,
+      "confidence": "high",
+      "distinctiveness": 0.978813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 36,
+      "keyword": "benedict evans",
+      "doc_frequency": 5,
+      "confidence": "high",
+      "distinctiveness": 0.978813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 37,
+      "keyword": "donella meadows",
+      "doc_frequency": 5,
+      "confidence": "high",
+      "distinctiveness": 0.978813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 38,
+      "keyword": "robin sloan",
+      "doc_frequency": 5,
+      "confidence": "high",
+      "distinctiveness": 0.978813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 39,
+      "keyword": "top-right quadrant",
+      "doc_frequency": 5,
+      "confidence": "medium",
+      "distinctiveness": 0.978813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 40,
+      "keyword": "vitalik buterin",
+      "doc_frequency": 5,
+      "confidence": "high",
+      "distinctiveness": 0.978813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 41,
+      "keyword": "vladimir putin",
+      "doc_frequency": 5,
+      "confidence": "high",
+      "distinctiveness": 0.978813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 42,
+      "keyword": "spencer pitman",
+      "doc_frequency": 3,
+      "confidence": "medium",
+      "distinctiveness": 0.9872881355932204,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 43,
+      "keyword": "southeast asia",
+      "doc_frequency": 6,
+      "confidence": "high",
+      "distinctiveness": 0.9745762711864406,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 44,
+      "keyword": "labor day",
+      "doc_frequency": 3,
+      "confidence": "medium",
+      "distinctiveness": 0.9872881355932204,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 45,
+      "keyword": "derek thompson",
+      "doc_frequency": 6,
+      "confidence": "medium",
+      "distinctiveness": 0.9745762711864406,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 46,
+      "keyword": "golden state",
+      "doc_frequency": 6,
+      "confidence": "high",
+      "distinctiveness": 0.9745762711864406,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 47,
+      "keyword": "science alert",
+      "doc_frequency": 6,
+      "confidence": "medium",
+      "distinctiveness": 0.9745762711864406,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 48,
+      "keyword": "south korea",
+      "doc_frequency": 6,
+      "confidence": "medium",
+      "distinctiveness": 0.9745762711864406,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 49,
+      "keyword": "paul graham",
+      "doc_frequency": 5,
+      "confidence": "high",
+      "distinctiveness": 0.978813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 50,
+      "keyword": "john boyd",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 51,
+      "keyword": "design patterns",
+      "doc_frequency": 3,
+      "confidence": "medium",
+      "distinctiveness": 0.9872881355932204,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 52,
+      "keyword": "red sea",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 53,
+      "keyword": "ben mathes",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 54,
+      "keyword": "social media",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 55,
+      "keyword": "strait of hormuz",
+      "doc_frequency": 3,
+      "confidence": "medium",
+      "distinctiveness": 0.9872881355932204,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 56,
+      "keyword": "alex komoroske",
+      "doc_frequency": 5,
+      "confidence": "medium",
+      "distinctiveness": 0.978813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 57,
+      "keyword": "exchange commission",
+      "doc_frequency": 5,
+      "confidence": "medium",
+      "distinctiveness": 0.978813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 58,
+      "keyword": "foreign policy",
+      "doc_frequency": 5,
+      "confidence": "medium",
+      "distinctiveness": 0.978813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 59,
+      "keyword": "native american",
+      "doc_frequency": 5,
+      "confidence": "medium",
+      "distinctiveness": 0.978813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 60,
+      "keyword": "new zealand",
+      "doc_frequency": 5,
+      "confidence": "medium",
+      "distinctiveness": 0.978813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 61,
+      "keyword": "north america",
+      "doc_frequency": 8,
+      "confidence": "medium",
+      "distinctiveness": 0.978813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 62,
+      "keyword": "quanta magazine",
+      "doc_frequency": 5,
+      "confidence": "medium",
+      "distinctiveness": 0.978813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 63,
+      "keyword": "technology review",
+      "doc_frequency": 5,
+      "confidence": "medium",
+      "distinctiveness": 0.978813559322034,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 64,
+      "keyword": "steve jobs",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 65,
+      "keyword": "white house",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 66,
+      "keyword": "game of life",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 67,
+      "keyword": "cryptocurrency",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "review",
+      "reason": "singleton; keep only if editorially meaningful"
+    },
+    {
+      "rank": 68,
+      "keyword": "minimum viable product",
+      "doc_frequency": 3,
+      "confidence": "medium",
+      "distinctiveness": 0.9872881355932204,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 69,
+      "keyword": "pace layers",
+      "doc_frequency": 3,
+      "confidence": "medium",
+      "distinctiveness": 0.9872881355932204,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 70,
+      "keyword": "saudi arabia",
+      "doc_frequency": 3,
+      "confidence": "medium",
+      "distinctiveness": 0.9872881355932204,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 71,
+      "keyword": "persian gulf",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 72,
+      "keyword": "stock market",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 73,
+      "keyword": "anil dash",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 74,
+      "keyword": "camille fournier",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 75,
+      "keyword": "carlota perez",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 76,
+      "keyword": "census bureau",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 77,
+      "keyword": "claude code",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 78,
+      "keyword": "cory doctorow",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 79,
+      "keyword": "financial times",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 80,
+      "keyword": "gordon brander",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 81,
+      "keyword": "industrial revolution",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 82,
+      "keyword": "internet archive",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 83,
+      "keyword": "kamil galeev",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 84,
+      "keyword": "kevin kelly",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 85,
+      "keyword": "kyla scanlon",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 86,
+      "keyword": "las vegas",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 87,
+      "keyword": "many americans",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 88,
+      "keyword": "nicky case",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 89,
+      "keyword": "north carolina",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 90,
+      "keyword": "not boring",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 91,
+      "keyword": "on tyranny",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 92,
+      "keyword": "paul poast",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 93,
+      "keyword": "programmable mutter",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 94,
+      "keyword": "rest of world",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 95,
+      "keyword": "robert kegan",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 96,
+      "keyword": "world war",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 97,
+      "keyword": "xers highlighting",
+      "doc_frequency": 4,
+      "confidence": "medium",
+      "distinctiveness": 0.9830508474576272,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 98,
+      "keyword": "air force",
+      "doc_frequency": 3,
+      "confidence": "medium",
+      "distinctiveness": 0.9872881355932204,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 99,
+      "keyword": "complex times",
+      "doc_frequency": 3,
+      "confidence": "medium",
+      "distinctiveness": 0.9872881355932204,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    },
+    {
+      "rank": 100,
+      "keyword": "indian ocean",
+      "doc_frequency": 3,
+      "confidence": "medium",
+      "distinctiveness": 0.9872881355932204,
+      "status": "keep",
+      "reason": "multi-word/domain phrase"
+    }
+  ]
+}

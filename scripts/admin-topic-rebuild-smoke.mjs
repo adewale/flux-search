@@ -13,6 +13,7 @@
 const base = process.env.FLUX_BASE_URL || 'https://flux-search.adewale-883.workers.dev';
 const token = process.env.ADMIN_TOKEN;
 const waitSeconds = Number(process.env.REBUILD_WAIT_SECONDS || 30);
+const maxPollSeconds = Number(process.env.QUEUE_POLL_SECONDS || 180);
 
 if (!token) {
   console.error('ADMIN_TOKEN is required. Example: ADMIN_TOKEN=... npm run smoke:admin-topic-rebuild');
@@ -67,21 +68,34 @@ console.log(JSON.stringify({
 console.log(JSON.stringify({ event: 'waiting', seconds: waitSeconds }, null, 2));
 await sleep(waitSeconds * 1000);
 
-const [runs, coverage, audit, topics, issue214] = await Promise.all([
-  request('/admin/pipeline-runs?limit=5'),
+let runs = await request('/admin/pipeline-runs?limit=5');
+let latestRun = runs.body?.runs?.[0];
+let jobs = null;
+let jobRows = [];
+const pollStarted = Date.now();
+if (latestRun?.id) {
+  do {
+    runs = await request('/admin/pipeline-runs?limit=5');
+    latestRun = runs.body?.runs?.find(r => r.id === latestRun.id) || runs.body?.runs?.[0];
+    if (latestRun?.status === 'completed') {
+      jobs = await request(`/admin/pipeline-runs/${latestRun.id}/jobs?limit=500`);
+      jobRows = jobs?.body?.jobs || [];
+      const active = jobRows.filter(j => ['queued', 'processing', 'deferred'].includes(j.status));
+      if (jobRows.length > 0 && active.length === 0) break;
+    }
+    if (latestRun?.status === 'failed') break;
+    if (Date.now() - pollStarted >= maxPollSeconds * 1000) break;
+    await sleep(5000);
+  } while (true);
+}
+
+const [coverage, audit, topics, issue214] = await Promise.all([
   request('/admin/coverage'),
   request('/admin/topic-audit?limit=10'),
   fetch(base + '/topics?limit=5').then(r => r.json()),
   fetch(base + '/issues/issue/214/sections').then(r => r.json()),
 ]);
 
-const latestRun = runs.body?.runs?.[0];
-let jobs = null;
-if (latestRun?.id) {
-  jobs = await request(`/admin/pipeline-runs/${latestRun.id}/jobs?limit=500`);
-}
-
-const jobRows = jobs?.body?.jobs || [];
 const jobsByStatus = jobRows.reduce((acc, j) => {
   acc[j.status] = (acc[j.status] || 0) + 1;
   return acc;
@@ -91,7 +105,10 @@ const failures = [];
 if ((topics.topics?.length || 0) === 0) failures.push('No corpus topics visible at /topics');
 if ((issue214.topics?.length || 0) === 0) failures.push('Issue #214 has no topics');
 if ((issue214.related_issues?.length || 0) === 0) failures.push('Issue #214 has no related_issues');
+if (!latestRun || latestRun.status !== 'completed') failures.push('Latest pipeline run did not complete after polling');
+if (jobRows.length === 0) failures.push('No queue jobs found for latest pipeline run');
 if (jobRows.some(j => j.status === 'failed')) failures.push('Some pipeline jobs failed');
+if (jobRows.some(j => ['queued', 'processing', 'deferred'].includes(j.status))) failures.push('Some pipeline jobs are still active after polling');
 
 const report = {
   event: 'admin_topic_rebuild_smoke_result',
