@@ -242,6 +242,8 @@ Automatic checks:
 
 ## Recommended next implementation slice
 
+See also [`topic-quality-experiments.md`](./topic-quality-experiments.md) for a measurable experiment backlog.
+
 1. Add `topic_type` and `quality_score` to `corpus_topics` and/or a new topic metadata table.
 2. Add deterministic type classifier tests for current review items:
    - `new york` → place
