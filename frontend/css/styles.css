@@ -967,6 +967,37 @@ body {
   margin-bottom: 0.5rem;
 }
 
+.issue-related-issues {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.related-issue-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.related-issue-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: var(--size-sm);
+}
+
+.related-issue-link:hover,
+.related-issue-link:focus-visible {
+  color: var(--accent);
+}
+
+.related-overlap {
+  display: block;
+  color: var(--text-tertiary);
+  font-size: var(--size-sm);
+}
+
 /* Recurring themes strip on landing */
 .recurring-themes {
   margin: 1.5rem 0;

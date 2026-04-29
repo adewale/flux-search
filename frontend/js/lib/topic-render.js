@@ -57,11 +57,14 @@ export function topicChipsHtml(topics, opts) {
  *
  * Returns '' when there are no topics so the caller can hide the panel.
  */
-export function topicSidePanelHtml(topics) {
+export function topicSidePanelHtml(topics, opts) {
   if (!Array.isArray(topics) || topics.length === 0) return '';
+  var related = opts && Array.isArray(opts.relatedIssues) ? opts.relatedIssues : [];
+  var relatedHtml = relatedIssuesHtml(related);
   return '<aside class="issue-topics-panel" aria-label="Topics in this issue">' +
     '<h3 class="eyebrow">Topics</h3>' +
     '<div class="issue-topics-chips">' + topicChipsHtml(topics, { max: 12 }) + '</div>' +
+    relatedHtml +
     '</aside>';
 }
 
@@ -69,11 +72,13 @@ export function topicSidePanelHtml(topics) {
  * Mobile-only inline collapsed form: a `<details>` element so it can be
  * toggled without JS. Same data, different chrome.
  */
-export function topicMobileDetailsHtml(topics) {
+export function topicMobileDetailsHtml(topics, opts) {
   if (!Array.isArray(topics) || topics.length === 0) return '';
+  var related = opts && Array.isArray(opts.relatedIssues) ? opts.relatedIssues : [];
   return '<details class="issue-topics-mobile">' +
     '<summary>Topics in this issue</summary>' +
     '<div class="issue-topics-chips">' + topicChipsHtml(topics, { max: 12 }) + '</div>' +
+    relatedIssuesHtml(related) +
     '</details>';
 }
 
@@ -83,6 +88,24 @@ export function topicMobileDetailsHtml(topics) {
  *
  * Returns '' when the corpus has no aggregated topics yet.
  */
+function relatedIssuesHtml(related) {
+  if (!Array.isArray(related) || related.length === 0) return '';
+  var items = related.slice(0, 3).map(function (r) {
+    var issueNumber = r.issue_number == null ? '' : String(r.issue_number);
+    var href = issueNumber ? '/issues/issue/' + encodeURIComponent(issueNumber) : (r.canonical_url || '#');
+    var overlap = r.overlap == null ? '' : ' <span class="related-overlap">' + escapeHtml(String(r.overlap)) + ' shared</span>';
+    return '<li><a class="related-issue-link" href="' + escapeHtml(href) + '">' +
+      (issueNumber ? '<span class="related-issue-number">#' + escapeHtml(issueNumber) + '</span> ' : '') +
+      '<span class="related-issue-title">' + escapeHtml(r.title || 'Untitled') + '</span>' +
+      overlap +
+      '</a></li>';
+  }).join('');
+  return '<div class="issue-related-issues">' +
+    '<h3 class="eyebrow">Related issues</h3>' +
+    '<ul class="related-issue-list">' + items + '</ul>' +
+    '</div>';
+}
+
 export function topicLandingStripHtml(corpusTopics) {
   if (!Array.isArray(corpusTopics) || corpusTopics.length === 0) return '';
   var top = corpusTopics.slice(0, 12);

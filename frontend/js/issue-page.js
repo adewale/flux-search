@@ -80,7 +80,7 @@ async function loadIssue(num, targetSection) {
       renderSection(activeSection);
     }
 
-    renderTopics(data.topics || []);
+    renderTopics(data.topics || [], data.related_issues || []);
 
     // Tab click handlers
     navEl.querySelectorAll('.section-tab').forEach(function (tab) {
@@ -120,15 +120,15 @@ async function loadIssue(num, targetSection) {
   }
 }
 
-function renderTopics(topics) {
+function renderTopics(topics, relatedIssues) {
   var sideEl = document.getElementById('issue-topics-side');
   var mobileEl = document.getElementById('issue-topics-mobile');
   if (sideEl) {
-    sideEl.innerHTML = topicSidePanelHtml(topics);
+    sideEl.innerHTML = topicSidePanelHtml(topics, { relatedIssues: relatedIssues });
     sideEl.hidden = topics.length === 0;
   }
   if (mobileEl) {
-    mobileEl.innerHTML = topicMobileDetailsHtml(topics);
+    mobileEl.innerHTML = topicMobileDetailsHtml(topics, { relatedIssues: relatedIssues });
     mobileEl.hidden = topics.length === 0;
   }
 }

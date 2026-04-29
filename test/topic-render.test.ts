@@ -109,6 +109,18 @@ describe('topicSidePanelHtml', () => {
     expect(html).toContain('Institutional Trust');
     expect(html).toContain('Civic Repair');
   });
+
+  it('renders related issues in the same side panel', () => {
+    const html = topicSidePanelHtml(TOPICS, {
+      relatedIssues: [
+        { issue_number: 21, title: 'Neighbor issue', overlap: 2 },
+      ],
+    });
+    expect(html).toContain('Related issues');
+    expect(html).toContain('Neighbor issue');
+    expect(html).toContain('#21');
+    expect(html).toContain('2 shared');
+  });
 });
 
 describe('topicMobileDetailsHtml', () => {
@@ -116,6 +128,14 @@ describe('topicMobileDetailsHtml', () => {
     const html = topicMobileDetailsHtml(TOPICS);
     expect(html.startsWith('<details')).toBe(true);
     expect(html).toContain('<summary>');
+  });
+
+  it('includes related issues when provided', () => {
+    const html = topicMobileDetailsHtml(TOPICS, {
+      relatedIssues: [{ issue_number: 22, title: 'Mobile neighbor', overlap: 1 }],
+    });
+    expect(html).toContain('Related issues');
+    expect(html).toContain('Mobile neighbor');
   });
 
   it('returns empty string when no topics', () => {

@@ -2,12 +2,34 @@ import { Hono } from 'hono';
 import type { Env } from '../env';
 import type { IssueRow, IssueTopicRow } from '../db/types';
 import { getIssueById, getIssueByNumber } from '../db/queries';
-import { getTopicsByIssueId } from '../db/topic-queries';
+import { getRelatedIssuesByTopic, getTopicsByIssueId } from '../db/topic-queries';
 import { parseSections } from '../lib/sections';
 
 export const issueRoutes = new Hono<{ Bindings: Env }>();
 
-function formatIssueResponse(issue: IssueRow, topics: IssueTopicRow[] = []) {
+type RelatedIssue = Awaited<ReturnType<typeof getRelatedIssuesByTopic>>[number];
+
+function formatRelatedIssues(related: RelatedIssue[]) {
+  return related.map(r => ({
+    issue_id: r.issue_id,
+    issue_number: r.issue_number,
+    title: r.title,
+    published_at: r.published_at,
+    canonical_url: r.canonical_url || r.source_url,
+    overlap: r.overlap,
+  }));
+}
+
+function formatTopics(topics: IssueTopicRow[]) {
+  return topics.map(t => ({
+    keyword: t.keyword,
+    keyword_display: t.keyword_display,
+    score: t.score,
+    rank: t.rank,
+  }));
+}
+
+function formatIssueResponse(issue: IssueRow, topics: IssueTopicRow[] = [], related: RelatedIssue[] = []) {
   return {
     id: issue.id,
     issue_number: issue.issue_number,
@@ -23,12 +45,8 @@ function formatIssueResponse(issue: IssueRow, topics: IssueTopicRow[] = []) {
     word_count: issue.word_count,
     year: issue.year,
     month: issue.month,
-    topics: topics.map(t => ({
-      keyword: t.keyword,
-      keyword_display: t.keyword_display,
-      score: t.score,
-      rank: t.rank,
-    })),
+    topics: formatTopics(topics),
+    related_issues: formatRelatedIssues(related),
   };
 }
 
@@ -36,8 +54,11 @@ issueRoutes.get('/issues/:id', async (c) => {
   const id = c.req.param('id');
   const issue = await getIssueById(c.env.DB, id);
   if (!issue) return c.json({ error: 'Issue not found' }, 404);
-  const topics = await getTopicsByIssueId(c.env.DB, issue.id);
-  return c.json(formatIssueResponse(issue, topics));
+  const [topics, related] = await Promise.all([
+    getTopicsByIssueId(c.env.DB, issue.id),
+    getRelatedIssuesByTopic(c.env.DB, issue.id, 3),
+  ]);
+  return c.json(formatIssueResponse(issue, topics, related));
 });
 
 issueRoutes.get('/issues/issue/:number', async (c) => {
@@ -53,8 +74,11 @@ issueRoutes.get('/issues/issue/:number', async (c) => {
 
   const issue = await getIssueByNumber(c.env.DB, num);
   if (!issue) return c.json({ error: 'Issue not found' }, 404);
-  const topics = await getTopicsByIssueId(c.env.DB, issue.id);
-  return c.json(formatIssueResponse(issue, topics));
+  const [topics, related] = await Promise.all([
+    getTopicsByIssueId(c.env.DB, issue.id),
+    getRelatedIssuesByTopic(c.env.DB, issue.id, 3),
+  ]);
+  return c.json(formatIssueResponse(issue, topics, related));
 });
 
 // Section-level landing page API
@@ -78,7 +102,10 @@ issueRoutes.get('/issues/issue/:number/sections', async (c) => {
     'SELECT issue_number FROM issues WHERE issue_number > ? AND status = ? ORDER BY issue_number ASC LIMIT 1'
   ).bind(num, 'active').first<{ issue_number: number }>();
 
-  const topics = await getTopicsByIssueId(c.env.DB, issue.id);
+  const [topics, related] = await Promise.all([
+    getTopicsByIssueId(c.env.DB, issue.id),
+    getRelatedIssuesByTopic(c.env.DB, issue.id, 3),
+  ]);
 
   return c.json({
     issue_number: issue.issue_number,
@@ -93,11 +120,7 @@ issueRoutes.get('/issues/issue/:number/sections', async (c) => {
     })),
     prev_issue_number: prevResult?.issue_number ?? null,
     next_issue_number: nextResult?.issue_number ?? null,
-    topics: topics.map(t => ({
-      keyword: t.keyword,
-      keyword_display: t.keyword_display,
-      score: t.score,
-      rank: t.rank,
-    })),
+    topics: formatTopics(topics),
+    related_issues: formatRelatedIssues(related),
   });
 });

@@ -470,18 +470,40 @@ export async function getRelatedIssuesByTopic(
   db: D1Database,
   issueId: string,
   limit = 3
-): Promise<Array<{ issue_id: string; overlap: number }>> {
+): Promise<Array<{
+  issue_id: string;
+  issue_number: number | null;
+  title: string;
+  published_at: string | null;
+  canonical_url: string | null;
+  source_url: string;
+  overlap: number;
+}>> {
   const result = await db.prepare(`
     WITH my_topics AS (
       SELECT keyword FROM issue_topics WHERE issue_id = ? ORDER BY rank LIMIT 10
+    ), related AS (
+      SELECT it.issue_id, COUNT(*) AS overlap
+      FROM issue_topics it
+      WHERE it.issue_id != ?
+        AND it.keyword IN (SELECT keyword FROM my_topics)
+      GROUP BY it.issue_id
     )
-    SELECT it.issue_id, COUNT(*) AS overlap
-    FROM issue_topics it
-    WHERE it.issue_id != ?
-      AND it.keyword IN (SELECT keyword FROM my_topics)
-    GROUP BY it.issue_id
-    ORDER BY overlap DESC, it.issue_id
+    SELECT r.issue_id, i.issue_number, i.title, i.published_at,
+           i.canonical_url, i.source_url, r.overlap
+    FROM related r
+    JOIN issues i ON i.id = r.issue_id
+    WHERE i.status = 'active'
+    ORDER BY r.overlap DESC, i.issue_number DESC, r.issue_id
     LIMIT ?
-  `).bind(issueId, issueId, limit).all<{ issue_id: string; overlap: number }>();
+  `).bind(issueId, issueId, limit).all<{
+    issue_id: string;
+    issue_number: number | null;
+    title: string;
+    published_at: string | null;
+    canonical_url: string | null;
+    source_url: string;
+    overlap: number;
+  }>();
   return result.results;
 }

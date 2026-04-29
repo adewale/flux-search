@@ -716,6 +716,48 @@ This migration is successful when:
 - public route payloads remain equivalent for fixture corpora
 - weekly cron can rebuild/aggregate topics without exceeding runtime budget
 
+## Remaining backlog migrated from the comparative port plan
+
+These items are intentionally tracked here now so Flux Search has one queue/topic operations roadmap with Flux-native names.
+
+### Operations and reliability
+
+- Audit topic writes and replace `DELETE` + `INSERT` sequences with `INSERT OR IGNORE` / upsert patterns where doing so reduces partial-update windows without breaking replace semantics.
+- Extend queue wide events from the initial `embed_batch` seam to every durable queue job phase.
+- Expand `pipeline_runs` into full `pipeline_jobs` + `pipeline_phases` before queue-backed default.
+- Add DLQ inspection and replay as first-class admin tooling.
+
+### Queue architecture
+
+- Add self-fan-out from consumers only when needed for large topic batches; keep cron/admin as the planner by default.
+- Tune queue settings from Flux metrics, not copied defaults: start at `max_batch_size=25`, `max_concurrency=5`, `max_retries=3`, then adjust after measuring D1 contention and Workers AI rate limits.
+- Move real topic embedding/similarity work into the queue consumer rather than keeping it as an ack-only seam.
+- Hold off on full 18-step finalize decomposition until Flux has enough phases to justify it.
+
+### Search quality and topic scoring
+
+- Add `weightedDeltaScore` for “movers” — topics whose frequency or burst score shifts between periods.
+- Promote `distinctiveness` from a column/formula into a focused module if relevance tests show the current simple score is not enough.
+- Add a Flux-specific `analysis-text` preprocessing layer if extractor recall on edge inputs remains weak.
+- Carry `content_hash` through topic persistence so no-change re-ingests can skip topic extraction and aggregation work.
+- Update relevance harnesses to measure topic ranking changes against the existing hand-labeled cases.
+
+### Surfaces and UX
+
+- `/trending` route/page for corpus-level “what is hot recently?” using burst and mover scores.
+- Topic marginalia or pull-quotes on `/topics/:keyword` if topic detail pages need better scannability.
+- Advanced topic visualizations beyond the current sparkline only after the data layer is stable.
+- Shared issue/episode rail component for topic/detail navigation.
+- “Matched on topic” hint in result cards when topic boost affects ranking.
+- Source-fidelity preservation improvements for rendered issue pages: footnotes, links, and images where normalizer quality permits.
+
+### Developer workflow
+
+- Split Wrangler configuration for local/remote/test if accidental production operations remain a risk.
+- Add a local fixture seeding command for topic and queue development.
+- Add computed-style browser audits for topic/queue UI surfaces.
+- Add pipeline characterization scripts so extraction and queue changes can be compared across runs quickly.
+
 ## Immediate implementation checklist
 
 - [ ] Rename current queue message field `type` to `kind` or support both during migration.

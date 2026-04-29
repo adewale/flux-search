@@ -79,6 +79,26 @@ describe('GET /issues/:id → topics', () => {
     const body = await res.json() as { topics: unknown[] };
     expect(body.topics).toEqual([]);
   });
+
+  it('includes related issues by topic overlap', async () => {
+    const db = makeD1();
+    const anchor = await seedWithTopics(db, { issue_number: 10, title: 'Anchor' }, [
+      { keyword: 'trust' }, { keyword: 'governance' }, { keyword: 'legitimacy' },
+    ]);
+    await seedWithTopics(db, { issue_number: 11, title: 'Closest' }, [
+      { keyword: 'trust' }, { keyword: 'governance' }, { keyword: 'legitimacy' },
+    ]);
+    await seedWithTopics(db, { issue_number: 12, title: 'Partial' }, [
+      { keyword: 'trust' },
+    ]);
+
+    const { app, env } = makeApp(db);
+    const res = await app.request(`/issues/${anchor}`, {}, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { related_issues: Array<{ issue_number: number; title: string; overlap: number }> };
+    expect(body.related_issues.map(r => r.issue_number)).toEqual([11, 12]);
+    expect(body.related_issues[0]).toMatchObject({ title: 'Closest', overlap: 3 });
+  });
 });
 
 describe('GET /issues/issue/:number/sections → topics', () => {
@@ -97,6 +117,24 @@ describe('GET /issues/issue/:number/sections → topics', () => {
     expect(res.status).toBe(200);
     const body = await res.json() as { topics: Array<{ keyword: string }> };
     expect(body.topics.map(t => t.keyword)).toEqual(['governance', 'civic repair']);
+  });
+
+  it('includes related issues for the issue page panel', async () => {
+    const db = makeD1();
+    await seedWithTopics(db, { issue_number: 20, title: 'Anchor' }, [
+      { keyword: 'systems' }, { keyword: 'trust' },
+    ]);
+    await seedWithTopics(db, { issue_number: 21, title: 'Neighbor' }, [
+      { keyword: 'systems' }, { keyword: 'trust' },
+    ]);
+
+    const { app, env } = makeApp(db);
+    const res = await app.request('/issues/issue/20/sections', {}, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { related_issues: Array<{ issue_number: number; title: string; overlap: number }> };
+    expect(body.related_issues).toEqual([
+      expect.objectContaining({ issue_number: 21, title: 'Neighbor', overlap: 2 }),
+    ]);
   });
 });
 
