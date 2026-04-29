@@ -275,7 +275,7 @@ describe('GET /topics/:keyword', () => {
     expect(res.status).toBe(404);
   });
 
-  it('handles popular topics that reference more than one D1 bind chunk', async () => {
+  it('handles popular topics without constructing one large IN-list query', async () => {
     const db = makeD1();
     for (let i = 1; i <= 106; i++) {
       await seedWithTopics(

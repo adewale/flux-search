@@ -4,12 +4,12 @@ import {
   getCorpusTopics,
   getTopicTimeline,
   getIssueIdsByTopic,
+  getIssuesByTopic,
   getAdjacentTopics,
   getTopicSimilarities,
 } from '../db/topic-queries';
 import { normalizeKeyword } from '../lib/topic-extractor';
 import { computeTerminologyDrift } from '../lib/terminology-drift';
-import type { IssueRow } from '../db/types';
 
 export const topicRoutes = new Hono<{ Bindings: Env }>();
 
@@ -56,7 +56,7 @@ topicRoutes.get('/topics/:keyword', async (c) => {
     return c.json({ error: 'Topic not found' }, 404);
   }
 
-  const issues = issueIds.length === 0 ? [] : await fetchIssuesById(c.env.DB, issueIds);
+  const issues = issueIds.length === 0 ? [] : await getIssuesByTopic(c.env.DB, keyword);
   const timeline = await getTopicTimeline(c.env.DB, keyword);
   const adjacent = await getAdjacentTopics(c.env.DB, keyword, 12);
   // Cosine-validated adjacency. Empty when the embedding pass hasn't
@@ -108,21 +108,3 @@ topicRoutes.get('/topics/:keyword', async (c) => {
     adjacent,
   });
 });
-
-async function fetchIssuesById(db: D1Database, ids: string[]): Promise<IssueRow[]> {
-  // D1 has a low per-statement bind parameter ceiling in production.
-  // Popular topics such as "systems thinking" can reference more than
-  // 100 issues, so read in chunks instead of building one large IN list.
-  const chunkSize = 75;
-  const rows: IssueRow[] = [];
-  for (let i = 0; i < ids.length; i += chunkSize) {
-    const chunk = ids.slice(i, i + chunkSize);
-    if (chunk.length === 0) continue;
-    const placeholders = chunk.map(() => '?').join(',');
-    const result = await db.prepare(
-      `SELECT * FROM issues WHERE id IN (${placeholders}) AND status = 'active'`,
-    ).bind(...chunk).all<IssueRow>();
-    rows.push(...result.results);
-  }
-  return rows.sort((a, b) => String(b.published_at ?? '').localeCompare(String(a.published_at ?? '')));
-}

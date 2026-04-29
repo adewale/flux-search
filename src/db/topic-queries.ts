@@ -1,5 +1,5 @@
 import type { ExtractedTopic } from '../lib/topic-extractor';
-import type { CorpusTopicRow, IssueTopicRow, TopicTimelineRow } from './types';
+import type { CorpusTopicRow, IssueRow, IssueTopicRow, TopicTimelineRow } from './types';
 import { buildTopicSimilarities, type TopicEmbedding } from '../lib/topic-similarity';
 
 export async function replaceIssueTopics(
@@ -86,6 +86,20 @@ export async function getIssueIdsByTopic(
     `SELECT issue_id FROM issue_topics WHERE keyword = ?`
   ).bind(keyword).all<{ issue_id: string }>();
   return result.results.map(r => r.issue_id);
+}
+
+export async function getIssuesByTopic(
+  db: D1Database,
+  keyword: string,
+): Promise<IssueRow[]> {
+  const result = await db.prepare(
+    `SELECT i.*
+     FROM issue_topics it
+     JOIN issues i ON i.id = it.issue_id
+     WHERE it.keyword = ? AND i.status = 'active'
+     ORDER BY i.published_at DESC`,
+  ).bind(keyword).all<IssueRow>();
+  return result.results;
 }
 
 /**
