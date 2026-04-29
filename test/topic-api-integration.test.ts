@@ -275,6 +275,32 @@ describe('GET /topics/:keyword', () => {
     expect(res.status).toBe(404);
   });
 
+  it('handles popular topics that reference more than one D1 bind chunk', async () => {
+    const db = makeD1();
+    for (let i = 1; i <= 106; i++) {
+      await seedWithTopics(
+        db,
+        {
+          issue_number: i,
+          source_url: `x://${i}`,
+          published_at: `2024-${String(((i - 1) % 12) + 1).padStart(2, '0')}-01`,
+          year: 2024,
+          month: ((i - 1) % 12) + 1,
+        },
+        [{ keyword: 'systems thinking', display: 'Systems Thinking', rank: 1, score: 0.1 }],
+      );
+    }
+    await buildCorpusTopics(db as any, { minDocFrequency: 2 });
+    await buildTopicTimeline(db as any);
+
+    const { app, env } = makeApp(db);
+    const res = await app.request('/topics/systems%20thinking', {}, env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { keyword: string; issues: Array<{ issue_id: string }> };
+    expect(body.keyword).toBe('systems thinking');
+    expect(body.issues).toHaveLength(106);
+  });
+
   it('normalizes the keyword (URL decode + lowercase + collapse spaces)', async () => {
     const db = makeD1();
     await seedWithTopics(

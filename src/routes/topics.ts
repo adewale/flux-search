@@ -110,9 +110,19 @@ topicRoutes.get('/topics/:keyword', async (c) => {
 });
 
 async function fetchIssuesById(db: D1Database, ids: string[]): Promise<IssueRow[]> {
-  const placeholders = ids.map(() => '?').join(',');
-  const result = await db.prepare(
-    `SELECT * FROM issues WHERE id IN (${placeholders}) AND status = 'active' ORDER BY published_at DESC`,
-  ).bind(...ids).all<IssueRow>();
-  return result.results;
+  // D1 has a low per-statement bind parameter ceiling in production.
+  // Popular topics such as "systems thinking" can reference more than
+  // 100 issues, so read in chunks instead of building one large IN list.
+  const chunkSize = 75;
+  const rows: IssueRow[] = [];
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
+    if (chunk.length === 0) continue;
+    const placeholders = chunk.map(() => '?').join(',');
+    const result = await db.prepare(
+      `SELECT * FROM issues WHERE id IN (${placeholders}) AND status = 'active'`,
+    ).bind(...chunk).all<IssueRow>();
+    rows.push(...result.results);
+  }
+  return rows.sort((a, b) => String(b.published_at ?? '').localeCompare(String(a.published_at ?? '')));
 }
