@@ -936,7 +936,12 @@ body {
 
 @media (min-width: 900px) {
   .issue-body-grid {
-    grid-template-columns: minmax(0, 1fr) 16rem;
+    /* Keep the article on the same 640px content measure as the rest of
+     * the app; let the topics rail sit beside it instead of stealing width. */
+    width: calc(var(--max-width) + 2rem + 16rem);
+    grid-template-columns: minmax(0, var(--max-width)) 16rem;
+    gap: 2rem;
+    margin-right: calc(-1 * (16rem + 2rem));
   }
   .issue-topics-mobile-host { display: none; }
 }
