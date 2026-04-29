@@ -288,3 +288,55 @@ Bar width was initially calculated per-query, making "unstuck" (3 bars) look com
 Apostrophes (`it's`), colons (`foo:bar`), angle brackets, ampersands, and slashes all cause FTS5 MATCH syntax errors. Users type these naturally. The fix: strip everything except word characters, spaces, and hyphens before passing to FTS5. A whitelist (`[^\w\s-]` → space) is safer than a blacklist of known special characters.
 
 **Lesson: Sanitize at the boundary between user input and query syntax.** FTS5, SQL, and regex all have syntax characters that overlap with natural language. Don't list the dangerous characters — keep only the safe ones.
+
+## What we learned about topic surfaces
+
+### Topic extraction is only useful when it becomes navigation
+
+Adding YAKE topic extraction created useful data, but the feature only became visible once topics appeared across the product: result-card subtitles, issue-page chips, the recurring themes strip, `/topics`, `topic:` filters, and related issues. The database rows were not the feature; the navigational spine was the feature.
+
+**Lesson: Treat extracted metadata as product affordances, not just analytics.** If a topic appears in an issue, users should be able to click it, filter by it, and use it to discover neighboring issues. Otherwise it is just hidden bookkeeping.
+
+### Related content needs both a data contract and a layout contract
+
+Related issues by topic overlap were easy to compute, but the first implementation blurred mobile layout semantics by placing related issues inside the same details block as topics. The spec called for separate mobile affordances: topics above the article and related issues below the article body. That distinction matters because topics help orient the reader before reading, while related issues are a next-step after reading.
+
+**Lesson: API shape is not enough; specify where the affordance belongs in the reading flow.** `related_issues` in JSON is necessary, but placement determines whether it interrupts or supports the user.
+
+### Specs drift unless they are updated with implementation reality
+
+The Yaket spec still referenced `@ade_oshineye/yaket@0.4.0` after the project had moved to `0.5.3`. That is small, but stale version references erode trust in the whole spec. The same happened with the Bobbin comparison doc: once the remaining work became Flux-specific queue work, keeping the Bobbin vocabulary around made future work harder to reason about.
+
+**Lesson: Update specs when implementation decisions change, especially names and versions.** Specs are working documents, not fossils. If a name is no longer the language of the system, move or archive it.
+
+## What we learned about queue migrations
+
+### Add a durable seam before moving the expensive work
+
+The first queue implementation intentionally handled `embed-corpus-topics` as a measured, acked seam before it performed the full embedding implementation. That looked incomplete, but it let us deploy the operational shape first: queue binding, DLQ, message fan-out, retries, logs, and admin visibility. The next iteration added durable job rows and idempotency without changing public search behavior.
+
+**Lesson: Queue migrations are safest when split into two steps: establish the durable transport, then move the expensive work.** If the transport fails, users should not see a product regression. Once message delivery, retries, and inspection work, moving computation behind the seam is much less risky.
+
+### At-least-once delivery makes idempotency a schema concern
+
+Cloudflare Queues deliver at least once. That means idempotency cannot live only in handler code or comments. We added deterministic semantic keys, `pipeline_jobs`, active-job uniqueness, and claim/succeed/fail/defer helpers so duplicate messages have a durable coordination point.
+
+**Lesson: If duplicate delivery is possible, make deduplication persistent.** A pure function that computes an idempotency key is useful; a table that enforces active uniqueness is what prevents duplicate work under retries and redeploys.
+
+### Message contracts need migration compatibility
+
+The queue spec wanted `kind`, `schemaVersion`, `jobId`, `correlationId`, and `queuedAt`; the first implementation already had producers using `type` and `run_id`. Rather than flipping the contract abruptly, the consumer now supports both during migration.
+
+**Lesson: Queue messages are deployed data, not just TypeScript types.** Old messages can remain in flight while new code deploys. Consumers should be liberal during migrations and producers should converge on the new shape.
+
+### Queue observability should be queryable, not just logged
+
+Wide JSON logs are useful for grep and dashboards, but they are not enough for operations. Admins need to answer concrete questions: which jobs belong to this run, how many attempts did a job take, which jobs failed, and what should be replayed? Adding `/admin/pipeline-runs/:id/jobs` and durable job status made those questions answerable without spelunking logs.
+
+**Lesson: If an operator will ask it during an incident, store it in D1.** Logs explain what happened; durable job state explains what still needs action.
+
+### Await queue work unless detachment is deliberate
+
+The initial queue handler wrapped processing in `ctx.waitUntil`, which made the queue handler return before the actual message work completed. That is appropriate for non-critical side effects, but queue message processing is the critical work. The handler now awaits processing directly.
+
+**Lesson: In a queue consumer, awaiting is the default.** Detach only when the work is explicitly non-critical and the ack/retry semantics are still correct.
