@@ -50,7 +50,7 @@ function initSearchPage() {
   function apply(prev) {
     var s = machine.state;
     input.value = s.query;
-    if (clearBtn) clearBtn.hidden = !s.clearVisible;
+    if (clearBtn) setClearVisible(!!s.clearVisible);
 
     var transitioned = !prev || prev.name !== s.name || prev.query !== s.query;
     if (!transitioned) return;
@@ -161,8 +161,14 @@ function initSearchPage() {
   }
 
   input.addEventListener('input', function () {
-    if (clearBtn) clearBtn.hidden = !input.value;
+    if (clearBtn) setClearVisible(!!input.value);
   });
+
+  function setClearVisible(visible) {
+    clearBtn.classList.toggle('is-visible', visible);
+    clearBtn.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    clearBtn.tabIndex = visible ? 0 : -1;
+  }
 
   async function performSearch(q, page, isPagination) {
     autocomplete.hide();
