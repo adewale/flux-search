@@ -343,7 +343,7 @@ The initial queue handler wrapped processing in `ctx.waitUntil`, which made the 
 
 ## What we learned about D1 after the topic-detail outage
 
-The `systems thinking` topic appeared in 106 issues. The first fix for its broken detail page was to chunk a large `WHERE id IN (?, ?, ...)` query into smaller queries. That made the page work, but it was still the wrong mental model: it treated D1 like a remote key-value store and moved relational work into JavaScript.
+The `systems thinking` topic appeared in 106 issues. `/topics?limit=10` correctly listed it as the top topic, but `/topics/systems%20thinking` failed in production. The first fix chunked a large `WHERE id IN (?, ?, ...)` query into smaller queries. That made the page work, but it was still the wrong mental model: it treated D1 like a remote key-value store and moved relational work into JavaScript.
 
 The better fix was a single indexed join:
 
@@ -355,14 +355,62 @@ WHERE it.keyword = ? AND i.status = 'active'
 ORDER BY i.published_at DESC
 ```
 
-This uses one bind parameter, lets SQLite/D1 choose indexed access, and avoids statement-size/bind-count cliffs. We added query-plan tests and a remote `db:explain-hot-paths` script so this does not regress.
+This uses one bind parameter, avoids statement-size/bind-count cliffs, and lets SQLite/D1 do the relational work. We then added hot-path indexes, `EXPLAIN QUERY PLAN` tests, a remote `db:explain-hot-paths` script, and `PRAGMA optimize` in the migration so the fix is observable instead of assumed.
+
+### The bug was not “too many issues”; it was the wrong D1 shape
+
+A popular topic having 106 matching issues is normal. The failure came from a two-step JS-mediated query shape:
+
+```ts
+const ids = await SELECT issue_id FROM issue_topics WHERE keyword = ?
+await SELECT * FROM issues WHERE id IN (...ids)
+```
+
+That pattern has three problems in D1:
+
+1. It creates dynamic SQL with variable bind counts.
+2. It pays extra round trips and moves join work into the Worker.
+3. It breaks at exactly the moment the product succeeds — when a topic becomes popular.
+
+The durable rule: **if a relation already exists in D1, query through the relation in D1.**
+
+### Query-plan tests are product tests
+
+Before this incident, tests verified that topic-detail routes returned rows for small fixtures. They did not verify that the production-scale query plan used the intended indexes. The new tests assert plans for hot paths:
+
+- topic detail issue lookup uses `idx_issue_topics_keyword_issue`
+- topic timeline uses `idx_topic_timeline_keyword_date`
+- topic similarity uses `idx_topic_similarity_keyword_blended`
+- issue-number lookup uses `idx_issues_issue_number_status`
+- queued-job polling uses `idx_pipeline_jobs_status_next_attempt`
+
+These are not micro-optimizations. They encode product assumptions: popular topics should load, topic timelines should be cheap, queue operators should not scan the whole job table.
+
+### Batching is not a substitute for set-oriented SQL
+
+Bobbin taught us that many tiny writes time out and need batching. Flux added the next lesson: batching a bad query shape is still a bad query shape. Chunking a 106-ID `IN` list into two queries is less fragile than one giant query, but the correct solution is one join.
+
+The same applies to rebuild code. `annotateCorpusTopics()` originally performed per-topic reads for timeline, provenance, and suppression counts. That worked with ~150 corpus topics, but it was an N-query loop waiting to become a timeout. The fix was to read all timeline rows and all quality aggregates in two set-oriented queries, then batch only the final updates.
 
 ### D1 rules for this project
 
-1. Prefer set-oriented SQL over JavaScript loops. If the data is already relational, join it in D1 instead of fetching IDs into JS and sending them back as a dynamic `IN` list.
-2. Avoid large dynamic bind lists. For small UI page lists, bind a single JSON array and join against `json_each(?)`; for relational lookups, use real joins.
-3. Add indexes only for measured hot paths, then verify them with `EXPLAIN QUERY PLAN` and `PRAGMA optimize`.
-4. Retry write queries on transient D1 errors with exponential backoff; D1 retries some reads automatically, but application writes need their own retry boundary.
-5. Long-running rebuilds should use queues for execution and D1 for durable state, but aggregation inside each phase should still be set-oriented SQL where possible.
+1. **Prefer set-oriented SQL over JavaScript loops.** If the data is already relational, join it in D1 instead of fetching IDs into JS and sending them back as a dynamic `IN` list.
+2. **Avoid large dynamic bind lists.** For small UI page lists, bind a single JSON array and join against `json_each(?)`; for relational lookups, use real joins.
+3. **Index measured hot paths, then verify them.** Add indexes for common predicates and sort orders, run `PRAGMA optimize`, and check `EXPLAIN QUERY PLAN` locally and remotely.
+4. **Retry writes, not just jobs.** D1 automatically retries some read-only queries; application writes need an explicit retry boundary with exponential backoff for transient errors.
+5. **Use queues for execution and D1 for durable state.** Queue handlers should do long-running work; D1 should store run/job state, idempotency keys, results, and replay metadata.
+6. **Keep public reads simple.** Public routes should be one or a few indexed queries with stable bind counts. If a route needs loops over D1 queries, it probably belongs in precomputation or a queue phase.
 
-The Bobbin ingestion lesson applies here too: batching is necessary, but batching many tiny queries is not as good as asking the database the right set-based question once.
+### The new D1 checklist
+
+Before shipping a new D1-backed feature:
+
+- Does the route use joins instead of JS-mediated ID fan-out?
+- Are bind counts stable, or intentionally bounded?
+- Is the query covered by an existing index or a new migration?
+- Did we run `EXPLAIN QUERY PLAN` for the production-like query?
+- Does the migration run `PRAGMA optimize` after new indexes?
+- Are writes retried if they are part of durable state or queue processing?
+- Is expensive aggregation precomputed rather than performed on public requests?
+
+The deeper lesson is the same one as the earliest Flux and Bobbin lessons: look at the real product path, not just the green test. `/topics` being correct did not mean `/topics/:keyword` was correct. A route that works for a three-issue fixture can still fail for the top topic in production.
