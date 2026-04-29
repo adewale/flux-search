@@ -29,7 +29,7 @@ export function parseQuery(raw: string): ParsedQuery {
   let remaining = input.replace(/(\w+):"([^"]+)"/g, (match, key: string, value: string) => {
     const lowerKey = key.toLowerCase();
     if (lowerKey !== 'topic') return match;
-    const normalized = value.toLowerCase().replace(/\s+/g, ' ').trim();
+    const normalized = normalizeTopicValue(value);
     if (!normalized) return '';
     filters.topic = normalized;
     operators.push(`${key}:${value}`);
@@ -88,7 +88,7 @@ export function parseQuery(raw: string): ParsedQuery {
         // caught by the quoted-value pass above; a stray quote here means
         // the input was malformed (e.g. topic:"unclosed or topic:"").
         if (value.includes('"')) break;
-        const normalized = value.toLowerCase().replace(/\s+/g, ' ').trim();
+        const normalized = normalizeTopicValue(value);
         if (normalized) filters.topic = normalized;
         break;
       }
@@ -105,6 +105,16 @@ export function parseQuery(raw: string): ParsedQuery {
 export function isFilterOnly(parsed: ParsedQuery): boolean {
   return !parsed.freeText.trim() && parsed.phrases.length === 0 &&
     Object.keys(parsed.filters).length > 0;
+}
+
+function normalizeTopicValue(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFKC')
+    .replace(/[\u2010-\u2015]/g, ' ')
+    .replace(/[^\p{L}\p{N}\s]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function parseDate(value: string): string | null {

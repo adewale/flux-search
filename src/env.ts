@@ -3,4 +3,5 @@
 // consistency.
 export type Env = globalThis.Env & {
   ADMIN_TOKEN: string;
+  ENRICHMENT_QUEUE: Queue;
 };

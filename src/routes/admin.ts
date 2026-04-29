@@ -5,6 +5,8 @@ import { getCrawlRun, getIssueCount, getIssueDateRange, getMissingIssueNumbers }
 import { runBootstrap } from '../crawler/bootstrap';
 import { runReindex } from '../crawler/ingestor';
 import { rebuildAllTopics } from '../lib/topic-rebuild';
+import { extractTopicsMulti } from '../lib/topic-multi-extract';
+import { enqueueCorpusTopicEmbedding } from '../jobs/enrichment-queue';
 
 export const adminRoutes = new Hono<{ Bindings: Env }>();
 
@@ -55,13 +57,52 @@ adminRoutes.get('/crawl-runs/:id', async (c) => {
 });
 
 adminRoutes.post('/rebuild-topics', async (c) => {
-  c.executionCtx.waitUntil(
-    rebuildAllTopics(c.env.DB)
-      .then(stats => console.log('rebuild-topics done:', stats))
-      .catch(err => console.error('rebuild-topics failed:', err))
-  );
+  c.executionCtx.waitUntil((async () => {
+    const stats = await rebuildAllTopics(c.env.DB);
+    const queued = await enqueueCorpusTopicEmbedding(c.env, crypto.randomUUID());
+    console.log('rebuild-topics done:', { ...stats, queued_embedding_batches: queued });
+  })().catch(err => console.error('rebuild-topics failed:', err)));
 
   return c.json({ message: 'Topic rebuild started' }, 202);
+});
+
+adminRoutes.get('/pipeline-runs', async (c) => {
+  const limit = Math.min(100, Math.max(1, parseInt(c.req.query('limit') || '20')));
+  const rows = await c.env.DB.prepare('SELECT * FROM pipeline_runs ORDER BY started_at DESC LIMIT ?')
+    .bind(limit).all();
+  return c.json({ runs: rows.results });
+});
+
+adminRoutes.get('/topic-audit', async (c) => {
+  const limit = Math.min(50, Math.max(1, parseInt(c.req.query('limit') || '20')));
+  const rows = await c.env.DB.prepare(`
+    SELECT id, issue_number, title, full_text_plain
+    FROM issues
+    WHERE status = 'active'
+    ORDER BY RANDOM()
+    LIMIT ?
+  `).bind(limit).all<{ id: string; issue_number: number | null; title: string; full_text_plain: string | null }>();
+
+  const samples = [];
+  for (const issue of rows.results) {
+    const extracted = extractTopicsMulti(issue.full_text_plain).kept.map(t => t.keyword);
+    const storedRows = await c.env.DB.prepare('SELECT keyword FROM issue_topics WHERE issue_id = ? ORDER BY rank LIMIT 25')
+      .bind(issue.id).all<{ keyword: string }>();
+    const stored = storedRows.results.map(r => r.keyword);
+    const overlap = stored.filter(k => extracted.includes(k)).length;
+    samples.push({
+      issue_id: issue.id,
+      issue_number: issue.issue_number,
+      title: issue.title,
+      extracted_count: extracted.length,
+      stored_count: stored.length,
+      overlap,
+      precision_delta: stored.length === 0 ? null : 1 - overlap / stored.length,
+      missing_from_stored: extracted.filter(k => !stored.includes(k)).slice(0, 5),
+    });
+  }
+
+  return c.json({ samples });
 });
 
 adminRoutes.get('/coverage', async (c) => {

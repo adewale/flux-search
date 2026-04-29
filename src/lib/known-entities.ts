@@ -3,9 +3,8 @@
  * never miss. Each row is `{ canonical, aliases[] }` — alias matches still
  * resolve to the canonical form so corpus aggregation collapses variants.
  *
- * Bobbin's `KNOWN_ENTITIES` is much larger because Bits and Bobs is dense
- * with named tools. flux's archive is more conceptual; the seed list is
- * small on purpose. New entries belong here when YAKE keeps missing them.
+ * Flux's archive is conceptual rather than tool-dense, so the seed list
+ * is small on purpose. New entries belong here when YAKE keeps missing them.
  */
 export interface KnownEntity {
   canonical: string;

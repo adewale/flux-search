@@ -1,8 +1,7 @@
 /**
  * Terminology drift: how a topic's surrounding context shifts over time.
  *
- * Bobbin's docs reference this as a topic-detail-page feature but don't
- * implement it. flux's version is intentionally narrow:
+ * Flux's version is intentionally narrow:
  *
  *   1. Walk every issue that mentions the keyword.
  *   2. Take a window of `windowSize` words on each side of each

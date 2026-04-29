@@ -15,6 +15,37 @@ import {
 import { buildTopicSimilarities } from './topic-similarity';
 import type { EmbedFn } from './topic-embed';
 
+export interface PipelineStepResult<T> {
+  name: string;
+  elapsed_ms: number;
+  result: T;
+}
+
+export async function runStep<T>(name: string, fn: () => Promise<T>): Promise<PipelineStepResult<T>> {
+  const start = Date.now();
+  try {
+    const result = await fn();
+    const elapsed_ms = Date.now() - start;
+    console.log(JSON.stringify({ event: 'pipeline_step', name, status: 'ok', elapsed_ms }));
+    return { name, elapsed_ms, result };
+  } catch (err) {
+    const elapsed_ms = Date.now() - start;
+    console.error(JSON.stringify({ event: 'pipeline_step', name, status: 'failed', elapsed_ms, error: String(err) }));
+    throw err;
+  }
+}
+
+export function shouldRetryError(err: unknown): boolean {
+  const message = String(err instanceof Error ? err.message : err).toLowerCase();
+  return message.includes('sqlite_busy')
+    || message.includes('database is locked')
+    || /\b429\b/.test(message)
+    || /\b503\b/.test(message)
+    || message.includes('rate limit')
+    || message.includes('temporarily unavailable')
+    || message.includes('network');
+}
+
 export interface RebuildStats {
   issues_processed: number;
   corpus_topics: number;
@@ -50,100 +81,125 @@ export async function rebuildAllTopics(
   opts: RebuildOptions = {},
 ): Promise<RebuildStats> {
   const startedAt = Date.now();
-  const issues = await db.prepare(
-    `SELECT id, full_text_plain FROM issues WHERE status = 'active'`,
-  ).all<{ id: string; full_text_plain: string | null }>();
+  const runId = crypto.randomUUID();
+  await db.prepare(`
+    INSERT INTO pipeline_runs (id, mode, started_at, status, notes)
+    VALUES (?, ?, ?, 'running', NULL)
+  `).bind(runId, 'topic_rebuild', new Date().toISOString()).run();
 
-  // Phase 1: build a fresh PMI lexicon from the live corpus.
-  const documents = issues.results.map(i => i.full_text_plain ?? '').filter(Boolean);
-  const lexicon = buildPhraseLexicon(documents);
-  await replacePhraseLexicon(db, lexicon);
+  try {
+    const issues = (await runStep('load_active_issues', () => db.prepare(
+      `SELECT id, full_text_plain FROM issues WHERE status = 'active'`,
+    ).all<{ id: string; full_text_plain: string | null }>())).result;
 
-  const blocklist = await getBlocklist(db);
+    // Phase 1: build a fresh PMI lexicon from the live corpus.
+    const lexicon = (await runStep('build_phrase_lexicon', async () => {
+      const documents = issues.results.map(i => i.full_text_plain ?? '').filter(Boolean);
+      const phrases = buildPhraseLexicon(documents);
+      await replacePhraseLexicon(db, phrases);
+      return phrases;
+    })).result;
 
-  // Phase 2: extract per-issue topics with provenance + suppression.
-  let processed = 0;
-  let totalSuppressed = 0;
-  for (const issue of issues.results) {
-    try {
-      const { kept, suppressed } = extractTopicsMulti(
-        issue.full_text_plain,
-        { blocklist, phraseLexicon: lexicon },
-      );
-      const rows = kept.map(t => ({
-        ...t,
-        provenance: t.provenance,
-        stem: stemPhrase(t.keyword),
-      }));
-      await replaceIssueTopics(db, issue.id, rows);
-      totalSuppressed += suppressed.length;
-      processed++;
-    } catch (err) {
-      console.error(`Rebuild failed for issue ${issue.id}:`, err);
-    }
-  }
+    const blocklist = (await runStep('load_topic_blocklist', () => getBlocklist(db))).result;
 
-  // Phase 3: aggregate, cluster, build the timeline, then annotate with
-  // confidence + burst score so the API can sort/filter without
-  // recomputing on every request.
-  const corpusCount = await buildCorpusTopics(db, { minDocFrequency: opts.minDocFrequency });
-  const merges = await clusterCorpusTopics(db, opts.clusterThreshold);
-  const timelineCount = await buildTopicTimeline(db);
-  await annotateCorpusTopics(db);
-
-  // Phase 4 (optional): cross-validation. When an embedder is provided
-  // we embed each surviving keyword, blend cosine with Jaccard, and
-  // store the result for the topic detail page.
-  let similarityPairs = 0;
-  if (opts.embed) {
-    const survivors = await db.prepare(
-      'SELECT keyword, keyword_display FROM corpus_topics',
-    ).all<{ keyword: string; keyword_display: string }>();
-    const keywords = survivors.results.map(r => r.keyword);
-
-    if (keywords.length >= 2) {
-      const vectors = await opts.embed(survivors.results.map(r => r.keyword_display));
-      const embeddings = keywords.map((kw, i) => ({ keyword: kw, vector: vectors[i] ?? [] }))
-        .filter(e => e.vector.length > 0);
-
-      // Build issue-set per keyword for Jaccard.
-      const issueSets = new Map<string, Set<string>>();
-      const placeholders = embeddings.map(() => '?').join(',');
-      const sets = embeddings.length === 0 ? null : await db.prepare(
-        `SELECT keyword, issue_id FROM issue_topics WHERE keyword IN (${placeholders})`,
-      ).bind(...embeddings.map(e => e.keyword)).all<{ keyword: string; issue_id: string }>();
-      for (const row of sets?.results ?? []) {
-        const set = issueSets.get(row.keyword) ?? new Set<string>();
-        set.add(row.issue_id);
-        issueSets.set(row.keyword, set);
+    // Phase 2: extract per-issue topics with provenance + suppression.
+    let processed = 0;
+    let totalSuppressed = 0;
+    await runStep('extract_issue_topics', async () => {
+      for (const issue of issues.results) {
+        try {
+          const { kept, suppressed } = extractTopicsMulti(
+            issue.full_text_plain,
+            { blocklist, phraseLexicon: lexicon },
+          );
+          const rows = kept.map(t => ({
+            ...t,
+            provenance: t.provenance,
+            stem: stemPhrase(t.keyword),
+          }));
+          await replaceIssueTopics(db, issue.id, rows);
+          totalSuppressed += suppressed.length;
+          processed++;
+        } catch (err) {
+          console.error(`Rebuild failed for issue ${issue.id}:`, err);
+        }
       }
+    });
 
-      const pairs = buildTopicSimilarities(embeddings, issueSets, {
-        alpha: opts.similarityAlpha ?? 0.6,
-      });
-      await replaceTopicSimilarities(db, pairs);
-      similarityPairs = pairs.length;
+    // Phase 3: aggregate, cluster, build the timeline, then annotate with
+    // confidence + burst score so the API can sort/filter without
+    // recomputing on every request.
+    const corpusCount = (await runStep('aggregate_corpus_topics', () =>
+      buildCorpusTopics(db, { minDocFrequency: opts.minDocFrequency })
+    )).result;
+    const merges = (await runStep('cluster_corpus_topics', () => clusterCorpusTopics(db, opts.clusterThreshold))).result;
+    const timelineCount = (await runStep('build_topic_timeline', () => buildTopicTimeline(db))).result;
+    await runStep('annotate_corpus_topics', () => annotateCorpusTopics(db));
+
+    // Phase 4 (optional): cross-validation. When an embedder is provided
+    // we embed each surviving keyword, blend cosine with Jaccard, and
+    // store the result for the topic detail page.
+    let similarityPairs = 0;
+    if (opts.embed) {
+      similarityPairs = (await runStep('build_topic_similarities', async () => {
+        const survivors = await db.prepare(
+          'SELECT keyword, keyword_display FROM corpus_topics',
+        ).all<{ keyword: string; keyword_display: string }>();
+        const keywords = survivors.results.map(r => r.keyword);
+
+        if (keywords.length < 2) return 0;
+
+        const vectors = await opts.embed!(survivors.results.map(r => r.keyword_display));
+        const embeddings = keywords.map((kw, i) => ({ keyword: kw, vector: vectors[i] ?? [] }))
+          .filter(e => e.vector.length > 0);
+
+        // Build issue-set per keyword for Jaccard.
+        const issueSets = new Map<string, Set<string>>();
+        const placeholders = embeddings.map(() => '?').join(',');
+        const sets = embeddings.length === 0 ? null : await db.prepare(
+          `SELECT keyword, issue_id FROM issue_topics WHERE keyword IN (${placeholders})`,
+        ).bind(...embeddings.map(e => e.keyword)).all<{ keyword: string; issue_id: string }>();
+        for (const row of sets?.results ?? []) {
+          const set = issueSets.get(row.keyword) ?? new Set<string>();
+          set.add(row.issue_id);
+          issueSets.set(row.keyword, set);
+        }
+
+        const pairs = buildTopicSimilarities(embeddings, issueSets, {
+          alpha: opts.similarityAlpha ?? 0.6,
+        });
+        await replaceTopicSimilarities(db, pairs);
+        return pairs.length;
+      })).result;
     }
-  }
 
-  const elapsed = Date.now() - startedAt;
-  const stats: RebuildStats = {
-    issues_processed: processed,
-    corpus_topics: corpusCount,
-    timeline_rows: timelineCount,
-    lexicon_phrases: lexicon.length,
-    cluster_merges: merges,
-    topics_suppressed: totalSuppressed,
-    similarity_pairs: similarityPairs,
-  };
-  // Wide event log line — single canonical form mirroring Bobbin's
-  // `refresh` / `queue_batch` events. Easy to grep, easy to chart.
-  console.log(JSON.stringify({
-    event: 'topic_rebuild',
-    elapsed_ms: elapsed,
-    ...stats,
-  }));
-  return stats;
+    const elapsed = Date.now() - startedAt;
+    const stats: RebuildStats = {
+      issues_processed: processed,
+      corpus_topics: corpusCount,
+      timeline_rows: timelineCount,
+      lexicon_phrases: lexicon.length,
+      cluster_merges: merges,
+      topics_suppressed: totalSuppressed,
+      similarity_pairs: similarityPairs,
+    };
+    await db.prepare(`
+      UPDATE pipeline_runs SET completed_at = ?, status = 'completed', notes = ? WHERE id = ?
+    `).bind(new Date().toISOString(), JSON.stringify(stats), runId).run();
+    // Wide event log line — single canonical form. Easy to grep,
+    // easy to chart.
+    console.log(JSON.stringify({
+      event: 'topic_rebuild',
+      elapsed_ms: elapsed,
+      ...stats,
+    }));
+    return stats;
+  } catch (err) {
+    await db.prepare(`
+      UPDATE pipeline_runs SET completed_at = ?, status = 'failed', notes = ? WHERE id = ?
+    `).bind(new Date().toISOString(), String(err), runId).run();
+    throw err;
+  }
 }
 
 /**
@@ -233,14 +289,19 @@ async function reaggregateOneKeyword(db: D1Database, keyword: string): Promise<v
 
   if (!counts || counts.df < 2) return; // disappear gracefully
 
+  const total = await db.prepare("SELECT COUNT(*) AS c FROM issues WHERE status = 'active'")
+    .first<{ c: number }>();
+  const distinctiveness = Math.max(0.01, 1 - (counts.df / Math.max(1, total?.c ?? 1)));
+
   await db.prepare(`
     INSERT INTO corpus_topics (
       keyword, keyword_display, doc_frequency, avg_score, aggregate_score,
-      first_seen, last_seen, ngram_size, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      distinctiveness, first_seen, last_seen, ngram_size, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     counts.keyword, counts.keyword_display, counts.df, counts.avg_score,
-    (counts.df * 1.0) / Math.max(counts.avg_score || 1e-9, 1e-9),
+    ((counts.df * 1.0) / Math.max(counts.avg_score || 1e-9, 1e-9)) * distinctiveness,
+    distinctiveness,
     counts.first_seen, counts.last_seen, counts.ngram_size,
     new Date().toISOString(),
   ).run();

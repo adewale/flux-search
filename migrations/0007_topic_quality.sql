@@ -8,10 +8,8 @@ ALTER TABLE issue_topics ADD COLUMN stem TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_issue_topics_stem ON issue_topics(stem);
 
--- Domain-specific blocklist additions. Bobbin's tuning doc adds
--- ("bits, bobs, really, actually, thing, things, stuff"); the FLUX
--- equivalent is the publication-specific boilerplate plus generic
--- filler that yaket sometimes promotes.
+-- Domain-specific blocklist additions: publication-specific boilerplate
+-- plus generic filler that yaket sometimes promotes.
 INSERT OR IGNORE INTO topic_blocklist (keyword, reason, added_at) VALUES
   ('flux',         'publication name',           '2026-04-25T00:00:00Z'),
   ('flux review',  'publication name',           '2026-04-25T00:00:00Z'),

@@ -3,14 +3,16 @@ import { discoverAllIssueUrls } from '../crawler/sitemap-parser';
 import { fetchPage } from '../crawler/crawl-client';
 import { ingestPage } from '../crawler/ingestor';
 import { getAllSourceUrls, startCrawlRun, updateCrawlRun } from '../db/queries';
+import { rebuildAllTopics } from '../lib/topic-rebuild';
+import { enqueueCorpusTopicEmbedding } from '../jobs/enrichment-queue';
 
 const MAX_NEW_EPISODES_PER_RUN = 20;
 
 export async function weeklySync(controller: ScheduledController, env: Env): Promise<void> {
   const runId = crypto.randomUUID();
   const startedAt = Date.now();
-  // Wide event log line — single canonical form. Mirrors Bobbin's
-  // `refresh` event so downstream tooling can grep `event=`.
+  // Wide event log line — single canonical form so downstream tooling
+  // can grep `event=`.
   console.log(JSON.stringify({
     event: 'weekly_sync_start', run_id: runId, cron: controller.cron,
   }));
@@ -63,12 +65,20 @@ export async function weeklySync(controller: ScheduledController, env: Env): Pro
       }
     }
 
+    let topicNote: string | null = null;
+    if (created > 0) {
+      const stats = await rebuildAllTopics(env.DB);
+      const queued = await enqueueCorpusTopicEmbedding(env, runId);
+      topicNote = `Topic rebuild: ${stats.corpus_topics} corpus topics; queued ${queued} embedding batches`;
+    }
+
     await updateCrawlRun(env.DB, runId, {
       completed_at: new Date().toISOString(),
       status: failed > 0 ? 'partial' : 'completed',
       issues_created: created,
       notes: [
         `Processed ${toProcess.length} of ${missing.length} missing episodes`,
+        topicNote,
         errors.length > 0 ? `Errors: ${errors.slice(0, 5).join('; ')}` : null,
       ].filter(Boolean).join('. '),
     });

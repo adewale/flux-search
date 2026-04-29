@@ -26,10 +26,9 @@ export interface DebugMeta {
 
 // Tuning defaults from spec section 12.
 //
-// `lexicalSemanticAgreement` is the crossover bonus described in
-// Bobbin's search.md: a result that appears in *both* the FTS and
-// vector indices gets an additive bump. `topicMatch` rewards results
-// whose extracted topics match query terms — Bobbin's +0.15 boost,
+// `lexicalSemanticAgreement` is the crossover bonus: a result that
+// appears in *both* the FTS and vector indices gets an additive bump.
+// `topicMatch` rewards results whose extracted topics match query terms,
 // scaled to flux's RRF-based score range.
 const BOOSTS = {
   exactIssue: 10.0,

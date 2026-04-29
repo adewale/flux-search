@@ -5,8 +5,6 @@
  * "Mont Blanc", "OpenAI". A simple regex finds runs of two or more
  * capitalised words. Single-word capitalised hits are dropped because
  * sentence-initial words like "But" or "However" would otherwise pollute.
- *
- * Bobbin equivalent: heuristic entity extraction in topic-extractor.ts.
  */
 export interface HeuristicHit {
   keyword: string;

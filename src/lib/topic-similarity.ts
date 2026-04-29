@@ -4,9 +4,9 @@
  * relationship.
  *
  * Both signals come from the same corpus — Vectorize embeds topic text
- * with bge-base-en-v1.5; Jaccard counts pairs of issues. Bobbin uses
- * each separately; flux blends them so a topic that's textually similar
- * but never appears alongside the seed (the model knows them as
+ * with bge-base-en-v1.5; Jaccard counts pairs of issues. Flux blends
+ * them so a topic that's textually similar but never appears alongside
+ * the seed (the model knows them as
  * synonyms even when the corpus doesn't pair them) still surfaces.
  *
  * The math here is pure and stub-able — the embedder is a function the

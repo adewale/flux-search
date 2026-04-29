@@ -7,6 +7,7 @@ import { issueRoutes } from './routes/issues';
 import { topicRoutes } from './routes/topics';
 import { adminRoutes } from './routes/admin';
 import { weeklySync } from './cron/weekly-sync';
+import { processEnrichmentQueue, type EnrichmentMessage } from './jobs/enrichment-queue';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -24,5 +25,8 @@ export default {
   fetch: app.fetch,
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
     ctx.waitUntil(weeklySync(controller, env));
+  },
+  async queue(batch: MessageBatch<EnrichmentMessage>, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(processEnrichmentQueue(batch));
   },
 };

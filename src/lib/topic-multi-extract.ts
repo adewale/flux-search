@@ -1,7 +1,7 @@
 /**
  * Multi-strategy topic extractor with provenance.
  *
- * Pipeline (Bobbin order):
+ * Pipeline order:
  *   1. known_entity   (priority 4) — exact alias lookup
  *   2. phrase_lexicon (priority 3) — PMI bigram lookup
  *   3. heuristic_entity (priority 2) — capitalised multi-word runs

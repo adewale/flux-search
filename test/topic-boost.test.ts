@@ -1,9 +1,8 @@
 /**
  * Topic boost in the hybrid ranker.
  *
- * Bobbin equivalent: search-topics.applyTopicBoost adds +0.15 to chunks
- * whose assigned topic matches the query. flux's port operates on whole
- * issues and uses a boost in the same shape as titleOverlap so it remains
+ * Flux applies topic boosts at issue level: when assigned topics match
+ * the query, the boost uses the same shape as titleOverlap so it remains
  * comparable to other RRF-scaled boosts.
  */
 import { describe, it, expect } from 'vitest';

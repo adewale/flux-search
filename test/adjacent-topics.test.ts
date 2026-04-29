@@ -1,5 +1,5 @@
 /**
- * Adjacent (co-occurring) topics — Bobbin's "adjacent topics" panel.
+ * Adjacent (co-occurring) topics for the topic detail panel.
  * Pure SQL, no extraction logic, so we exercise it against the in-memory DB.
  */
 import { describe, it, expect } from 'vitest';

@@ -5,8 +5,8 @@
  * into one row.
  *
  * For the rare cases where this is too aggressive, callers can fall back
- * to the literal keyword. Bobbin uses the full Porter stemmer; flux's
- * shorter list of suffixes covers the same ground for our corpus size.
+ * to the literal keyword. Flux's short suffix list covers the needed
+ * ground for our corpus size.
  */
 
 // First-pass: noun-shape suffixes (plurals, possessives).

@@ -1,8 +1,8 @@
 /**
  * Topic-quality heuristics.
  *
- * Port of Bobbin's topic-quality.ts adapted to flux's per-issue extractor.
- * Each rule has a corresponding suppression reason so the pipeline stays
+ * Adapted to Flux's per-issue extractor. Each rule has a corresponding
+ * suppression reason so the pipeline stays
  * auditable.
  */
 import { describe, it, expect } from 'vitest';

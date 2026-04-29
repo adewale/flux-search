@@ -72,6 +72,7 @@ export interface CorpusTopicRow {
   doc_frequency: number;
   avg_score: number;
   aggregate_score: number;
+  distinctiveness: number | null;
   first_seen: string | null;
   last_seen: string | null;
   ngram_size: number | null;

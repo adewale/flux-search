@@ -1,7 +1,7 @@
 /**
  * Burst score: how concentrated a topic is in time.
  *
- * Bobbin's df threshold treats every doc-frequency-5 topic the same.
+ * A plain document-frequency threshold treats every df=5 topic the same.
  * That's information loss: a topic with df=4 spread evenly over four
  * years is a slow burn; df=4 in one quarter is a story. The burst score
  * surfaces the difference.

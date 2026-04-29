@@ -16,7 +16,7 @@ export async function searchVectorize(
   env: Env,
   queryText: string,
   filters: SearchFilters,
-  topK: number = 50
+  topK: number = 15
 ): Promise<SemanticCandidate[]> {
   // Gracefully degrade if AI or Vectorize bindings are unavailable (e.g. local dev)
   try {
@@ -58,6 +58,9 @@ async function doVectorSearch(
   }>();
 
   for (const match of matches.matches) {
+    // Drop weak vector hits before issue grouping. The ranker still applies
+    // its stricter semantic-only threshold later.
+    if (match.score < 0.72) continue;
     const meta = (match.metadata || {}) as Record<string, unknown>;
     const issueId = meta.issue_id as string;
     if (!issueId) continue;

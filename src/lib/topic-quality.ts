@@ -1,6 +1,5 @@
 /**
- * Topic-quality heuristics — port of Bobbin's topic-quality.ts adapted to
- * flux's per-issue extractor.
+ * Topic-quality heuristics adapted to Flux's per-issue extractor.
  *
  * Each suppression rule writes a reason so the pipeline stays auditable:
  *

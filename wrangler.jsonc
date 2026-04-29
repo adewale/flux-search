@@ -9,7 +9,7 @@
     "directory": "./frontend",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/health", "/search", "/autocomplete", "/random-quote", "/latest-issue", "/issues/*", "/admin/*"]
+    "run_worker_first": ["/health", "/search", "/autocomplete", "/random-quote", "/latest-issue", "/issues/*", "/topics", "/topics/*", "/admin/*"]
   },
 
   "d1_databases": [
@@ -30,6 +30,24 @@
 
   "ai": {
     "binding": "AI"
+  },
+
+  "queues": {
+    "producers": [
+      {
+        "binding": "ENRICHMENT_QUEUE",
+        "queue": "flux-enrichment"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "flux-enrichment",
+        "max_batch_size": 25,
+        "max_concurrency": 5,
+        "max_retries": 3,
+        "dead_letter_queue": "flux-topic-embed-dlq"
+      }
+    ]
   },
 
   "vars": {

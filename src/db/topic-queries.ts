@@ -92,7 +92,7 @@ export async function getIssueIdsByTopic(
  * exactly (case-insensitively). Used by the ranker to apply a topic boost
  * when free-text queries name a topic without using the topic: operator.
  *
- * Bobbin-equivalent: search-topics.applyTopicBoost (+0.15 per matching slug).
+ * Flux topic boost: +0.15 per matching topic slug.
  */
 export async function getIssuesMatchingQueryTopics(
   db: D1Database,
@@ -121,7 +121,7 @@ export async function getIssuesMatchingQueryTopics(
  * across issues. Pure Jaccard-style overlap, ranked by raw co-occurrence
  * count then keyword for stable order.
  *
- * Bobbin-equivalent: topic detail page "adjacent topics" panel.
+ * Used by the topic detail page "adjacent topics" panel.
  */
 export async function getAdjacentTopics(
   db: D1Database,
@@ -164,13 +164,17 @@ export async function buildCorpusTopics(
   db: D1Database,
   opts: { minDocFrequency?: number } = {},
 ): Promise<number> {
-  // df threshold: Bobbin uses 5 (Yang & Pedersen 1997). flux's corpus is
-  // smaller (~240 issues), so the default sits between Bobbin's 5 and
-  // our previous 2 — high enough to drop hapaxes and one-off curiosities,
+  // df threshold: flux's corpus is smaller (~240 issues), so the default
+  // sits above the previous 2 while staying low enough to keep emerging
+  // topics visible — high enough to drop hapaxes and one-off curiosities,
   // low enough to keep emerging topics visible.
   const minDf = opts.minDocFrequency ?? 3;
 
   await db.prepare('DELETE FROM corpus_topics').run();
+
+  const total = await db.prepare("SELECT COUNT(*) AS c FROM issues WHERE status = 'active'")
+    .first<{ c: number }>();
+  const totalIssues = Math.max(1, total?.c ?? 1);
 
   // Aggregate by stem when one is recorded so morphological variants
   // ("models" / "model" / "modeling") collapse to a single corpus row.
@@ -178,14 +182,16 @@ export async function buildCorpusTopics(
   await db.prepare(`
     INSERT INTO corpus_topics (
       keyword, keyword_display, doc_frequency, avg_score, aggregate_score,
-      first_seen, last_seen, ngram_size, updated_at
+      distinctiveness, first_seen, last_seen, ngram_size, updated_at
     )
     SELECT
       cluster.canonical AS keyword,
       cluster.display AS keyword_display,
       cluster.df AS doc_frequency,
       cluster.avg_score AS avg_score,
-      (cluster.df * 1.0) / NULLIF(cluster.avg_score, 0) AS aggregate_score,
+      ((cluster.df * 1.0) / NULLIF(cluster.avg_score, 0)) *
+        MAX(0.01, 1.0 - (cluster.df * 1.0 / ?)) AS aggregate_score,
+      MAX(0.01, 1.0 - (cluster.df * 1.0 / ?)) AS distinctiveness,
       cluster.first_seen,
       cluster.last_seen,
       cluster.ngram_size,
@@ -211,7 +217,7 @@ export async function buildCorpusTopics(
       GROUP BY cluster_key
       HAVING COUNT(DISTINCT t.issue_id) >= ?
     ) AS cluster
-  `).bind(new Date().toISOString(), minDf).run();
+  `).bind(totalIssues, totalIssues, new Date().toISOString(), minDf).run();
 
   const result = await db.prepare('SELECT COUNT(*) as c FROM corpus_topics')
     .first<{ c: number }>();
