@@ -25,7 +25,8 @@
     "smoke:admin-topic-rebuild": "node scripts/admin-topic-rebuild-smoke.mjs",
     "db:explain-hot-paths": "node scripts/explain-d1-hot-paths.mjs",
     "build:background-frequency": "node scripts/build-background-frequency.mjs",
-    "benchmark:topic-quality": "node scripts/benchmark-topic-quality.mjs"
+    "benchmark:topic-quality": "node scripts/benchmark-topic-quality.mjs",
+    "rollout:topic-quality": "node scripts/topic-quality-rollout.mjs"
   },
   "dependencies": {
     "@ade_oshineye/yaket": "0.5.3",
