@@ -241,11 +241,33 @@ export async function buildCorpusTopics(
     ) AS cluster
   `).bind(totalIssues, totalIssues, new Date().toISOString(), minDf).run();
 
+  await applyDomainDistinctivenessBoost(db, totalIssues);
   await pruneNestedCorpusTopicFragments(db);
 
   const result = await db.prepare('SELECT COUNT(*) as c FROM corpus_topics')
     .first<{ c: number }>();
   return result?.c ?? 0;
+}
+
+async function applyDomainDistinctivenessBoost(db: D1Database, totalIssues: number): Promise<void> {
+  const { computeDomainDistinctivenessBoost, isProtectedDomainTopic } = await import('../lib/domain-distinctiveness');
+  const rows = await db.prepare(
+    'SELECT keyword, doc_frequency, ngram_size, aggregate_score FROM corpus_topics',
+  ).all<{ keyword: string; doc_frequency: number; ngram_size: number | null; aggregate_score: number }>();
+
+  const stmts = rows.results.map(row => {
+    const { boost } = computeDomainDistinctivenessBoost({
+      keyword: row.keyword,
+      docFrequency: row.doc_frequency,
+      totalIssues,
+      ngramSize: row.ngram_size ?? row.keyword.split(/\s+/).length,
+      protectedTopic: isProtectedDomainTopic(row.keyword),
+    });
+    return db.prepare('UPDATE corpus_topics SET aggregate_score = ? WHERE keyword = ?')
+      .bind(row.aggregate_score * boost, row.keyword);
+  });
+
+  if (stmts.length > 0) await db.batch(stmts);
 }
 
 function tokenContains(longer: string, shorter: string): boolean {

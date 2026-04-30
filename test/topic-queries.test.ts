@@ -166,6 +166,27 @@ describe('blocklist', () => {
 });
 
 describe('buildCorpusTopics', () => {
+  it('uses background English frequencies to rank Flux-distinctive phrases above generic phrases', async () => {
+    const db = makeD1();
+    const a = await seedIssue(db as any, { issue_number: 1 });
+    const b = await seedIssue(db as any, { issue_number: 2 });
+    const c = await seedIssue(db as any, { issue_number: 3 });
+
+    for (const issueId of [a, b, c]) {
+      await replaceIssueTopics(db as any, issueId, [
+        topic({ keyword: 'systems thinking', keyword_display: 'Systems Thinking', rank: 1, score: 0.05 }),
+        topic({ keyword: 'good ideas', keyword_display: 'Good Ideas', rank: 2, score: 0.05 }),
+      ]);
+    }
+
+    await buildCorpusTopics(db as any, { minDocFrequency: 3 });
+    const corpus = await getCorpusTopics(db as any, { limit: 10 });
+    const systems = corpus.find(t => t.keyword === 'systems thinking')!;
+    const generic = corpus.find(t => t.keyword === 'good ideas')!;
+
+    expect(systems.aggregate_score).toBeGreaterThan(generic.aggregate_score);
+  });
+
   it('prunes nested shorter phrases when they mostly occur inside a longer topic', async () => {
     const db = makeD1();
     const a = await seedIssue(db as any, { issue_number: 1 });

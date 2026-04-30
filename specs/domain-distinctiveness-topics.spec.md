@@ -465,58 +465,56 @@ Operational fit:
 
 Other npm search results for `word frequency`, `zipf`, and `wordfreq` were mostly unrelated packages. No mature, small, permissively licensed npm equivalent to Python `wordfreq` was identified.
 
-Recommendation:
+Recommendation after product decision:
 
-- use `nodewordfreq` only for local calibration experiments;
-- do not add it as a Worker dependency;
-- for production, prefer a self-built public-domain background frequency table.
+- use `nodewordfreq` as an offline build/calibration dependency;
+- do not add it as a Worker runtime dependency;
+- preserve attribution/share-alike notices for the generated table;
+- keep the runtime API isolated so we can swap in a public-domain/CC0 table later if needed.
 
-## Recommended source path
+## Chosen source path
 
-Use a two-stage approach:
+We will use `nodewordfreq` as an **offline calibration/build tool** and provide attribution/share-alike notices. This is an intentional product decision: the quality benefit of modern `wordfreq` data is worth the attribution obligations, and the package will not be bundled into the Worker runtime.
 
-### Stage 1 — Public-domain baseline
-
-Build a small background frequency table from a curated manifest of public-domain texts, preferably Standard Ebooks or carefully selected Gutenberg works.
-
-Generated artifacts:
+Generated/runtime artifacts:
 
 ```text
-data/background/manifest.json
-src/lib/background-frequency.generated.ts
+scripts/build-background-frequency.mjs      # offline builder; imports nodewordfreq
+src/lib/background-frequency.generated.ts   # tiny generated table imported by Worker
+docs/background-frequency-attribution.md    # attribution/license notes
 ```
 
-Manifest fields:
+NPM command:
 
-```json
-{
-  "source": "standard-ebooks|project-gutenberg",
-  "title": "...",
-  "author": "...",
-  "url": "...",
-  "license": "public-domain-us",
-  "retrieved_at": "...",
-  "sha256": "..."
-}
+```bash
+npm run build:background-frequency
 ```
 
-Generated table:
+Generation rules:
+
+- collect current/protected candidate topic phrases and their content tokens;
+- call `zipfFrequency(term, 'en')` from `nodewordfreq`;
+- write a compact TypeScript object of English Zipf frequencies;
+- do not import `nodewordfreq` from Worker code.
+
+Generated table example:
 
 ```ts
-export const BACKGROUND_ZIPF: Record<string, number> = {
-  "time": 6.1,
-  "world": 5.8,
-  "americans": 4.4,
-  "systems": 3.2,
-  "thinking": 3.8
+export const BACKGROUND_ZIPF_EN: Readonly<Record<string, number>> = {
+  "many americans": 4.8,
+  "systems thinking": 4.85,
+  "many": 5.91,
+  "americans": 4.83,
+  "systems": 5.07,
+  "thinking": 5.24
 };
 ```
 
-Do not check in full source texts.
+The runtime commonness estimate uses both exact phrase frequency and token frequency. This matters because exact phrase estimates alone can underrate generic constructions; e.g. `many americans` is also generic because its component words are common.
 
-### Stage 2 — Calibration against wordfreq
+Potential future path:
 
-Use `wordfreq` locally to compare rankings and tune λ/baselines, but keep production data from the public-domain manifest unless wordfreq data licensing is confirmed as acceptable.
+- if attribution/share-alike obligations become a problem, replace the generated table with a public-domain/CC0 table from Standard Ebooks/Gutenberg and keep the same runtime API.
 
 ## Acceptance criteria
 

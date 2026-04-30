@@ -23,7 +23,8 @@
     "characterize:topics:queue": "node scripts/characterize-topics.mjs queue",
     "compare:queue-public-surfaces": "node scripts/compare-queue-public-surfaces.mjs",
     "smoke:admin-topic-rebuild": "node scripts/admin-topic-rebuild-smoke.mjs",
-    "db:explain-hot-paths": "node scripts/explain-d1-hot-paths.mjs"
+    "db:explain-hot-paths": "node scripts/explain-d1-hot-paths.mjs",
+    "build:background-frequency": "node scripts/build-background-frequency.mjs"
   },
   "dependencies": {
     "@ade_oshineye/yaket": "0.5.3",
@@ -33,6 +34,7 @@
     "@playwright/test": "^1.59.1",
     "@types/node": "^25.5.2",
     "fast-check": "^4.6.0",
+    "nodewordfreq": "^0.2.1",
     "playwright": "^1.59.1",
     "typescript": "^5.8.0",
     "vitest": "^4.1.2",
