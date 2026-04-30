@@ -1,4 +1,4 @@
-import { extract } from '@ade_oshineye/yaket/worker';
+import { extract } from '@ade_oshineye/yaket';
 import { replaceIssueTopics } from '../db/topic-queries';
 
 export interface ExtractedTopic {

@@ -5,6 +5,7 @@ import { getCrawlRun, getIssueCount, getIssueDateRange, getMissingIssueNumbers }
 import { runBootstrap } from '../crawler/bootstrap';
 import { runReindex } from '../crawler/ingestor';
 import { rebuildAllTopics } from '../lib/topic-rebuild';
+import { annotateCorpusTopics, buildCorpusTopics, buildTopicTimeline, clusterCorpusTopics } from '../db/topic-queries';
 import { extractTopicsMulti } from '../lib/topic-multi-extract';
 import { enqueueCorpusTopicEmbedding, type EnrichmentMessage } from '../jobs/enrichment-queue';
 import { getPipelineJob, listPipelineJobs } from '../lib/pipeline-jobs';
@@ -65,6 +66,15 @@ adminRoutes.post('/rebuild-topics', async (c) => {
   })().catch(err => console.error('rebuild-topics failed:', err)));
 
   return c.json({ message: 'Topic rebuild started' }, 202);
+});
+
+adminRoutes.post('/rebuild-topic-aggregates', async (c) => {
+  const corpus_topics = await buildCorpusTopics(c.env.DB);
+  const cluster_merges = await clusterCorpusTopics(c.env.DB);
+  const timeline_rows = await buildTopicTimeline(c.env.DB);
+  await annotateCorpusTopics(c.env.DB);
+  const queued_embedding_batches = await enqueueCorpusTopicEmbedding(c.env, crypto.randomUUID());
+  return c.json({ corpus_topics, cluster_merges, timeline_rows, queued_embedding_batches });
 });
 
 adminRoutes.get('/pipeline-runs', async (c) => {

@@ -41,15 +41,6 @@ function tokens(s: string): string[] {
   return normalizeKeyword(s).match(/[a-z][a-z0-9'-]*/g) ?? [];
 }
 
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function countOccurrences(keyword: string, text: string): number {
-  const pattern = new RegExp(`\\b${escapeRegExp(keyword).replace(/\\\s+/g, '\\s+')}\\b`, 'gi');
-  return [...text.matchAll(pattern)].length;
-}
-
 function phraseGrammarValid(keyword: string): boolean {
   const ts = tokens(keyword);
   if (ts.length === 0) return false;
@@ -76,7 +67,11 @@ export function constructCandidate(
   const canonical = entry?.canonical ?? normalized;
   const plain = String(text);
   const first = plain.toLowerCase().indexOf(canonical);
-  const occurrences = Math.max(1, countOccurrences(canonical, plain));
+  // Keep construction cheap enough for a Worker full-corpus rebuild. More
+  // detailed occurrence/spread scoring already happens before construction in
+  // the issue-topic ranker; construction only needs enough evidence to prove
+  // the candidate was derived from the cleaned issue text.
+  const occurrences = first < 0 ? 0 : 1;
 
   return {
     ok: true,
