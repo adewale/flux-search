@@ -11,6 +11,8 @@
  *   phrase_component  — single word dominated by an established multi-word phrase
  *   blocklist         — explicit blocklist hit
  *   boilerplate_phrase — recurring editorial/navigation phrase
+ *   markup_artifact   — HTML/text extraction artifact, e.g. img/src/href
+ *   weak_phrase       — incomplete phrase with weak boundary token
  *
  * Inputs assume topics from extractTopics(...), augmented with
  * occurrence/sentence-spread counts the multi-strategy extractor records.
@@ -45,7 +47,9 @@ export type SuppressionReason =
   | 'weak_singleton'
   | 'phrase_component'
   | 'blocklist'
-  | 'boilerplate_phrase';
+  | 'boilerplate_phrase'
+  | 'markup_artifact'
+  | 'weak_phrase';
 
 /** Topics we never auto-suppress, even if they trip generic rules. */
 export const PROTECTED_TOPICS: ReadonlySet<string> = new Set([
@@ -85,6 +89,21 @@ const PRONOUN_LEAD: ReadonlySet<string> = new Set([
   'this', 'that', 'these', 'those', 'their', 'them',
 ]);
 
+const MARKUP_ARTIFACT_TOKENS: ReadonlySet<string> = new Set([
+  'img', 'src', 'href', 'alt', 'nbsp', 'http', 'https', 'jpg', 'jpeg', 'png',
+  'gif', 'webp', 'iframe', 'script', 'style', 'class', 'xers', 'fluxers',
+]);
+
+const MARKUP_ARTIFACT_PHRASES: ReadonlySet<string> = new Set([
+  'img src',
+  'src href',
+  'href img',
+  'alt text',
+  'xers highlighting',
+  'fluxers highlighting',
+  'highlighting independent publications',
+]);
+
 const BOILERPLATE_PHRASES: ReadonlySet<string> = new Set([
   'signposts clues',
   'signpost clues',
@@ -97,6 +116,10 @@ const BOILERPLATE_PHRASES: ReadonlySet<string> = new Set([
   'book for your shelf',
   'postcard from the future',
   'more from fluxers',
+]);
+
+const WEAK_PHRASE_END: ReadonlySet<string> = new Set([
+  'like', 'from', 'with', 'without', 'into', 'onto', 'about', 'toward', 'towards',
 ]);
 
 const WEAK_SUFFIX_RX = /(ly|ize|ise|ify|ment|oes|ays|akes|ives)$/;
@@ -123,12 +146,20 @@ export function classifyTopicQuality(
     return { suppress: true, reason: 'boilerplate_phrase' };
   }
 
+  if (MARKUP_ARTIFACT_PHRASES.has(keyword) || tokens.some(t => MARKUP_ARTIFACT_TOKENS.has(t))) {
+    return { suppress: true, reason: 'markup_artifact' };
+  }
+
   if (isSingleton && NOISE_WORDS.has(keyword)) {
     return { suppress: true, reason: 'noise_word' };
   }
 
   if (!isSingleton && PRONOUN_LEAD.has(tokens[0])) {
     return { suppress: true, reason: 'pronoun_lead' };
+  }
+
+  if (!isSingleton && WEAK_PHRASE_END.has(tokens[tokens.length - 1])) {
+    return { suppress: true, reason: 'weak_phrase' };
   }
 
   // Phrase-component dominance: a singleton that is mostly explained

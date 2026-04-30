@@ -37,10 +37,18 @@ export interface BuildOptions {
   minPMI?: number;
   minCooccurrence?: number;
   limit?: number;
+  /** Maximum contiguous n-gram length to consider. Defaults to 2 for
+   *  production precision; tests/experiments can raise this to explore
+   *  stopword-bridged title phrases like "seeing like a state". */
+  maxN?: number;
 }
 
 function tokenize(text: string): string[] {
-  return text.toLowerCase().match(/[a-z][a-z0-9'-]+/g) ?? [];
+  return text.toLowerCase().match(/[a-z][a-z0-9'-]*/g) ?? [];
+}
+
+function phraseKey(tokens: string[]): string {
+  return tokens.join(' ');
 }
 
 /**
@@ -55,38 +63,59 @@ export function buildPhraseLexicon(
   const minPMI = opts.minPMI ?? 3.0;
   const minCooccurrence = opts.minCooccurrence ?? 5;
   const limit = opts.limit ?? 500;
+  const maxN = Math.max(2, Math.min(4, opts.maxN ?? 2));
 
   const wordFreq = new Map<string, number>();
-  const bigramFreq = new Map<string, number>();
+  const phraseFreq = new Map<string, number>();
   let N = 0;
 
   for (const doc of documents) {
     if (!doc) continue;
     N++;
-    const tokens = tokenize(doc).filter(t => !SHALLOW_STOP.has(t) && t.length >= 3);
+    const tokens = tokenize(doc);
     const seenWords = new Set<string>();
-    const seenBigrams = new Set<string>();
+    const seenPhrases = new Set<string>();
     for (let i = 0; i < tokens.length; i++) {
-      seenWords.add(tokens[i]);
-      if (i > 0) {
-        seenBigrams.add(tokens[i - 1] + ' ' + tokens[i]);
+      const token = tokens[i];
+      if (!SHALLOW_STOP.has(token) && token.length >= 3) seenWords.add(token);
+      for (let n = 2; n <= maxN && i + n <= tokens.length; n++) {
+        const slice = tokens.slice(i, i + n);
+        const first = slice[0];
+        const last = slice[slice.length - 1];
+        // Stopwords are allowed inside phrases ("seeing like a state"),
+        // but not as the phrase boundary.
+        if (SHALLOW_STOP.has(first) || SHALLOW_STOP.has(last)) continue;
+        if (first.length < 3 || last.length < 3) continue;
+        seenPhrases.add(phraseKey(slice));
       }
     }
     for (const w of seenWords) wordFreq.set(w, (wordFreq.get(w) ?? 0) + 1);
-    for (const b of seenBigrams) bigramFreq.set(b, (bigramFreq.get(b) ?? 0) + 1);
+    for (const p of seenPhrases) phraseFreq.set(p, (phraseFreq.get(p) ?? 0) + 1);
   }
 
   const entries: PhraseLexiconEntry[] = [];
-  for (const [bigram, coocc] of bigramFreq) {
+  for (const [phrase, coocc] of phraseFreq) {
     if (coocc < minCooccurrence) continue;
-    const [w1, w2] = bigram.split(' ');
-    const f1 = wordFreq.get(w1) ?? 0;
-    const f2 = wordFreq.get(w2) ?? 0;
+    const words = phrase.split(' ');
+    const first = words[0];
+    const last = words[words.length - 1];
+    const f1 = wordFreq.get(first) ?? 0;
+    const f2 = wordFreq.get(last) ?? 0;
     if (f1 === 0 || f2 === 0) continue;
+    // Endpoint PMI preserves the old bigram behavior while making
+    // longer stopword-bridged phrases measurable without multiplying
+    // by every internal stopword/component frequency.
     const pmi = Math.log((coocc * N) / (f1 * f2));
-    if (pmi < minPMI) continue;
-    const quality = Math.max(0, pmi) * (1 + Math.log2(coocc + 1));
-    entries.push({ phrase: bigram, pmi, cooccurrence: coocc, quality });
+    // For longer exact phrases, endpoint PMI can be low when the endpoint
+    // words are common ("seeing" and "state"), even though the full phrase
+    // is a meaningful title. Keep recurring 3–4 grams as exact phrase
+    // candidates, then let topic-quality/blocklist rules remove artifacts.
+    const recurringLongPhrase = words.length >= 3 && coocc >= minCooccurrence;
+    if (pmi < minPMI && !recurringLongPhrase) continue;
+    const lengthBoost = 1 + Math.log2(words.length);
+    const effectiveAssociation = recurringLongPhrase ? Math.max(0.1, pmi) : Math.max(0, pmi);
+    const quality = effectiveAssociation * (1 + Math.log2(coocc + 1)) * lengthBoost;
+    entries.push({ phrase, pmi, cooccurrence: coocc, quality });
   }
 
   entries.sort((a, b) => b.quality - a.quality);

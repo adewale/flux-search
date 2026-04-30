@@ -101,6 +101,12 @@ export function htmlToSimpleMarkdown(html: string): string {
   text = text.replace(/&quot;/g, '"');
   text = text.replace(/&#039;/g, "'");
 
+  // Entity decoding can expose escaped tags from article text/captions
+  // (for example &lt;img src&gt; in speculative snippets). Strip those too
+  // so downstream normalisation and topic extraction never see tag tokens.
+  // Keep natural-language comparisons such as "A < B > C".
+  text = text.replace(/<\/?[a-z][a-z0-9]*(?:\s+[^>]*)?>/gi, '');
+
   // Normalize whitespace
   text = text.replace(/\n{3,}/g, '\n\n');
   text = text.trim();

@@ -148,6 +148,15 @@ describe('htmlToSimpleMarkdown (via fetchPage)', () => {
     expect(result!.markdown).toContain('A & B < C > D "quoted" it\'s');
   });
 
+  it('removes tags that were HTML-entity encoded in content', async () => {
+    mockFetch.mockResolvedValue(htmlResponse('<p>Caption before &lt;img src&gt; caption after</p>'));
+    const result = await fetchPage('https://example.com/p/test');
+    expect(result!.markdown).not.toContain('<img src>');
+    expect(result!.markdown).not.toContain('img src');
+    expect(result!.markdown).toContain('Caption before');
+    expect(result!.markdown).toContain('caption after');
+  });
+
   it('removes remaining HTML tags', async () => {
     mockFetch.mockResolvedValue(htmlResponse('<div class="wrapper"><span>Text</span></div>'));
     const result = await fetchPage('https://example.com/p/test');

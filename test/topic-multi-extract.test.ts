@@ -17,6 +17,11 @@ George Yancey writes about institutional trust. Mont Blanc towers over us.
 `;
 
 describe('findKnownEntities', () => {
+  it('matches stopword-bridged protected title phrases', () => {
+    const hits = findKnownEntities('James C. Scott wrote Seeing Like a State.');
+    expect(hits.find(h => h.keyword === 'seeing like a state')).toBeDefined();
+  });
+
   it('matches canonical aliases including LLM/llms variants', () => {
     const hits = findKnownEntities('LLMs reshape software. Large language models too.');
     const llm = hits.find(h => h.keyword === 'large language models');
@@ -76,6 +81,15 @@ describe('buildPhraseLexicon', () => {
   it('returns empty when documents are too few', () => {
     const lex = buildPhraseLexicon(['just one'], {});
     expect(lex).toEqual([]);
+  });
+
+  it('can learn stopword-bridged title phrases up to four grams', () => {
+    const docs = [
+      ...Array(8).fill('James C. Scott wrote Seeing Like a State. Seeing Like a State is about legibility.'),
+      ...Array(20).fill('apple banana carrot durian elderberry. fig grape honeydew kiwi lemon.'),
+    ];
+    const lex = buildPhraseLexicon(docs, { minCooccurrence: 3, minPMI: 0.5, maxN: 4 });
+    expect(lex.map(e => e.phrase)).toContain('seeing like a state');
   });
 
   it('respects limit', () => {
@@ -142,6 +156,15 @@ describe('extractTopicsMulti', () => {
     expect(extractTopicsMulti(null).kept).toEqual([]);
     expect(extractTopicsMulti('').kept).toEqual([]);
     expect(extractTopicsMulti('   ').kept).toEqual([]);
+  });
+
+  it('suppresses recurring FLUXers highlighting boilerplate artifacts', () => {
+    const { kept, suppressed } = extractTopicsMulti(
+      'More from FLUXers highlighting independent publications from FLUX contributors. '.repeat(4),
+    );
+    expect(kept.map(t => t.keyword)).not.toContain('xers highlighting');
+    expect(kept.map(t => t.keyword)).not.toContain('fluxers highlighting');
+    expect(suppressed.some(t => t.suppression_reason === 'markup_artifact')).toBe(true);
   });
 
   it('respects the blocklist and records suppression_reason', () => {

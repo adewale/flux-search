@@ -3,6 +3,32 @@ import { classifyTopicQuality } from '../src/lib/topic-quality';
 import { weightedTopicScore } from '../src/lib/topic-scoring';
 
 describe('topic quality improvements', () => {
+  it('suppresses text and HTML artifacts that must never be topics', () => {
+    for (const keyword of ['img src', 'src href', 'href img', 'alt text', 'xers highlighting', 'fluxers highlighting']) {
+      expect(classifyTopicQuality({
+        keyword,
+        keyword_display: keyword,
+        score: 0.01,
+        rank: 1,
+        ngram_size: keyword.split(' ').length,
+        occurrences: 10,
+        sentenceSpread: 5,
+      })).toEqual({ suppress: true, reason: 'markup_artifact' });
+    }
+  });
+
+  it('suppresses incomplete n-gram fragments with weak trailing words', () => {
+    expect(classifyTopicQuality({
+      keyword: 'seeing like',
+      keyword_display: 'seeing like',
+      score: 0.01,
+      rank: 1,
+      ngram_size: 2,
+      occurrences: 8,
+      sentenceSpread: 5,
+    })).toEqual({ suppress: true, reason: 'weak_phrase' });
+  });
+
   it('suppresses editorial boilerplate phrases that must never be topics', () => {
     for (const keyword of ['signposts clues', 'editor note']) {
       expect(classifyTopicQuality({

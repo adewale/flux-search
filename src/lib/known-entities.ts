@@ -23,6 +23,7 @@ export const KNOWN_ENTITIES: KnownEntity[] = [
   { canonical: 'machine learning', display: 'Machine Learning', aliases: ['machine learning', 'ml'] },
   { canonical: 'cryptocurrency', display: 'Cryptocurrency', aliases: ['cryptocurrency', 'cryptocurrencies', 'crypto currency'] },
   { canonical: 'climate change', display: 'Climate Change', aliases: ['climate change', 'global warming'] },
+  { canonical: 'seeing like a state', display: 'Seeing Like a State', aliases: ['seeing like a state'] },
 ];
 
 /**
