@@ -113,7 +113,6 @@ const MALFORMED_PHRASES: ReadonlySet<string> = new Set([
   'top-right quadrant',
   'labor day',
   'golden state',
-  'complex times',
   'world war',
   'le guin',
   'packy mc',

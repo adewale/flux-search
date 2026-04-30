@@ -25,7 +25,6 @@ describe('topic quality improvements', () => {
       'top-right quadrant',
       'labor day',
       'golden state',
-      'complex times',
       'world war',
       'le guin',
       'packy mc',
@@ -43,6 +42,20 @@ describe('topic quality improvements', () => {
         occurrences: 10,
         sentenceSpread: 5,
       })).toEqual({ suppress: true, reason: 'malformed_phrase' });
+    }
+  });
+
+  it('does not suppress protected publication names, short topics, or full book titles', () => {
+    for (const keyword of ['crypto', 'rest of world', 'not boring', 'crooked timber', 'simple habits for complex times']) {
+      expect(classifyTopicQuality({
+        keyword,
+        keyword_display: keyword,
+        score: 0.01,
+        rank: 1,
+        ngram_size: keyword.split(' ').length,
+        occurrences: 3,
+        sentenceSpread: 3,
+      })).toEqual({ suppress: false, reason: null });
     }
   });
 

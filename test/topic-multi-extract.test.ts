@@ -17,10 +17,28 @@ George Yancey writes about institutional trust. Mont Blanc towers over us.
 `;
 
 describe('findKnownEntities', () => {
-  it('canonicalizes audited aliases', () => {
-    const hits = findKnownEntities('Crypto markets and Le Guin essays both appeared.');
+  it('keeps crypto as its own protected topic rather than aliasing it to cryptocurrency', () => {
+    const hits = findKnownEntities('Crypto markets and cryptocurrency markets both appeared.');
+    expect(hits.find(h => h.keyword === 'crypto')).toBeDefined();
     expect(hits.find(h => h.keyword === 'cryptocurrency')).toBeDefined();
+  });
+
+  it('canonicalizes audited aliases without collapsing protected short topics', () => {
+    const hits = findKnownEntities('Le Guin essays appeared.');
     expect(hits.find(h => h.keyword === 'ursula k. le guin')).toBeDefined();
+  });
+
+  it('protects newsletter/blog names and book titles as known entities', () => {
+    const hits = findKnownEntities([
+      'Rest of World covered the story.',
+      'Not Boring and Crooked Timber both linked to it.',
+      'Simple Habits for Complex Times is the relevant book title.',
+    ].join(' '));
+
+    expect(hits.find(h => h.keyword === 'rest of world')).toBeDefined();
+    expect(hits.find(h => h.keyword === 'not boring')).toBeDefined();
+    expect(hits.find(h => h.keyword === 'crooked timber')).toBeDefined();
+    expect(hits.find(h => h.keyword === 'simple habits for complex times')).toBeDefined();
   });
 
   it('matches stopword-bridged protected title phrases', () => {

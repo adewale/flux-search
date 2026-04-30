@@ -21,10 +21,15 @@ export const KNOWN_ENTITIES: KnownEntity[] = [
   { canonical: 'open source', display: 'Open Source', aliases: ['open source', 'open-source', 'oss'] },
   { canonical: 'web3', display: 'Web3', aliases: ['web3', 'web 3'] },
   { canonical: 'machine learning', display: 'Machine Learning', aliases: ['machine learning', 'ml'] },
-  { canonical: 'cryptocurrency', display: 'Cryptocurrency', aliases: ['cryptocurrency', 'cryptocurrencies', 'crypto currency', 'crypto'] },
+  { canonical: 'crypto', display: 'Crypto', aliases: ['crypto'] },
+  { canonical: 'cryptocurrency', display: 'Cryptocurrency', aliases: ['cryptocurrency', 'cryptocurrencies', 'crypto currency'] },
   { canonical: 'climate change', display: 'Climate Change', aliases: ['climate change', 'global warming'] },
   { canonical: 'seeing like a state', display: 'Seeing Like a State', aliases: ['seeing like a state'] },
   { canonical: 'ursula k. le guin', display: 'Ursula K. Le Guin', aliases: ['ursula k. le guin', 'ursula le guin', 'le guin'] },
+  { canonical: 'rest of world', display: 'Rest of World', aliases: ['rest of world', 'restofworld'] },
+  { canonical: 'not boring', display: 'Not Boring', aliases: ['not boring'] },
+  { canonical: 'crooked timber', display: 'Crooked Timber', aliases: ['crooked timber'] },
+  { canonical: 'simple habits for complex times', display: 'Simple Habits for Complex Times', aliases: ['simple habits for complex times'] },
 ];
 
 /**
