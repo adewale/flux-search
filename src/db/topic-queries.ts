@@ -241,9 +241,66 @@ export async function buildCorpusTopics(
     ) AS cluster
   `).bind(totalIssues, totalIssues, new Date().toISOString(), minDf).run();
 
+  await pruneNestedCorpusTopicFragments(db);
+
   const result = await db.prepare('SELECT COUNT(*) as c FROM corpus_topics')
     .first<{ c: number }>();
   return result?.c ?? 0;
+}
+
+function tokenContains(longer: string, shorter: string): boolean {
+  const a = longer.split(/\s+/).filter(Boolean);
+  const b = shorter.split(/\s+/).filter(Boolean);
+  if (b.length >= a.length || b.length === 0) return false;
+  for (let i = 0; i <= a.length - b.length; i++) {
+    if (b.every((tok, j) => a[i + j] === tok)) return true;
+  }
+  return false;
+}
+
+async function issueSetForKeyword(db: D1Database, keyword: string): Promise<Set<string>> {
+  const rows = await db.prepare(
+    'SELECT DISTINCT issue_id FROM issue_topics WHERE keyword = ? AND suppression_reason IS NULL',
+  ).bind(keyword).all<{ issue_id: string }>();
+  return new Set(rows.results.map(r => r.issue_id));
+}
+
+async function pruneNestedCorpusTopicFragments(db: D1Database): Promise<number> {
+  const { buildAliasMap } = await import('../lib/known-entities');
+  const aliasMap = buildAliasMap();
+  const rows = await db.prepare(
+    'SELECT keyword, doc_frequency FROM corpus_topics WHERE ngram_size >= 2',
+  ).all<{ keyword: string; doc_frequency: number }>();
+  const topics = rows.results;
+  const toDelete = new Set<string>();
+
+  for (const shorter of topics) {
+    // Curated canonical labels are allowed to be nested in longer prose
+    // fragments; never delete them as fragments.
+    if (aliasMap.get(shorter.keyword) === shorter.keyword) continue;
+    for (const longer of topics) {
+      if (shorter.keyword === longer.keyword) continue;
+      if (!tokenContains(longer.keyword, shorter.keyword)) continue;
+      const shorterIssues = await issueSetForKeyword(db, shorter.keyword);
+      if (shorterIssues.size === 0) continue;
+      const longerIssues = await issueSetForKeyword(db, longer.keyword);
+      let overlap = 0;
+      for (const id of shorterIssues) if (longerIssues.has(id)) overlap++;
+      const containment = overlap / shorterIssues.size;
+      // C-value-like nested phrase handling: if the shorter phrase mostly
+      // appears only as part of the longer phrase, keep the more specific
+      // label and drop the fragment. Independent usage survives.
+      if (containment >= 0.8) {
+        toDelete.add(shorter.keyword);
+        break;
+      }
+    }
+  }
+
+  for (const keyword of toDelete) {
+    await db.prepare('DELETE FROM corpus_topics WHERE keyword = ?').bind(keyword).run();
+  }
+  return toDelete.size;
 }
 
 /**

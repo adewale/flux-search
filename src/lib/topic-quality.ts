@@ -13,6 +13,7 @@
  *   boilerplate_phrase — recurring editorial/navigation phrase
  *   markup_artifact   — HTML/text extraction artifact, e.g. img/src/href
  *   weak_phrase       — incomplete phrase with weak boundary token
+ *   malformed_phrase  — audited phrase fragment/truncation
  *
  * Inputs assume topics from extractTopics(...), augmented with
  * occurrence/sentence-spread counts the multi-strategy extractor records.
@@ -49,7 +50,8 @@ export type SuppressionReason =
   | 'blocklist'
   | 'boilerplate_phrase'
   | 'markup_artifact'
-  | 'weak_phrase';
+  | 'weak_phrase'
+  | 'malformed_phrase';
 
 /** Topics we never auto-suppress, even if they trip generic rules. */
 export const PROTECTED_TOPICS: ReadonlySet<string> = new Set([
@@ -104,6 +106,23 @@ const MARKUP_ARTIFACT_PHRASES: ReadonlySet<string> = new Set([
   'highlighting independent publications',
 ]);
 
+const MALFORMED_PHRASES: ReadonlySet<string> = new Set([
+  'secretary of defense rock',
+  'exchange commission',
+  'many americans',
+  'top-right quadrant',
+  'labor day',
+  'golden state',
+  'complex times',
+  'world war',
+  'le guin',
+  'packy mc',
+  'native american',
+  'technology review',
+  'census bureau',
+  'air force',
+]);
+
 const BOILERPLATE_PHRASES: ReadonlySet<string> = new Set([
   'signposts clues',
   'signpost clues',
@@ -144,6 +163,10 @@ export function classifyTopicQuality(
 
   if (BOILERPLATE_PHRASES.has(keyword)) {
     return { suppress: true, reason: 'boilerplate_phrase' };
+  }
+
+  if (MALFORMED_PHRASES.has(keyword)) {
+    return { suppress: true, reason: 'malformed_phrase' };
   }
 
   if (MARKUP_ARTIFACT_PHRASES.has(keyword) || tokens.some(t => MARKUP_ARTIFACT_TOKENS.has(t))) {

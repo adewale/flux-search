@@ -17,6 +17,35 @@ describe('topic quality improvements', () => {
     }
   });
 
+  it('suppresses malformed fragments from the current topic audit', () => {
+    for (const keyword of [
+      'secretary of defense rock',
+      'exchange commission',
+      'many americans',
+      'top-right quadrant',
+      'labor day',
+      'golden state',
+      'complex times',
+      'world war',
+      'le guin',
+      'packy mc',
+      'native american',
+      'technology review',
+      'census bureau',
+      'air force',
+    ]) {
+      expect(classifyTopicQuality({
+        keyword,
+        keyword_display: keyword,
+        score: 0.01,
+        rank: 1,
+        ngram_size: keyword.split(' ').length,
+        occurrences: 10,
+        sentenceSpread: 5,
+      })).toEqual({ suppress: true, reason: 'malformed_phrase' });
+    }
+  });
+
   it('suppresses incomplete n-gram fragments with weak trailing words', () => {
     expect(classifyTopicQuality({
       keyword: 'seeing like',

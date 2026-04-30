@@ -42,6 +42,26 @@ describe('rebuildAllTopics', () => {
     expect(timeline.length).toBeGreaterThan(0);
   });
 
+  it('does not persist one-issue candidates during a full rebuild', async () => {
+    const db = makeD1();
+    const a = await seedIssue(db as any, {
+      issue_number: 1,
+      full_text_plain: `${SAMPLE}\nWeb3 appears only in this issue. `.repeat(4),
+    });
+    const b = await seedIssue(db as any, {
+      issue_number: 2,
+      full_text_plain: SAMPLE,
+    });
+
+    await rebuildAllTopics(db as any, { minDocFrequency: 2 });
+
+    const aTopics = await getTopicsByIssueId(db as any, a);
+    const bTopics = await getTopicsByIssueId(db as any, b);
+    expect(aTopics.map(t => t.keyword)).toContain('institutional trust');
+    expect(bTopics.map(t => t.keyword)).toContain('institutional trust');
+    expect(aTopics.map(t => t.keyword)).not.toContain('web3');
+  });
+
   it('skips inactive issues', async () => {
     const db = makeD1();
     await seedIssue(db as any, {

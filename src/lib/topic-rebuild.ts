@@ -1,6 +1,7 @@
 import { extractTopicsMulti } from './topic-multi-extract';
 import { stemPhrase } from './porter-stem';
 import { buildPhraseLexicon } from './pmi-lexicon';
+import { filterTopicsByIssueFrequency } from './topic-cross-issue-filter';
 import {
   annotateCorpusTopics,
   buildCorpusTopics,
@@ -75,6 +76,9 @@ export interface RebuildOptions {
   embed?: EmbedFn;
   /** α blend between cosine and Jaccard (0..1). Default 0.6. */
   similarityAlpha?: number;
+  /** Candidate topics must appear in this many distinct issues before
+   *  being persisted during a full rebuild. Default 2. */
+  minCandidateIssueFrequency?: number;
 }
 
 export async function rebuildAllTopics(
@@ -103,27 +107,43 @@ export async function rebuildAllTopics(
 
     const blocklist = (await runStep('load_topic_blocklist', () => getBlocklist(db))).result;
 
-    // Phase 2: extract per-issue topics with provenance + suppression.
+    // Phase 2: extract per-issue topics with provenance + suppression,
+    // then apply the corpus-level candidate floor before persistence. This
+    // keeps one-issue curiosities out of issue_topics entirely, rather than
+    // relying on the later corpus aggregate threshold to hide them.
     let processed = 0;
     let totalSuppressed = 0;
     await runStep('extract_issue_topics', async () => {
+      const extractedByIssue = new Map<string, ReturnType<typeof extractTopicsMulti>['kept']>();
       for (const issue of issues.results) {
         try {
           const { kept, suppressed } = extractTopicsMulti(
             issue.full_text_plain,
             { blocklist, phraseLexicon: lexicon },
           );
-          const rows = kept.map(t => ({
-            ...t,
-            provenance: t.provenance,
-            stem: stemPhrase(t.keyword),
-          }));
-          await replaceIssueTopics(db, issue.id, rows);
+          extractedByIssue.set(issue.id, kept);
           totalSuppressed += suppressed.length;
           processed++;
         } catch (err) {
           console.error(`Rebuild failed for issue ${issue.id}:`, err);
+          extractedByIssue.set(issue.id, []);
         }
+      }
+
+      const crossIssue = filterTopicsByIssueFrequency(
+        extractedByIssue,
+        opts.minCandidateIssueFrequency ?? 2,
+      );
+      totalSuppressed += crossIssue.suppressedCount;
+
+      for (const issue of issues.results) {
+        const kept = crossIssue.byIssue.get(issue.id) ?? [];
+        const rows = kept.map(t => ({
+          ...t,
+          provenance: t.provenance,
+          stem: stemPhrase(t.keyword),
+        }));
+        await replaceIssueTopics(db, issue.id, rows);
       }
     });
 

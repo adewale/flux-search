@@ -166,6 +166,31 @@ describe('blocklist', () => {
 });
 
 describe('buildCorpusTopics', () => {
+  it('prunes nested shorter phrases when they mostly occur inside a longer topic', async () => {
+    const db = makeD1();
+    const a = await seedIssue(db as any, { issue_number: 1 });
+    const b = await seedIssue(db as any, { issue_number: 2 });
+    const c = await seedIssue(db as any, { issue_number: 3 });
+
+    await replaceIssueTopics(db as any, a, [
+      topic({ keyword: 'language models', keyword_display: 'Language Models', rank: 1 }),
+      topic({ keyword: 'large language models', keyword_display: 'Large Language Models', rank: 2 }),
+    ]);
+    await replaceIssueTopics(db as any, b, [
+      topic({ keyword: 'language models', keyword_display: 'Language Models', rank: 1 }),
+      topic({ keyword: 'large language models', keyword_display: 'Large Language Models', rank: 2 }),
+    ]);
+    await replaceIssueTopics(db as any, c, [
+      topic({ keyword: 'large language models', keyword_display: 'Large Language Models', rank: 1 }),
+    ]);
+
+    await buildCorpusTopics(db as any, { minDocFrequency: 2 });
+    const corpus = await getCorpusTopics(db as any, { limit: 10 });
+
+    expect(corpus.map(t => t.keyword)).toContain('large language models');
+    expect(corpus.map(t => t.keyword)).not.toContain('language models');
+  });
+
   it('aggregates keyword frequencies across issues', async () => {
     const db = makeD1();
     const a = await seedIssue(db as any, { issue_number: 1, published_at: '2024-01-01' });

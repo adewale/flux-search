@@ -17,6 +17,12 @@ George Yancey writes about institutional trust. Mont Blanc towers over us.
 `;
 
 describe('findKnownEntities', () => {
+  it('canonicalizes audited aliases', () => {
+    const hits = findKnownEntities('Crypto markets and Le Guin essays both appeared.');
+    expect(hits.find(h => h.keyword === 'cryptocurrency')).toBeDefined();
+    expect(hits.find(h => h.keyword === 'ursula k. le guin')).toBeDefined();
+  });
+
   it('matches stopword-bridged protected title phrases', () => {
     const hits = findKnownEntities('James C. Scott wrote Seeing Like a State.');
     expect(hits.find(h => h.keyword === 'seeing like a state')).toBeDefined();
