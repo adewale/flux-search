@@ -4,10 +4,10 @@ import { adminAuth } from '../middleware/admin-auth';
 import { getCrawlRun, getIssueCount, getIssueDateRange, getMissingIssueNumbers } from '../db/queries';
 import { runBootstrap } from '../crawler/bootstrap';
 import { runReindex } from '../crawler/ingestor';
-import { rebuildAllTopics } from '../lib/topic-rebuild';
-import { annotateCorpusTopics, buildCorpusTopics, buildTopicTimeline, clusterCorpusTopics } from '../db/topic-queries';
+import { annotateCorpusTopics, buildCorpusTopics, buildTopicTimeline, clusterCorpusTopics, replacePhraseLexicon } from '../db/topic-queries';
+import { buildPhraseLexicon } from '../lib/pmi-lexicon';
 import { extractTopicsMulti } from '../lib/topic-multi-extract';
-import { enqueueCorpusTopicEmbedding, type EnrichmentMessage } from '../jobs/enrichment-queue';
+import { enqueueCorpusTopicEmbedding, enqueueTopicRebuild, type EnrichmentMessage } from '../jobs/enrichment-queue';
 import { getPipelineJob, listPipelineJobs } from '../lib/pipeline-jobs';
 
 export const adminRoutes = new Hono<{ Bindings: Env }>();
@@ -59,13 +59,37 @@ adminRoutes.get('/crawl-runs/:id', async (c) => {
 });
 
 adminRoutes.post('/rebuild-topics', async (c) => {
-  c.executionCtx.waitUntil((async () => {
-    const stats = await rebuildAllTopics(c.env.DB);
-    const queued = await enqueueCorpusTopicEmbedding(c.env, stats.run_id);
-    console.log('rebuild-topics done:', { ...stats, queued_embedding_batches: queued });
-  })().catch(err => console.error('rebuild-topics failed:', err)));
+  if (!c.env.ENRICHMENT_QUEUE) return c.json({ error: 'Queue binding unavailable' }, 503);
+  const runId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  await c.env.DB.prepare(`
+    INSERT INTO pipeline_runs (id, mode, started_at, status, notes)
+    VALUES (?, ?, ?, 'running', ?)
+  `).bind(runId, 'topic_rebuild', now, JSON.stringify({ mode: 'queue_backed' })).run();
 
-  return c.json({ message: 'Topic rebuild started' }, 202);
+  // Build the corpus lexicon once up front. This step is cheap; the expensive
+  // issue extraction is split into queue batches so no Worker invocation owns
+  // the full corpus CPU cost.
+  const issues = await c.env.DB.prepare(`
+    SELECT id, full_text_plain
+    FROM issues
+    WHERE status = 'active'
+    ORDER BY published_at, issue_number
+  `).all<{ id: string; full_text_plain: string | null }>();
+  const lexicon = buildPhraseLexicon(issues.results.map(i => i.full_text_plain ?? '').filter(Boolean));
+  await replacePhraseLexicon(c.env.DB, lexicon);
+
+  const batchSize = Math.min(25, Math.max(1, parseInt(c.req.query('batchSize') || '10') || 10));
+  const queued = await enqueueTopicRebuild(c.env, runId, issues.results.map(i => i.id), batchSize);
+
+  return c.json({
+    message: 'Queue-backed topic rebuild started',
+    run_id: runId,
+    issues: issues.results.length,
+    lexicon_phrases: lexicon.length,
+    batch_size: batchSize,
+    ...queued,
+  }, 202);
 });
 
 adminRoutes.post('/rebuild-topic-aggregates', async (c) => {

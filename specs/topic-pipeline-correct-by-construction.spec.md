@@ -609,7 +609,12 @@ To fully build and measure the approach, the implementation needs these concrete
 8. Enable the new constructed path and compare against the old baseline.
    - Local constructed-path report: `reports/correct-by-construction/new-system-local-benchmark.json`
    - Post-deploy/no-rebuild public report: `reports/correct-by-construction/new-system-post-deploy-no-rebuild.json`
-9. Retire scattered post-hoc filters once constructor coverage is proven.
+   - Activated public report after backfill: `reports/correct-by-construction/new-system-public-after-offline-backfill.json`
+   - Queue-backed rebuild report: `reports/correct-by-construction/new-system-queue-backed-rebuild.json`
+9. Make full rebuilds queue-backed. A monolithic Worker rebuild exceeded Cloudflare CPU limits during `extract_issue_topics`, so production rebuilds must be resumable and split into bounded queue jobs:
+   - `topic-extract-batch` extracts a small issue batch and stores its constructed candidates in the durable job result;
+   - `topic-finalize-rebuild` waits for all extraction jobs, applies the cross-issue candidate floor, persists `issue_topics`, rebuilds corpus aggregates/timeline/annotations, and enqueues embedding jobs.
+10. Retire scattered post-hoc filters once constructor coverage is proven.
 
 ## Expected benefits
 

@@ -14,10 +14,12 @@ This runs:
 2. `wrangler d1 list`
 3. remote D1 migrations
 4. Worker deploy
-5. authenticated topic rebuild smoke
+5. authenticated queue-backed topic rebuild smoke
 6. public route smoke
 7. topic-quality benchmark
 8. timestamped report output
+
+The topic rebuild is intentionally queue-backed. The old monolithic Worker rebuild exceeded Cloudflare CPU limits during `extract_issue_topics`; the current `/admin/rebuild-topics` route creates a pipeline run, builds the cheap corpus phrase lexicon up front, enqueues bounded `topic-extract-batch` jobs, and uses a `topic-finalize-rebuild` job to apply cross-issue filtering, rebuild corpus aggregates/timeline/annotations, and enqueue topic embeddings.
 
 Reports are written to:
 

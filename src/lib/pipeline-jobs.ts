@@ -38,10 +38,16 @@ export function stableKeywordKey(kind: string, keywords: string[]): string {
   return `${kind}:${sha256Hex(normalized.join('\n'))}`;
 }
 
-export function idempotencyKeyForMessage(message: { kind?: string; type?: string; keywords?: string[]; issueId?: string; contentHash?: string | null }): string {
+export function idempotencyKeyForMessage(message: { kind?: string; type?: string; keywords?: string[]; issueId?: string; contentHash?: string | null; runId?: string; run_id?: string; batchIndex?: number }): string {
   const kind = message.kind ?? message.type;
   if (kind === 'embed-corpus-topics' || kind === 'aggregate-topic-slice') {
     return stableKeywordKey(kind, message.keywords ?? []);
+  }
+  if (kind === 'topic-extract-batch') {
+    return `topic-extract-batch:${message.runId ?? message.run_id}:${message.batchIndex ?? 'unknown'}`;
+  }
+  if (kind === 'topic-finalize-rebuild') {
+    return `topic-finalize-rebuild:${message.runId ?? message.run_id}`;
   }
   if (kind === 'rebuild-issue-topics') {
     return `rebuild-issue-topics:${message.issueId}:${message.contentHash ?? 'no-hash'}`;

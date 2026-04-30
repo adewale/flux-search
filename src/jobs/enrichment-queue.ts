@@ -1,5 +1,8 @@
 import type { Env } from '../env';
 import { runStep, shouldRetryError } from '../lib/topic-rebuild';
+import { extractTopicsMulti, type MultiExtractedTopic } from '../lib/topic-multi-extract';
+import { stemPhrase } from '../lib/porter-stem';
+import { filterTopicsByIssueFrequency } from '../lib/topic-cross-issue-filter';
 import {
   claimPipelineJob,
   createPipelineJob,
@@ -9,7 +12,17 @@ import {
   recordPipelinePhase,
   succeedPipelineJob,
 } from '../lib/pipeline-jobs';
-import { rebuildSimilaritiesFromStoredEmbeddings, replaceTopicEmbeddings } from '../db/topic-queries';
+import {
+  annotateCorpusTopics,
+  buildCorpusTopics,
+  buildTopicTimeline,
+  clusterCorpusTopics,
+  getBlocklist,
+  getPhraseLexicon,
+  rebuildSimilaritiesFromStoredEmbeddings,
+  replaceIssueTopics,
+  replaceTopicEmbeddings,
+} from '../db/topic-queries';
 
 export type EmbedCorpusTopicsMessage = {
   schemaVersion: 1;
@@ -25,13 +38,34 @@ export type EmbedCorpusTopicsMessage = {
   keywords: string[];
 };
 
+export type TopicExtractBatchMessage = {
+  schemaVersion: 1;
+  kind: 'topic-extract-batch';
+  runId: string;
+  jobId: string;
+  correlationId: string;
+  queuedAt: string;
+  batchIndex: number;
+  issueIds: string[];
+};
+
+export type TopicFinalizeRebuildMessage = {
+  schemaVersion: 1;
+  kind: 'topic-finalize-rebuild';
+  runId: string;
+  jobId: string;
+  correlationId: string;
+  queuedAt: string;
+  expectedExtractJobs: number;
+};
+
 export type LegacyEnrichmentMessage = {
   type: 'embed-corpus-topics';
   run_id: string;
   keywords: string[];
 };
 
-export type EnrichmentMessage = EmbedCorpusTopicsMessage | LegacyEnrichmentMessage;
+export type EnrichmentMessage = EmbedCorpusTopicsMessage | TopicExtractBatchMessage | TopicFinalizeRebuildMessage | LegacyEnrichmentMessage;
 
 export interface TopicKeywordRow {
   keyword: string;
@@ -41,8 +75,8 @@ function randomId(): string {
   return crypto.randomUUID();
 }
 
-function messageKind(message: EnrichmentMessage): 'embed-corpus-topics' {
-  return ('kind' in message ? message.kind : message.type) as 'embed-corpus-topics';
+function messageKind(message: EnrichmentMessage): 'embed-corpus-topics' | 'topic-extract-batch' | 'topic-finalize-rebuild' {
+  return ('kind' in message ? message.kind : message.type) as 'embed-corpus-topics' | 'topic-extract-batch' | 'topic-finalize-rebuild';
 }
 
 function messageRunId(message: EnrichmentMessage): string {
@@ -89,6 +123,56 @@ export function makeTopicEmbeddingMessages(
   return messages;
 }
 
+export async function enqueueTopicRebuild(env: Env, runId: string, issueIds: string[], batchSize = 10): Promise<{ extractJobs: number; finalizeJobs: number }> {
+  if (!env.ENRICHMENT_QUEUE) return { extractJobs: 0, finalizeJobs: 0 };
+  const correlationId = randomId();
+  const queuedAt = new Date().toISOString();
+  const messages: Array<TopicExtractBatchMessage | TopicFinalizeRebuildMessage> = [];
+  let batchIndex = 0;
+  for (let i = 0; i < issueIds.length; i += batchSize) {
+    messages.push({
+      schemaVersion: 1,
+      kind: 'topic-extract-batch',
+      runId,
+      jobId: randomId(),
+      correlationId,
+      queuedAt,
+      batchIndex: batchIndex++,
+      issueIds: issueIds.slice(i, i + batchSize),
+    });
+  }
+  messages.push({
+    schemaVersion: 1,
+    kind: 'topic-finalize-rebuild',
+    runId,
+    jobId: randomId(),
+    correlationId,
+    queuedAt,
+    expectedExtractJobs: batchIndex,
+  });
+
+  const sendable: typeof messages = [];
+  for (const message of messages) {
+    const created = await createPipelineJob(env.DB, {
+      id: message.jobId,
+      runId,
+      kind: message.kind,
+      semanticKey: idempotencyKeyForMessage(message),
+      payload: message,
+      correlationId,
+      queuedAt,
+    });
+    if (created) sendable.push(message);
+  }
+  for (let i = 0; i < sendable.length; i += 100) {
+    await env.ENRICHMENT_QUEUE.sendBatch(sendable.slice(i, i + 100).map(body => ({ body })));
+  }
+  return {
+    extractJobs: sendable.filter(m => m.kind === 'topic-extract-batch').length,
+    finalizeJobs: sendable.filter(m => m.kind === 'topic-finalize-rebuild').length,
+  };
+}
+
 export async function enqueueCorpusTopicEmbedding(env: Env, runId: string, batchSize = 25): Promise<number> {
   if (!env.ENRICHMENT_QUEUE) return 0;
 
@@ -132,7 +216,71 @@ async function embedTopicKeywords(env: Env, keywords: string[]): Promise<number>
   return embeddings.length;
 }
 
-export async function handleEnrichmentMessage(message: EnrichmentMessage, env?: Env, attempts = 1): Promise<{ embedded: number }> {
+async function extractIssueTopicBatch(env: Env, issueIds: string[]): Promise<{ issues: Array<{ issueId: string; topics: MultiExtractedTopic[] }>; suppressed: number }> {
+  const [lexicon, blocklist] = await Promise.all([getPhraseLexicon(env.DB), getBlocklist(env.DB)]);
+  if (issueIds.length === 0) return { issues: [], suppressed: 0 };
+  const rows = await env.DB.prepare(`
+    SELECT id, full_text_plain
+    FROM issues
+    WHERE status = 'active' AND id IN (SELECT value FROM json_each(?))
+  `).bind(JSON.stringify(issueIds)).all<{ id: string; full_text_plain: string | null }>();
+
+  let suppressed = 0;
+  const issues = rows.results.map(issue => {
+    const extracted = extractTopicsMulti(issue.full_text_plain, { phraseLexicon: lexicon, blocklist });
+    suppressed += extracted.suppressed.length;
+    return { issueId: issue.id, topics: extracted.kept };
+  });
+  return { issues, suppressed };
+}
+
+async function finalizeTopicRebuild(env: Env, runId: string, expectedExtractJobs: number): Promise<{ issueRows: number; corpusTopics: number; timelineRows: number; clusterMerges: number; queuedEmbeddingBatches: number }> {
+  const pending = await env.DB.prepare(`
+    SELECT COUNT(*) AS c
+    FROM pipeline_jobs
+    WHERE run_id = ? AND kind = 'topic-extract-batch' AND status != 'succeeded'
+  `).bind(runId).first<{ c: number }>();
+  if ((pending?.c ?? 0) > 0) throw new Error('temporarily unavailable: waiting for topic extract batches');
+
+  const extractRows = await env.DB.prepare(`
+    SELECT result_json FROM pipeline_jobs
+    WHERE run_id = ? AND kind = 'topic-extract-batch' AND status = 'succeeded'
+    ORDER BY queued_at ASC
+  `).bind(runId).all<{ result_json: string | null }>();
+  if (extractRows.results.length < expectedExtractJobs) {
+    throw new Error('temporarily unavailable: missing topic extract batch results');
+  }
+
+  const byIssue = new Map<string, MultiExtractedTopic[]>();
+  let suppressed = 0;
+  for (const row of extractRows.results) {
+    const parsed = row.result_json ? JSON.parse(row.result_json) as { issues?: Array<{ issueId: string; topics: MultiExtractedTopic[] }>; suppressed?: number } : {};
+    suppressed += parsed.suppressed ?? 0;
+    for (const issue of parsed.issues ?? []) byIssue.set(issue.issueId, issue.topics);
+  }
+  const crossIssue = filterTopicsByIssueFrequency(byIssue, 2);
+  suppressed += crossIssue.suppressedCount;
+
+  let issueRows = 0;
+  for (const [issueId, topics] of crossIssue.byIssue.entries()) {
+    const rows = topics.map(t => ({ ...t, stem: stemPhrase(t.keyword) }));
+    issueRows += rows.length;
+    await replaceIssueTopics(env.DB, issueId, rows);
+  }
+
+  const corpusTopics = await buildCorpusTopics(env.DB);
+  const clusterMerges = await clusterCorpusTopics(env.DB);
+  const timelineRows = await buildTopicTimeline(env.DB);
+  await annotateCorpusTopics(env.DB);
+  const queuedEmbeddingBatches = await enqueueCorpusTopicEmbedding(env, runId);
+  await env.DB.prepare(`
+    UPDATE pipeline_runs SET completed_at = ?, status = 'completed', notes = ? WHERE id = ?
+  `).bind(new Date().toISOString(), JSON.stringify({ run_id: runId, issue_topic_rows: issueRows, corpus_topics: corpusTopics, timeline_rows: timelineRows, cluster_merges: clusterMerges, topics_suppressed: suppressed, queued_embedding_batches: queuedEmbeddingBatches }), runId).run();
+
+  return { issueRows, corpusTopics, timelineRows, clusterMerges, queuedEmbeddingBatches };
+}
+
+export async function handleEnrichmentMessage(message: EnrichmentMessage, env?: Env, attempts = 1): Promise<{ embedded: number; extracted?: number; finalized?: boolean }> {
   const kind = messageKind(message);
   const runId = messageRunId(message);
   const jobId = messageJobId(message);
@@ -145,7 +293,34 @@ export async function handleEnrichmentMessage(message: EnrichmentMessage, env?: 
 
   try {
     switch (kind) {
+      case 'topic-extract-batch': {
+        if (!env || !('issueIds' in message)) return { embedded: 0, extracted: 0 };
+        const extracted = await runStep('topic_extract_batch', () => extractIssueTopicBatch(env, message.issueIds));
+        await recordPipelinePhase(env.DB, {
+          runId,
+          jobId,
+          phase: 'topic_extract_batch',
+          status: 'succeeded',
+          summary: { issues: extracted.result.issues.length, suppressed: extracted.result.suppressed },
+        });
+        if (jobId) await succeedPipelineJob(env.DB, jobId, extracted.result);
+        return { embedded: 0, extracted: extracted.result.issues.length };
+      }
+      case 'topic-finalize-rebuild': {
+        if (!env || !('expectedExtractJobs' in message)) return { embedded: 0, finalized: false };
+        const finalized = await runStep('topic_finalize_rebuild', () => finalizeTopicRebuild(env, runId, message.expectedExtractJobs));
+        await recordPipelinePhase(env.DB, {
+          runId,
+          jobId,
+          phase: 'topic_finalize_rebuild',
+          status: 'succeeded',
+          summary: finalized.result,
+        });
+        if (jobId) await succeedPipelineJob(env.DB, jobId, finalized.result);
+        return { embedded: 0, finalized: true };
+      }
       case 'embed-corpus-topics': {
+        if (!('keywords' in message)) return { embedded: 0 };
         const embedded = await runStep('embed_corpus_topics', async () => {
           const count = env ? await embedTopicKeywords(env, message.keywords) : message.keywords.length;
           console.log(JSON.stringify({
