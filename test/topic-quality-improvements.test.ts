@@ -59,6 +59,20 @@ describe('topic quality improvements', () => {
     }
   });
 
+  it('suppresses malformed clause fragments from issue-level extraction', () => {
+    for (const keyword of ['as treasury', 'good reason you can', 'biggest film bombed']) {
+      expect(classifyTopicQuality({
+        keyword,
+        keyword_display: keyword,
+        score: 0.01,
+        rank: 1,
+        ngram_size: keyword.split(' ').length,
+        occurrences: 2,
+        sentenceSpread: 2,
+      })).toEqual({ suppress: true, reason: 'malformed_phrase' });
+    }
+  });
+
   it('suppresses incomplete n-gram fragments with weak trailing words', () => {
     expect(classifyTopicQuality({
       keyword: 'seeing like',

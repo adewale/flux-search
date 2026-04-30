@@ -106,6 +106,14 @@ const MARKUP_ARTIFACT_PHRASES: ReadonlySet<string> = new Set([
   'highlighting independent publications',
 ]);
 
+const MALFORMED_PHRASE_TOKENS: ReadonlySet<string> = new Set([
+  'you', 'your', 'can', 'could', 'should', 'would', 'will', 'may', 'might', 'must',
+]);
+
+const MALFORMED_PHRASE_START: ReadonlySet<string> = new Set([
+  'as', 'because', 'while', 'when', 'where', 'why', 'how',
+]);
+
 const MALFORMED_PHRASES: ReadonlySet<string> = new Set([
   'secretary of defense rock',
   'exchange commission',
@@ -120,6 +128,7 @@ const MALFORMED_PHRASES: ReadonlySet<string> = new Set([
   'technology review',
   'census bureau',
   'air force',
+  'biggest film bombed',
 ]);
 
 const BOILERPLATE_PHRASES: ReadonlySet<string> = new Set([
@@ -165,6 +174,13 @@ export function classifyTopicQuality(
   }
 
   if (MALFORMED_PHRASES.has(keyword)) {
+    return { suppress: true, reason: 'malformed_phrase' };
+  }
+
+  if (!isSingleton && (
+    MALFORMED_PHRASE_START.has(tokens[0]) ||
+    tokens.some(t => MALFORMED_PHRASE_TOKENS.has(t))
+  )) {
     return { suppress: true, reason: 'malformed_phrase' };
   }
 

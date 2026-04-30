@@ -1,0 +1,21 @@
+{
+  "generated_at": "2026-04-30T06:12:41.904Z",
+  "generator": "scripts/build-background-frequency.mjs",
+  "output": "src/lib/background-frequency.generated.ts",
+  "output_sha256": "a76a469ec0254ac71ac34d7d4c11b886d1c9a24f763b3c4ed455099a113c5a17",
+  "terms": 950,
+  "source_package": "nodewordfreq",
+  "source_version": "0.2.1",
+  "source_repository": "https://github.com/realchendahuang/nodewordfreq",
+  "upstream_package": "wordfreq",
+  "upstream_repository": "https://github.com/rspeer/wordfreq",
+  "language": "en",
+  "frequency_measure": "Zipf frequency",
+  "runtime_dependency": false,
+  "attribution": "docs/background-frequency-attribution.md",
+  "license_notes": [
+    "nodewordfreq package code declares Apache-2.0.",
+    "nodewordfreq reuses Python wordfreq data files.",
+    "wordfreq data includes mixed sources and Creative Commons Attribution-ShareAlike 4.0 material; preserve attribution notes."
+  ]
+}

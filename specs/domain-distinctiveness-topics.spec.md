@@ -481,6 +481,7 @@ Generated/runtime artifacts:
 ```text
 scripts/build-background-frequency.mjs      # offline builder; imports nodewordfreq
 src/lib/background-frequency.generated.ts   # tiny generated table imported by Worker
+data/background/manifest.json               # structured generation/source provenance
 docs/background-frequency-attribution.md    # attribution/license notes
 ```
 
@@ -495,6 +496,7 @@ Generation rules:
 - collect current/protected candidate topic phrases and their content tokens;
 - call `zipfFrequency(term, 'en')` from `nodewordfreq`;
 - write a compact TypeScript object of English Zipf frequencies;
+- write a structured manifest with generator, source package/version, output hash, and attribution pointer;
 - do not import `nodewordfreq` from Worker code.
 
 Generated table example:

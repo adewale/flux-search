@@ -23,6 +23,7 @@ import { extractTopics, normalizeKeyword, type ExtractedTopic } from './topic-ex
 import { findKnownEntities } from './known-entities';
 import { findHeuristicEntities } from './heuristic-entities';
 import { findLexiconPhrases, type PhraseLexiconEntry } from './pmi-lexicon';
+import { rerankIssueTopics } from './issue-topic-ranking';
 import {
   classifyTopicQuality,
   type SuppressionReason,
@@ -213,6 +214,6 @@ export function extractTopicsMulti(
     if (kept.length >= top) break;
   }
 
-  kept.forEach((t, i) => { t.rank = i + 1; });
-  return { kept, suppressed };
+  const reranked = rerankIssueTopics(kept, trimmed).slice(0, top);
+  return { kept: reranked, suppressed };
 }
