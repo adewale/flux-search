@@ -24,6 +24,9 @@ import { findKnownEntities } from './known-entities';
 import { findHeuristicEntities } from './heuristic-entities';
 import { findLexiconPhrases, type PhraseLexiconEntry } from './pmi-lexicon';
 import { rerankIssueTopics } from './issue-topic-ranking';
+import { cleanTextFromPlain } from './clean-text';
+import { constructCandidate } from './topic-candidate';
+import { getTopicRegistry } from './topic-registry';
 import {
   classifyTopicQuality,
   type SuppressionReason,
@@ -36,6 +39,10 @@ export interface MultiExtractedTopic extends ExtractedTopic {
   occurrences: number;
   sentenceSpread: number;
   suppression_reason?: SuppressionReason | null;
+  topic_type?: string | null;
+  quality_status?: string | null;
+  eligibility_status?: string | null;
+  evidence_json?: string | null;
 }
 
 export interface MultiExtractContext {
@@ -190,6 +197,8 @@ export function extractTopicsMulti(
 
   const kept: MultiExtractedTopic[] = [];
   const suppressed: MultiExtractedTopic[] = [];
+  const cleanText = cleanTextFromPlain(trimmed);
+  const registry = getTopicRegistry();
 
   for (const slot of ordered) {
     const verdict = classifyTopicQuality(slot, {
@@ -210,7 +219,23 @@ export function extractTopicsMulti(
       row.suppression_reason = verdict.reason;
       suppressed.push(row);
     } else {
-      kept.push(row);
+      const constructed = constructCandidate(
+        { surface: slot.keyword, display: slot.keyword_display, source: [...slot.provenance][0] },
+        cleanText,
+        registry,
+      );
+      if (!constructed.ok) {
+        row.suppression_reason = constructed.reason === 'registry_deny' ? 'blocklist' : 'malformed_phrase';
+        suppressed.push(row);
+      } else {
+        row.keyword = constructed.value.canonical;
+        row.keyword_display = constructed.value.display;
+        row.topic_type = constructed.value.topicType;
+        row.quality_status = constructed.value.qualityStatus;
+        row.eligibility_status = constructed.value.eligibilityStatus;
+        row.evidence_json = JSON.stringify(constructed.value.evidence);
+        kept.push(row);
+      }
     }
     if (kept.length >= top) break;
   }

@@ -9,6 +9,10 @@ export async function replaceIssueTopics(
     provenance?: string[];
     suppression_reason?: string | null;
     stem?: string | null;
+    topic_type?: string | null;
+    quality_status?: string | null;
+    eligibility_status?: string | null;
+    evidence_json?: string | null;
   }>,
 ): Promise<void> {
   await db.prepare('DELETE FROM issue_topics WHERE issue_id = ?').bind(issueId).run();
@@ -19,9 +23,10 @@ export async function replaceIssueTopics(
     db.prepare(`
       INSERT INTO issue_topics (
         issue_id, keyword, keyword_display, score, rank, ngram_size,
-        provenance, suppression_reason, stem
+        provenance, suppression_reason, stem, topic_type, quality_status,
+        eligibility_status, evidence_json
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(issue_id, keyword) DO UPDATE SET
         keyword_display = excluded.keyword_display,
         score = excluded.score,
@@ -29,12 +34,20 @@ export async function replaceIssueTopics(
         ngram_size = excluded.ngram_size,
         provenance = excluded.provenance,
         suppression_reason = excluded.suppression_reason,
-        stem = excluded.stem
+        stem = excluded.stem,
+        topic_type = excluded.topic_type,
+        quality_status = excluded.quality_status,
+        eligibility_status = excluded.eligibility_status,
+        evidence_json = excluded.evidence_json
     `).bind(
       issueId, t.keyword, t.keyword_display, t.score, t.rank, t.ngram_size,
       t.provenance ? JSON.stringify(t.provenance) : null,
       t.suppression_reason ?? null,
       t.stem ?? null,
+      t.topic_type ?? null,
+      t.quality_status ?? 'valid',
+      t.eligibility_status ?? 'local_valid',
+      t.evidence_json ?? null,
     )
   );
 

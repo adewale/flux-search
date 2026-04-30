@@ -84,6 +84,7 @@ export function makeD1(): D1Like {
   sqlite.exec(readFileSync(join(MIGRATIONS_DIR, '0015_topic_artifact_blocklist.sql'), 'utf-8'));
   sqlite.exec(readFileSync(join(MIGRATIONS_DIR, '0016_topic_incomplete_phrase_blocklist.sql'), 'utf-8'));
   sqlite.exec(readFileSync(join(MIGRATIONS_DIR, '0017_topic_fragment_blocklist.sql'), 'utf-8'));
+  sqlite.exec(readFileSync(join(MIGRATIONS_DIR, '0018_topic_construction_invariants.sql'), 'utf-8'));
   return wrap(sqlite);
 }
 

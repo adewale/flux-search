@@ -64,6 +64,10 @@ export interface IssueTopicRow {
   score: number;
   rank: number;
   ngram_size: number;
+  topic_type?: string | null;
+  quality_status?: string | null;
+  eligibility_status?: string | null;
+  evidence_json?: string | null;
 }
 
 export interface CorpusTopicRow {
@@ -80,6 +84,9 @@ export interface CorpusTopicRow {
   confidence: 'high' | 'medium' | 'low' | null;
   burst_score: number | null;
   burst_quarter: string | null;
+  topic_type?: string | null;
+  quality_status?: string | null;
+  eligibility_status?: string | null;
 }
 
 export interface TopicTimelineRow {

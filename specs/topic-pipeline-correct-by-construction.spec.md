@@ -582,14 +582,34 @@ Use it to tune weights, not to patch individual strings.
 - attribution file exists;
 - Worker bundle does not include `nodewordfreq`.
 
+## Build-readiness checklist
+
+To fully build and measure the approach, the implementation needs these concrete pieces:
+
+1. **TopicRegistry** — one source of truth for canonical keys, display labels, aliases, types, and `allow | deny | review` status.
+2. **CleanText / NormalizedIssue** — constructed text types that make HTML/artifact-contaminated text unrepresentable at extraction boundaries.
+3. **Candidate construction boundary** — `CandidateProposal → constructCandidate() → CandidateTopic | Rejection`, with phrase grammar and registry checks applied before ranking/persistence.
+4. **Structured evidence model** — title/heading/section/position/spread evidence stored with each valid issue candidate.
+5. **Persistence invariants** — `quality_status`, `eligibility_status`, `topic_type`, and `evidence_json` columns or equivalent tables/views.
+6. **Public view** — public routes should query `public_topics`, not raw aggregate tables.
+7. **Generated data checks** — manifest hash verification and runtime dependency guard for `nodewordfreq`.
+8. **Benchmark tooling** — old/new scorecards for issue gold hits, corpus quality, route invariants, and stage-funnel counts.
+
 ## Migration path from current system
 
 1. Introduce `TopicRegistry` as a generated module from current known entities + blocklist.
 2. Add `CleanText` constructor and switch extractors to require it internally.
-3. Store structured evidence JSON in `issue_topics` or a new `issue_topic_candidates` table.
-4. Move phrase-quality rules into `constructCandidate()`.
-5. Add `public_topics` view and migrate public routes to it.
-6. Retire scattered post-hoc filters once constructor coverage is proven.
+3. Add `CandidateProposal` and `constructCandidate()` while keeping old candidate generators as proposal sources.
+4. Store structured evidence JSON in `issue_topics` or a new `issue_topic_candidates` table.
+5. Move phrase-quality rules into `constructCandidate()`.
+6. Add `public_topics` view and migrate public routes to it.
+7. Add benchmark scripts and capture an old-system baseline before enabling the new path.
+   - Script: `scripts/benchmark-topic-quality.mjs`
+   - Baseline report: `reports/correct-by-construction/old-system-baseline.json`
+8. Enable the new constructed path and compare against the old baseline.
+   - Local constructed-path report: `reports/correct-by-construction/new-system-local-benchmark.json`
+   - Post-deploy/no-rebuild public report: `reports/correct-by-construction/new-system-post-deploy-no-rebuild.json`
+9. Retire scattered post-hoc filters once constructor coverage is proven.
 
 ## Expected benefits
 

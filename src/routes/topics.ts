@@ -51,11 +51,11 @@ topicRoutes.get('/topics/:keyword', async (c) => {
     burst_score: number | null; burst_quarter: string | null;
   }>();
 
-  const issueIds = await getIssueIdsByTopic(c.env.DB, keyword);
-  if (!corpusRow && issueIds.length === 0) {
+  if (!corpusRow) {
     return c.json({ error: 'Topic not found' }, 404);
   }
 
+  const issueIds = await getIssueIdsByTopic(c.env.DB, keyword);
   const issues = issueIds.length === 0 ? [] : await getIssuesByTopic(c.env.DB, keyword);
   const timeline = await getTopicTimeline(c.env.DB, keyword);
   const adjacent = await getAdjacentTopics(c.env.DB, keyword, 12);

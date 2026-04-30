@@ -1,0 +1,620 @@
+{
+  "generated_at": "2026-04-30T13:17:05.053Z",
+  "issues": 25,
+  "averageHitsAt5": 4.4,
+  "minimumHitsAt5": 3,
+  "issuesWithAtLeast3": 25,
+  "issuesWithAtLeast4": 24,
+  "details": [
+    {
+      "issue": 214,
+      "top5": [
+        "legibility",
+        "crypto",
+        "saddle point",
+        "zugzwang",
+        "web3"
+      ],
+      "expected": [
+        "zugzwang",
+        "saddle point",
+        "systems thinking",
+        "crypto",
+        "charlie warzel"
+      ],
+      "hits": [
+        "zugzwang",
+        "saddle point",
+        "crypto"
+      ],
+      "hitsAt5": 3
+    },
+    {
+      "issue": 229,
+      "top5": [
+        "legibility",
+        "christopher alexander",
+        "governance",
+        "seeing like a state",
+        "attention"
+      ],
+      "expected": [
+        "legibility",
+        "seeing like a state",
+        "christopher alexander",
+        "governance",
+        "climate change"
+      ],
+      "hits": [
+        "legibility",
+        "seeing like a state",
+        "christopher alexander",
+        "governance"
+      ],
+      "hitsAt5": 4
+    },
+    {
+      "issue": 190,
+      "top5": [
+        "large language models",
+        "legibility",
+        "judgment",
+        "iteration",
+        "exploration"
+      ],
+      "expected": [
+        "large language models",
+        "prompting",
+        "iteration",
+        "exploration",
+        "judgment"
+      ],
+      "hits": [
+        "large language models",
+        "iteration",
+        "exploration",
+        "judgment"
+      ],
+      "hitsAt5": 4
+    },
+    {
+      "issue": 150,
+      "top5": [
+        "seeing like a state",
+        "joel spolsky",
+        "ashley goodall",
+        "browser extensions are underrated",
+        "geoffrey litt"
+      ],
+      "expected": [
+        "seeing like a state",
+        "joel spolsky",
+        "chesterton fence",
+        "ashley goodall",
+        "geoffrey litt"
+      ],
+      "hits": [
+        "seeing like a state",
+        "joel spolsky",
+        "ashley goodall",
+        "geoffrey litt"
+      ],
+      "hitsAt5": 4
+    },
+    {
+      "issue": 122,
+      "top5": [
+        "awareness",
+        "attention",
+        "legibility",
+        "crypto",
+        "prompting"
+      ],
+      "expected": [
+        "attention",
+        "awareness",
+        "legibility",
+        "crypto",
+        "machine learning"
+      ],
+      "hits": [
+        "attention",
+        "awareness",
+        "legibility",
+        "crypto"
+      ],
+      "hitsAt5": 4
+    },
+    {
+      "issue": 1,
+      "top5": [
+        "southeast asia",
+        "south asia",
+        "john oliver",
+        "farnam street",
+        "last week tonight"
+      ],
+      "expected": [
+        "southeast asia",
+        "south asia",
+        "john oliver",
+        "farnam street",
+        "melanie mitchell"
+      ],
+      "hits": [
+        "southeast asia",
+        "south asia",
+        "john oliver",
+        "farnam street"
+      ],
+      "hitsAt5": 4
+    },
+    {
+      "issue": 25,
+      "top5": [
+        "crypto",
+        "cryptocurrency",
+        "governance",
+        "climate change",
+        "systems thinking"
+      ],
+      "expected": [
+        "crypto",
+        "cryptocurrency",
+        "governance",
+        "climate change",
+        "systems thinking"
+      ],
+      "hits": [
+        "crypto",
+        "cryptocurrency",
+        "governance",
+        "climate change",
+        "systems thinking"
+      ],
+      "hitsAt5": 5
+    },
+    {
+      "issue": 50,
+      "top5": [
+        "crypto",
+        "cryptocurrency",
+        "climate change",
+        "mental models",
+        "systems thinking"
+      ],
+      "expected": [
+        "crypto",
+        "cryptocurrency",
+        "climate change",
+        "mental models",
+        "systems thinking"
+      ],
+      "hits": [
+        "crypto",
+        "cryptocurrency",
+        "climate change",
+        "mental models",
+        "systems thinking"
+      ],
+      "hitsAt5": 5
+    },
+    {
+      "issue": 75,
+      "top5": [
+        "wild problems",
+        "crypto",
+        "climate change",
+        "systems thinking",
+        "theory of constraints"
+      ],
+      "expected": [
+        "wild problems",
+        "crypto",
+        "climate change",
+        "systems thinking",
+        "theory of constraints"
+      ],
+      "hits": [
+        "wild problems",
+        "crypto",
+        "climate change",
+        "systems thinking",
+        "theory of constraints"
+      ],
+      "hitsAt5": 5
+    },
+    {
+      "issue": 100,
+      "top5": [
+        "systems thinking",
+        "exploration",
+        "fritjof capra",
+        "large language models",
+        "biography of cancer"
+      ],
+      "expected": [
+        "systems thinking",
+        "exploration",
+        "fritjof capra",
+        "large language models",
+        "alan watts"
+      ],
+      "hits": [
+        "systems thinking",
+        "exploration",
+        "fritjof capra",
+        "large language models"
+      ],
+      "hitsAt5": 4
+    },
+    {
+      "issue": 125,
+      "top5": [
+        "judgment",
+        "large language models",
+        "alex davis",
+        "functional brain connectivity",
+        "heightened dream recall ability linked"
+      ],
+      "expected": [
+        "judgment",
+        "large language models",
+        "alex davis",
+        "functional brain connectivity",
+        "game stuff"
+      ],
+      "hits": [
+        "judgment",
+        "large language models",
+        "alex davis",
+        "functional brain connectivity"
+      ],
+      "hitsAt5": 4
+    },
+    {
+      "issue": 175,
+      "top5": [
+        "climate change",
+        "benedict evans",
+        "chris argyris",
+        "scientific american",
+        "stagnation with chinese characteristics"
+      ],
+      "expected": [
+        "climate change",
+        "benedict evans",
+        "chris argyris",
+        "scientific american",
+        "paul krugman"
+      ],
+      "hits": [
+        "climate change",
+        "benedict evans",
+        "chris argyris",
+        "scientific american"
+      ],
+      "hitsAt5": 4
+    },
+    {
+      "issue": 200,
+      "top5": [
+        "governance",
+        "attention",
+        "venkatesh rao",
+        "byrne hobart",
+        "large language models"
+      ],
+      "expected": [
+        "governance",
+        "attention",
+        "venkatesh rao",
+        "byrne hobart",
+        "large language models"
+      ],
+      "hits": [
+        "governance",
+        "attention",
+        "venkatesh rao",
+        "byrne hobart",
+        "large language models"
+      ],
+      "hitsAt5": 5
+    },
+    {
+      "issue": 210,
+      "top5": [
+        "large language models",
+        "north america",
+        "on slop",
+        "john david pressman",
+        "guy rosen"
+      ],
+      "expected": [
+        "large language models",
+        "north america",
+        "on slop",
+        "john david pressman",
+        "financial times"
+      ],
+      "hits": [
+        "large language models",
+        "north america",
+        "on slop",
+        "john david pressman"
+      ],
+      "hitsAt5": 4
+    },
+    {
+      "issue": 220,
+      "top5": [
+        "east africans",
+        "seventh party system",
+        "attention",
+        "large language models",
+        "john ganz"
+      ],
+      "expected": [
+        "east africans",
+        "seventh party system",
+        "attention",
+        "large language models",
+        "john ganz"
+      ],
+      "hits": [
+        "east africans",
+        "seventh party system",
+        "attention",
+        "large language models",
+        "john ganz"
+      ],
+      "hitsAt5": 5
+    },
+    {
+      "issue": 225,
+      "top5": [
+        "crypto",
+        "saudi arabia",
+        "large language models",
+        "open source",
+        "andhra pradesh"
+      ],
+      "expected": [
+        "crypto",
+        "saudi arabia",
+        "large language models",
+        "open source",
+        "andhra pradesh"
+      ],
+      "hits": [
+        "crypto",
+        "saudi arabia",
+        "large language models",
+        "open source",
+        "andhra pradesh"
+      ],
+      "hitsAt5": 5
+    },
+    {
+      "issue": 230,
+      "top5": [
+        "strait of hormuz",
+        "judgment",
+        "attention",
+        "governance",
+        "jevons paradox"
+      ],
+      "expected": [
+        "strait of hormuz",
+        "judgment",
+        "attention",
+        "governance",
+        "jevons paradox"
+      ],
+      "hits": [
+        "strait of hormuz",
+        "judgment",
+        "attention",
+        "governance",
+        "jevons paradox"
+      ],
+      "hitsAt5": 5
+    },
+    {
+      "issue": 180,
+      "top5": [
+        "legibility",
+        "crypto",
+        "systems thinking",
+        "albert hirschman",
+        "calculator app"
+      ],
+      "expected": [
+        "legibility",
+        "crypto",
+        "systems thinking",
+        "albert hirschman",
+        "david marquet"
+      ],
+      "hits": [
+        "legibility",
+        "crypto",
+        "systems thinking",
+        "albert hirschman"
+      ],
+      "hitsAt5": 4
+    },
+    {
+      "issue": 160,
+      "top5": [
+        "judgment",
+        "iteration",
+        "systems thinking",
+        "large language models",
+        "full-body phenomenon"
+      ],
+      "expected": [
+        "judgment",
+        "iteration",
+        "systems thinking",
+        "large language models",
+        "francis ford coppola"
+      ],
+      "hits": [
+        "judgment",
+        "iteration",
+        "systems thinking",
+        "large language models"
+      ],
+      "hitsAt5": 4
+    },
+    {
+      "issue": 140,
+      "top5": [
+        "legibility",
+        "exploration",
+        "black mirror",
+        "emad mostaque",
+        "david morrison"
+      ],
+      "expected": [
+        "legibility",
+        "exploration",
+        "black mirror",
+        "emad mostaque",
+        "david morrison"
+      ],
+      "hits": [
+        "legibility",
+        "exploration",
+        "black mirror",
+        "emad mostaque",
+        "david morrison"
+      ],
+      "hitsAt5": 5
+    },
+    {
+      "issue": 120,
+      "top5": [
+        "steve jobs",
+        "large language models",
+        "mental models",
+        "fall of somali pirates",
+        "department of education"
+      ],
+      "expected": [
+        "steve jobs",
+        "large language models",
+        "mental models",
+        "fall of somali pirates",
+        "department of education"
+      ],
+      "hits": [
+        "steve jobs",
+        "large language models",
+        "mental models",
+        "fall of somali pirates",
+        "department of education"
+      ],
+      "hitsAt5": 5
+    },
+    {
+      "issue": 90,
+      "top5": [
+        "crypto",
+        "large language models",
+        "machine learning",
+        "climate change",
+        "donut crypto experiment turns sour"
+      ],
+      "expected": [
+        "crypto",
+        "large language models",
+        "machine learning",
+        "climate change",
+        "donald shoup"
+      ],
+      "hits": [
+        "crypto",
+        "large language models",
+        "machine learning",
+        "climate change"
+      ],
+      "hitsAt5": 4
+    },
+    {
+      "issue": 60,
+      "top5": [
+        "mental models",
+        "systems thinking",
+        "communist party",
+        "ben reinhardt",
+        "babson university"
+      ],
+      "expected": [
+        "mental models",
+        "systems thinking",
+        "communist party",
+        "ben reinhardt",
+        "alain de botton"
+      ],
+      "hits": [
+        "mental models",
+        "systems thinking",
+        "communist party",
+        "ben reinhardt"
+      ],
+      "hitsAt5": 4
+    },
+    {
+      "issue": 30,
+      "top5": [
+        "plan voisin",
+        "cryptocurrency",
+        "crypto",
+        "attention",
+        "climate change"
+      ],
+      "expected": [
+        "plan voisin",
+        "cryptocurrency",
+        "crypto",
+        "attention",
+        "climate change"
+      ],
+      "hits": [
+        "plan voisin",
+        "cryptocurrency",
+        "crypto",
+        "attention",
+        "climate change"
+      ],
+      "hitsAt5": 5
+    },
+    {
+      "issue": 202,
+      "top5": [
+        "large language models",
+        "internet archive",
+        "wayback machine",
+        "eating the economy",
+        "paul kedrosky"
+      ],
+      "expected": [
+        "large language models",
+        "internet archive",
+        "wayback machine",
+        "eating the economy",
+        "paul kedrosky"
+      ],
+      "hits": [
+        "large language models",
+        "internet archive",
+        "wayback machine",
+        "eating the economy",
+        "paul kedrosky"
+      ],
+      "hitsAt5": 5
+    }
+  ]
+}

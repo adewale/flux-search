@@ -313,7 +313,7 @@ describe('GET /topics/:keyword', () => {
       { issue_number: 2, source_url: 'x://2', published_at: '2024-02-01', year: 2024, month: 2 },
       [{ keyword: 'institutional trust', display: 'Institutional Trust', rank: 1, score: 0.1 }],
     );
-    await buildCorpusTopics(db as any);
+    await buildCorpusTopics(db as any, { minDocFrequency: 2 });
 
     const { app, env } = makeApp(db);
     const res = await app.request('/topics/Institutional%20Trust', {}, env);

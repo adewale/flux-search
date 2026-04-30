@@ -1,0 +1,783 @@
+{
+  "generated_at": "2026-04-30T13:16:40.343Z",
+  "base": "https://flux-search.adewale-883.workers.dev",
+  "corpus": {
+    "count": 127,
+    "top20": [
+      {
+        "rank": 1,
+        "keyword": "systems thinking",
+        "df": 106,
+        "score": 2065.3396565269722
+      },
+      {
+        "rank": 2,
+        "keyword": "large language models",
+        "df": 85,
+        "score": 1887.344958780581
+      },
+      {
+        "rank": 3,
+        "keyword": "crypto",
+        "df": 95,
+        "score": 1835.2472019419756
+      },
+      {
+        "rank": 4,
+        "keyword": "climate change",
+        "df": 47,
+        "score": 1284.0753873419128
+      },
+      {
+        "rank": 5,
+        "keyword": "mental models",
+        "df": 34,
+        "score": 1108.6318844306497
+      },
+      {
+        "rank": 6,
+        "keyword": "machine learning",
+        "df": 30,
+        "score": 929.4931472513422
+      },
+      {
+        "rank": 7,
+        "keyword": "open source",
+        "df": 30,
+        "score": 840.4068760649016
+      },
+      {
+        "rank": 8,
+        "keyword": "silicon valley",
+        "df": 13,
+        "score": 288.50107173898067
+      },
+      {
+        "rank": 9,
+        "keyword": "christopher alexander",
+        "df": 9,
+        "score": 264.7999632664957
+      },
+      {
+        "rank": 10,
+        "keyword": "new york city",
+        "df": 16,
+        "score": 260.3077741958684
+      },
+      {
+        "rank": 11,
+        "keyword": "seeing like a state",
+        "df": 9,
+        "score": 259.7033898305085
+      },
+      {
+        "rank": 12,
+        "keyword": "venkatesh rao",
+        "df": 9,
+        "score": 258.14522928541413
+      },
+      {
+        "rank": 13,
+        "keyword": "new york",
+        "df": 25,
+        "score": 255.08743521281747
+      },
+      {
+        "rank": 14,
+        "keyword": "los angeles",
+        "df": 11,
+        "score": 235.6196878554616
+      },
+      {
+        "rank": 15,
+        "keyword": "united states",
+        "df": 13,
+        "score": 229.01861960738802
+      },
+      {
+        "rank": 16,
+        "keyword": "stable diffusion",
+        "df": 10,
+        "score": 225.991537050775
+      },
+      {
+        "rank": 17,
+        "keyword": "hong kong",
+        "df": 6,
+        "score": 220.731551319628
+      },
+      {
+        "rank": 18,
+        "keyword": "dimitri glazkov",
+        "df": 7,
+        "score": 201.44370029357424
+      },
+      {
+        "rank": 19,
+        "keyword": "wendover productions",
+        "df": 7,
+        "score": 201.44370029357424
+      },
+      {
+        "rank": 20,
+        "keyword": "new york times",
+        "df": 12,
+        "score": 198.0138493921775
+      }
+    ],
+    "knownBadPresent": [],
+    "protectedPresent": [
+      {
+        "keyword": "crypto",
+        "present": true,
+        "rank": 3
+      },
+      {
+        "keyword": "rest of world",
+        "present": true,
+        "rank": 32
+      },
+      {
+        "keyword": "not boring",
+        "present": true,
+        "rank": 52
+      },
+      {
+        "keyword": "crooked timber",
+        "present": true,
+        "rank": 48
+      },
+      {
+        "keyword": "simple habits for complex times",
+        "present": true,
+        "rank": 61
+      },
+      {
+        "keyword": "seeing like a state",
+        "present": true,
+        "rank": 11
+      }
+    ]
+  },
+  "issue_gold": {
+    "issues": 25,
+    "averageHitsAt5": 2.64,
+    "minimumHitsAt5": 0,
+    "issuesWithAtLeast3": 15,
+    "issuesWithAtLeast4": 5,
+    "details": [
+      {
+        "issue": 214,
+        "top5": [
+          "crypto",
+          "systems thinking",
+          "charlie warzel",
+          "ne zha",
+          "zohran mamdani"
+        ],
+        "expected": [
+          "zugzwang",
+          "saddle point",
+          "systems thinking",
+          "crypto",
+          "charlie warzel"
+        ],
+        "hits": [
+          "systems thinking",
+          "crypto",
+          "charlie warzel"
+        ],
+        "hitsAt5": 3
+      },
+      {
+        "issue": 229,
+        "top5": [
+          "climate change",
+          "large language models",
+          "seeing like a state",
+          "christopher alexander",
+          "kyla scanlon"
+        ],
+        "expected": [
+          "legibility",
+          "seeing like a state",
+          "christopher alexander",
+          "governance",
+          "climate change"
+        ],
+        "hits": [
+          "seeing like a state",
+          "christopher alexander",
+          "climate change"
+        ],
+        "hitsAt5": 3
+      },
+      {
+        "issue": 190,
+        "top5": [
+          "large language models",
+          "climate change",
+          "seeing like a state",
+          "brian chesky",
+          "central america"
+        ],
+        "expected": [
+          "large language models",
+          "prompting",
+          "iteration",
+          "exploration",
+          "judgment"
+        ],
+        "hits": [
+          "large language models"
+        ],
+        "hitsAt5": 1
+      },
+      {
+        "issue": 150,
+        "top5": [
+          "seeing like a state",
+          "geoffrey litt",
+          "joel spolsky",
+          "new york times",
+          "stable diffusion"
+        ],
+        "expected": [
+          "seeing like a state",
+          "joel spolsky",
+          "chesterton fence",
+          "ashley goodall",
+          "geoffrey litt"
+        ],
+        "hits": [
+          "seeing like a state",
+          "joel spolsky",
+          "geoffrey litt"
+        ],
+        "hitsAt5": 3
+      },
+      {
+        "issue": 122,
+        "top5": [
+          "crypto",
+          "machine learning",
+          "mental models",
+          "seeing like a state",
+          "baldur bjarnason"
+        ],
+        "expected": [
+          "attention",
+          "awareness",
+          "legibility",
+          "crypto",
+          "machine learning"
+        ],
+        "hits": [
+          "crypto",
+          "machine learning"
+        ],
+        "hitsAt5": 2
+      },
+      {
+        "issue": 1,
+        "top5": [
+          "southeast asia",
+          "south asia",
+          "farnam street"
+        ],
+        "expected": [
+          "southeast asia",
+          "south asia",
+          "john oliver",
+          "farnam street",
+          "melanie mitchell"
+        ],
+        "hits": [
+          "southeast asia",
+          "south asia",
+          "farnam street"
+        ],
+        "hitsAt5": 3
+      },
+      {
+        "issue": 25,
+        "top5": [
+          "climate change",
+          "crypto",
+          "systems thinking",
+          "alex komoroske",
+          "ben horowitz"
+        ],
+        "expected": [
+          "crypto",
+          "cryptocurrency",
+          "governance",
+          "climate change",
+          "systems thinking"
+        ],
+        "hits": [
+          "crypto",
+          "climate change",
+          "systems thinking"
+        ],
+        "hitsAt5": 3
+      },
+      {
+        "issue": 50,
+        "top5": [
+          "climate change",
+          "crypto",
+          "mental models",
+          "systems thinking",
+          "disease control"
+        ],
+        "expected": [
+          "crypto",
+          "cryptocurrency",
+          "climate change",
+          "mental models",
+          "systems thinking"
+        ],
+        "hits": [
+          "crypto",
+          "climate change",
+          "mental models",
+          "systems thinking"
+        ],
+        "hitsAt5": 4
+      },
+      {
+        "issue": 75,
+        "top5": [
+          "climate change",
+          "crypto",
+          "systems thinking",
+          "wild problems",
+          "russ roberts"
+        ],
+        "expected": [
+          "wild problems",
+          "crypto",
+          "climate change",
+          "systems thinking",
+          "theory of constraints"
+        ],
+        "hits": [
+          "wild problems",
+          "crypto",
+          "climate change",
+          "systems thinking"
+        ],
+        "hitsAt5": 4
+      },
+      {
+        "issue": 100,
+        "top5": [
+          "large language models",
+          "systems thinking",
+          "google doc",
+          "kevin kelly"
+        ],
+        "expected": [
+          "systems thinking",
+          "exploration",
+          "fritjof capra",
+          "large language models",
+          "alan watts"
+        ],
+        "hits": [
+          "systems thinking",
+          "large language models"
+        ],
+        "hitsAt5": 2
+      },
+      {
+        "issue": 125,
+        "top5": [
+          "large language models",
+          "robert kegan",
+          "holiday season"
+        ],
+        "expected": [
+          "judgment",
+          "large language models",
+          "alex davis",
+          "functional brain connectivity",
+          "game stuff"
+        ],
+        "hits": [
+          "large language models"
+        ],
+        "hitsAt5": 1
+      },
+      {
+        "issue": 175,
+        "top5": [
+          "climate change",
+          "benedict evans",
+          "scientific american",
+          "xi jinping",
+          "solar panels"
+        ],
+        "expected": [
+          "climate change",
+          "benedict evans",
+          "chris argyris",
+          "scientific american",
+          "paul krugman"
+        ],
+        "hits": [
+          "climate change",
+          "benedict evans",
+          "scientific american"
+        ],
+        "hitsAt5": 3
+      },
+      {
+        "issue": 200,
+        "top5": [
+          "large language models",
+          "byrne hobart",
+          "venkatesh rao",
+          "ben thompson",
+          "kenyan uber"
+        ],
+        "expected": [
+          "governance",
+          "attention",
+          "venkatesh rao",
+          "byrne hobart",
+          "large language models"
+        ],
+        "hits": [
+          "venkatesh rao",
+          "byrne hobart",
+          "large language models"
+        ],
+        "hitsAt5": 3
+      },
+      {
+        "issue": 210,
+        "top5": [
+          "large language models",
+          "financial times",
+          "india dispatch",
+          "north america",
+          "paul kedrosky"
+        ],
+        "expected": [
+          "large language models",
+          "north america",
+          "on slop",
+          "john david pressman",
+          "financial times"
+        ],
+        "hits": [
+          "large language models",
+          "north america",
+          "financial times"
+        ],
+        "hitsAt5": 3
+      },
+      {
+        "issue": 220,
+        "top5": [
+          "large language models",
+          "ben mathes",
+          "james somers",
+          "should have loved biology"
+        ],
+        "expected": [
+          "east africans",
+          "seventh party system",
+          "attention",
+          "large language models",
+          "john ganz"
+        ],
+        "hits": [
+          "large language models"
+        ],
+        "hitsAt5": 1
+      },
+      {
+        "issue": 225,
+        "top5": [
+          "crypto",
+          "large language models",
+          "open source",
+          "saudi arabia",
+          "boris smus"
+        ],
+        "expected": [
+          "crypto",
+          "saudi arabia",
+          "large language models",
+          "open source",
+          "andhra pradesh"
+        ],
+        "hits": [
+          "crypto",
+          "saudi arabia",
+          "large language models",
+          "open source"
+        ],
+        "hitsAt5": 4
+      },
+      {
+        "issue": 230,
+        "top5": [
+          "strait of hormuz",
+          "jevons paradox",
+          "kyla scanlon",
+          "national geographic",
+          "paul graham"
+        ],
+        "expected": [
+          "strait of hormuz",
+          "judgment",
+          "attention",
+          "governance",
+          "jevons paradox"
+        ],
+        "hits": [
+          "strait of hormuz",
+          "jevons paradox"
+        ],
+        "hitsAt5": 2
+      },
+      {
+        "issue": 180,
+        "top5": [
+          "crypto",
+          "systems thinking",
+          "united states"
+        ],
+        "expected": [
+          "legibility",
+          "crypto",
+          "systems thinking",
+          "albert hirschman",
+          "david marquet"
+        ],
+        "hits": [
+          "crypto",
+          "systems thinking"
+        ],
+        "hitsAt5": 2
+      },
+      {
+        "issue": 160,
+        "top5": [
+          "large language models",
+          "systems thinking",
+          "minimum viable products",
+          "new york times"
+        ],
+        "expected": [
+          "judgment",
+          "iteration",
+          "systems thinking",
+          "large language models",
+          "francis ford coppola"
+        ],
+        "hits": [
+          "systems thinking",
+          "large language models"
+        ],
+        "hitsAt5": 2
+      },
+      {
+        "issue": 140,
+        "top5": [
+          "jean-jacques rousseau",
+          "patrick boyle",
+          "sherlock holmes",
+          "stable diffusion",
+          "years ago"
+        ],
+        "expected": [
+          "legibility",
+          "exploration",
+          "black mirror",
+          "emad mostaque",
+          "david morrison"
+        ],
+        "hits": [],
+        "hitsAt5": 0
+      },
+      {
+        "issue": 120,
+        "top5": [
+          "large language models",
+          "mental models",
+          "steve jobs",
+          "new york magazine",
+          "simon cross"
+        ],
+        "expected": [
+          "steve jobs",
+          "large language models",
+          "mental models",
+          "fall of somali pirates",
+          "department of education"
+        ],
+        "hits": [
+          "steve jobs",
+          "large language models",
+          "mental models"
+        ],
+        "hitsAt5": 3
+      },
+      {
+        "issue": 90,
+        "top5": [
+          "climate change",
+          "crypto",
+          "large language models",
+          "machine learning",
+          "middle eastern"
+        ],
+        "expected": [
+          "crypto",
+          "large language models",
+          "machine learning",
+          "climate change",
+          "donald shoup"
+        ],
+        "hits": [
+          "crypto",
+          "large language models",
+          "machine learning",
+          "climate change"
+        ],
+        "hitsAt5": 4
+      },
+      {
+        "issue": 60,
+        "top5": [
+          "mental models",
+          "systems thinking",
+          "alain de botton",
+          "ben reinhardt",
+          "communist party"
+        ],
+        "expected": [
+          "mental models",
+          "systems thinking",
+          "communist party",
+          "ben reinhardt",
+          "alain de botton"
+        ],
+        "hits": [
+          "mental models",
+          "systems thinking",
+          "communist party",
+          "ben reinhardt",
+          "alain de botton"
+        ],
+        "hitsAt5": 5
+      },
+      {
+        "issue": 30,
+        "top5": [
+          "climate change",
+          "crypto",
+          "systems thinking",
+          "le corbusier",
+          "north america"
+        ],
+        "expected": [
+          "plan voisin",
+          "cryptocurrency",
+          "crypto",
+          "attention",
+          "climate change"
+        ],
+        "hits": [
+          "crypto",
+          "climate change"
+        ],
+        "hitsAt5": 2
+      },
+      {
+        "issue": 202,
+        "top5": [
+          "large language models",
+          "internet archive",
+          "paul kedrosky"
+        ],
+        "expected": [
+          "large language models",
+          "internet archive",
+          "wayback machine",
+          "eating the economy",
+          "paul kedrosky"
+        ],
+        "hits": [
+          "large language models",
+          "internet archive",
+          "paul kedrosky"
+        ],
+        "hitsAt5": 3
+      }
+    ]
+  },
+  "routes": {
+    "protectedRoutes": {
+      "crypto": {
+        "status": 200,
+        "contentType": "text/html"
+      },
+      "rest of world": {
+        "status": 200,
+        "contentType": "text/html"
+      },
+      "not boring": {
+        "status": 200,
+        "contentType": "text/html"
+      },
+      "crooked timber": {
+        "status": 200,
+        "contentType": "text/html"
+      },
+      "simple habits for complex times": {
+        "status": 200,
+        "contentType": "text/html"
+      },
+      "seeing like a state": {
+        "status": 200,
+        "contentType": "text/html"
+      }
+    },
+    "badRoutes": {
+      "img src": {
+        "status": 200,
+        "contentType": "text/html"
+      },
+      "xers highlighting": {
+        "status": 200,
+        "contentType": "text/html"
+      },
+      "exchange commission": {
+        "status": 200,
+        "contentType": "text/html"
+      },
+      "many americans": {
+        "status": 200,
+        "contentType": "text/html"
+      },
+      "secretary of defense rock": {
+        "status": 200,
+        "contentType": "text/html"
+      },
+      "as treasury": {
+        "status": 200,
+        "contentType": "text/html"
+      },
+      "good reason you can": {
+        "status": 200,
+        "contentType": "text/html"
+      }
+    }
+  }
+}

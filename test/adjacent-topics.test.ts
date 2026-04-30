@@ -95,7 +95,7 @@ describe('GET /topics/:keyword exposes adjacent topics + timeline', () => {
     const db = makeD1();
     await seed(db, { issue_number: 1, source_url: 'x://1', published_at: '2024-01-01', year: 2024, month: 1 }, ['governance', 'trust']);
     await seed(db, { issue_number: 2, source_url: 'x://2', published_at: '2024-02-01', year: 2024, month: 2 }, ['governance', 'trust', 'civic repair']);
-    await buildCorpusTopics(db as any);
+    await buildCorpusTopics(db as any, { minDocFrequency: 2 });
     await buildTopicTimeline(db as any);
 
     const { app, env } = makeApp(db);
