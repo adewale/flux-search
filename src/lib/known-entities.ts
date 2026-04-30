@@ -30,6 +30,18 @@ export const KNOWN_ENTITIES: KnownEntity[] = [
   { canonical: 'not boring', display: 'Not Boring', aliases: ['not boring'] },
   { canonical: 'crooked timber', display: 'Crooked Timber', aliases: ['crooked timber'] },
   { canonical: 'simple habits for complex times', display: 'Simple Habits for Complex Times', aliases: ['simple habits for complex times'] },
+  { canonical: 'zugzwang', display: 'Zugzwang', aliases: ['zugzwang'] },
+  { canonical: 'saddle point', display: 'Saddle Point', aliases: ['saddle point', 'saddle points'] },
+  { canonical: 'legibility', display: 'Legibility', aliases: ['legibility'] },
+  { canonical: 'governance', display: 'Governance', aliases: ['governance'] },
+  { canonical: 'prompting', display: 'Prompting', aliases: ['prompting'] },
+  { canonical: 'iteration', display: 'Iteration', aliases: ['iteration'] },
+  { canonical: 'exploration', display: 'Exploration', aliases: ['exploration'] },
+  { canonical: 'judgment', display: 'Judgment', aliases: ['judgment', 'judgement'] },
+  { canonical: 'chesterton fence', display: "Chesterton's Fence", aliases: ["chesterton's fence", 'chesterton fence'] },
+  { canonical: 'attention', display: 'Attention', aliases: ['attention'] },
+  { canonical: 'awareness', display: 'Awareness', aliases: ['awareness'] },
+  { canonical: 'export controls', display: 'Export Controls', aliases: ['export controls', 'export rules'] },
 ];
 
 /**

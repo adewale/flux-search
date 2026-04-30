@@ -1,3 +1,5 @@
+import { buildAliasMap } from './known-entities';
+
 /**
  * Topic-quality heuristics adapted to Flux's per-issue extractor.
  *
@@ -161,12 +163,12 @@ export function classifyTopicQuality(
   const occurrences = topic.occurrences ?? 0;
   const spread = topic.sentenceSpread ?? 0;
 
-  if (PROTECTED_TOPICS.has(keyword)) {
-    return { suppress: false, reason: null };
-  }
-
   if (opts.blocklist && opts.blocklist.has(keyword)) {
     return { suppress: true, reason: 'blocklist' };
+  }
+
+  if (PROTECTED_TOPICS.has(keyword) || buildAliasMap().get(keyword) === keyword) {
+    return { suppress: false, reason: null };
   }
 
   if (BOILERPLATE_PHRASES.has(keyword)) {

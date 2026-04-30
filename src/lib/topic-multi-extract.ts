@@ -144,6 +144,7 @@ export function extractTopicsMulti(
   const trimmed = String(text).trim();
   if (trimmed.length === 0) return { kept: [], suppressed: [] };
   const top = opts.top ?? 25;
+  const candidateTop = Math.max(top * 4, 25);
 
   const slots = new Map<string, CandidateSlot>();
 
@@ -171,7 +172,7 @@ export function extractTopicsMulti(
   }
 
   // Strategy 4: YAKE fallback (always runs — provides a strong baseline).
-  for (const y of extractTopics(trimmed, { top })) {
+  for (const y of extractTopics(trimmed, { top: candidateTop })) {
     add(slots, 'yake', y.keyword, y.keyword_display, 1, 1, y.score);
   }
 
