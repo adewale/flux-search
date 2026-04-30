@@ -328,6 +328,226 @@ Public routes query `public_topics`, not raw candidate tables.
 
 This prevents accidental leakage from a new route.
 
+## Measurement and assessment
+
+A correct-by-construction rewrite should not be judged only by whether the final `/topics` page looks better. It should be judged by whether invalid candidates become impossible to persist or expose.
+
+### 1. Candidate leakage metrics
+
+Track how far invalid data travels through the pipeline:
+
+```text
+invalid proposals generated
+invalid candidates constructed
+invalid candidates persisted
+invalid candidates surfaced
+```
+
+Expected outcome:
+
+```text
+invalid persisted ≈ 0
+invalid surfaced = 0
+```
+
+Report rejection reasons at construction time:
+
+```text
+markup_artifact
+boilerplate
+malformed_phrase
+weak_phrase
+generic_phrase
+missing_evidence
+invalid_section
+registry_deny
+```
+
+The important improvement over defense-in-depth is not merely fewer bad public topics; it is fewer bad candidates surviving past the construction boundary.
+
+### 2. Stage-by-stage rebuild funnel
+
+Every rebuild should report a funnel like:
+
+```text
+raw proposals
+→ constructed valid candidates
+→ locally valid candidates
+→ corpus eligible candidates
+→ public topics
+```
+
+Example target report:
+
+```text
+10,000 raw proposals
+4,200 constructed valid candidates
+2,100 locally valid candidates
+350 corpus eligible candidates
+127 public topics
+0 invalid public topics
+```
+
+This makes the pipeline auditable and shows where quality decisions happen.
+
+### 3. Issue-topic quality
+
+Use the representative issue gold set:
+
+```text
+test/issue-topic-gold.test.ts
+```
+
+Metrics:
+
+```text
+IssueTopicPrecision@5
+IssueTopicRecall@5
+Gold hits@5 per issue
+Mean Reciprocal Rank for expected topics
+```
+
+Current acceptance floor:
+
+```text
+each representative issue has ≥3 expected topics in the top 5
+```
+
+Better scorecard:
+
+```text
+average gold hits@5 ≥ 4
+minimum gold hits@5 ≥ 3
+% issues with ≥4 hits@5 increases over baseline
+```
+
+### 4. Corpus topic quality
+
+Audit `/topics?limit=100` after each rebuild.
+
+Metrics:
+
+```text
+Precision@100
+Review@100
+Reject@100
+Malformed leakage@100
+Boilerplate leakage@100
+Generic phrase leakage@100
+Duplicate / near-duplicate rate@100
+```
+
+Targets:
+
+```text
+Reject@100 = 0
+Malformed leakage@100 = 0
+Boilerplate leakage@100 = 0
+Review@100 decreases over baseline
+```
+
+### 5. Public-route invariants
+
+Automated route checks should verify:
+
+```text
+all top-100 /topics pages return 200
+blocked/invalid topics return 404
+protected topics return 200
+issue pages expose a non-empty topic set
+related issues remain populated
+```
+
+Protected examples:
+
+```text
+/topics/crypto
+/topics/rest%20of%20world
+/topics/not%20boring
+/topics/crooked%20timber
+/topics/simple%20habits%20for%20complex%20times
+/topics/seeing%20like%20a%20state
+```
+
+### 6. Stability metrics
+
+A better pipeline should be less jumpy across rebuilds unless the corpus changes materially.
+
+Track:
+
+```text
+top-20 Jaccard similarity
+top-100 Jaccard similarity
+median rank movement
+new topic count
+dropped topic count
+```
+
+The target is not zero churn. The target is explainable, bounded churn.
+
+### 7. Diagnostic explainability
+
+Every public topic should be explainable from stored evidence:
+
+```text
+canonical label
+topic type
+aliases matched
+source generators
+issue evidence
+section evidence
+domain-distinctiveness score
+eligibility reason
+rejection checks passed
+```
+
+Operational assessment question:
+
+```text
+Can an operator explain why this topic surfaced in under 30 seconds?
+```
+
+### 8. Performance and cost
+
+Correctness should not produce unacceptable runtime or D1 regressions.
+
+Track:
+
+```text
+topic rebuild duration
+D1 rows read/written
+queue job count and duration
+public /topics latency
+issue page latency
+Worker bundle size
+```
+
+### Headline scorecard
+
+| Metric | Target |
+|---|---:|
+| Issue gold hits@5 | average ≥4, minimum ≥3 |
+| Corpus Reject@100 | 0 |
+| Corpus Review@100 | down vs current |
+| Malformed leakage@100 | 0 |
+| Boilerplate leakage@100 | 0 |
+| Invalid persisted candidates | near 0 |
+| Protected topic route regressions | 0 |
+| Top-100 churn per rebuild | explainable / bounded |
+| Rebuild duration | no major regression |
+
+The strongest evidence for the new approach would be:
+
+```text
+bad candidates never reach persistence
+```
+
+rather than:
+
+```text
+bad candidates appear and late filters catch them
+```
+
 ## Testing strategy
 
 ### Constructor/property tests
