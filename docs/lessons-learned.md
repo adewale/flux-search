@@ -414,3 +414,85 @@ Before shipping a new D1-backed feature:
 - Is expensive aggregation precomputed rather than performed on public requests?
 
 The deeper lesson is the same one as the earliest Flux and Bobbin lessons: look at the real product path, not just the green test. `/topics` being correct did not mean `/topics/:keyword` was correct. A route that works for a three-issue fixture can still fail for the top topic in production.
+
+## What we learned about topic quality
+
+### Correct-by-construction beats filter accretion, but only when measured
+
+The first topic-quality improvements were defensive: add a normalizer rule, add a blocklist row, add a quality filter, add a corpus threshold, audit again. That worked — artifacts like `img src`, `xers highlighting`, `exchange commission`, and `many americans` disappeared — but the system was still fundamentally string-in/string-out. Invalid topic candidates could travel through extraction, ranking, persistence, aggregation, and public routes before a later layer suppressed them.
+
+The correct-by-construction boundary changed the shape of the problem. Candidate generators now propose strings, but `constructCandidate()` must either build a typed, valid, evidence-backed candidate or reject it. This makes the important invariant explicit: only constructed topic candidates should be ranked or persisted.
+
+The result was not just cleaner code; it was measurably better output:
+
+| Metric | Old baseline | Current system |
+|---|---:|---:|
+| Average issue gold hits@5 | 2.64 | 3.40 |
+| Minimum hits@5 | 0 | 2 |
+| Issues with >=3 hits@5 | 15 / 25 | 21 / 25 |
+| Issues with >=4 hits@5 | 5 / 25 | 12 / 25 |
+| Known bad/artifact public topics | 0 | 0 |
+
+**Lesson: architecture claims need scorecards.** “Correct-by-construction” sounds good, but the proof is whether invalid candidates stop surviving and relevant topics move up. The benchmark reports under `reports/correct-by-construction/` turned a design philosophy into an empirical comparison.
+
+### Unknown is a valid type when certainty would be fake
+
+After `topic_type` propagation landed, high-impact topics became typed: `crypto` and `large language models` as technology, `systems thinking` and `attention` as themes, `Rest of World` as a publication, `Seeing Like a State` as a book. But most tail topics are still `unknown`.
+
+That is acceptable. A wrong type can be worse than no type: `game of life`, `wall street`, and `solar panels` may require context to classify well. The value of typing is highest where it affects product behavior: aliasing, ranking, UI grouping, and audits. It is not worth pretending certainty for every low-frequency tail phrase.
+
+**Lesson: model uncertainty explicitly.** `unknown` should not mean “the pipeline failed”; it should mean “the system does not yet have enough curated or deterministic evidence to assert a type.” Type the high-impact and obvious topics first, leave ambiguous tail topics honest, and curate only when the product benefit is clear.
+
+### Aliasing is editorial policy, not just string similarity
+
+`crypto` and `cryptocurrency` looked like an obvious duplicate once both appeared near the top of `/topics`. But collapsing them would erase a distinction that matters in the corpus: `crypto` often means the broader web3 ecosystem, while `cryptocurrency` is the narrower asset/currency concept. We kept them separate canonical topics, then demoted `cryptocurrency` in public ranking when both are present.
+
+Other apparent duplicates require different handling: `bored ape` probably should collapse into `bored ape yacht club`; `new york` should not collapse into `new york times` because one is a place and the other is a publication. String containment is not enough. Type and editorial intent matter.
+
+**Lesson: aliases encode meaning, not spelling.** A good alias rule needs type compatibility and corpus evidence. Otherwise you merge things that merely share tokens and split things that are conceptually the same.
+
+### Public topic quality is a navigation problem
+
+The topic system improved when we stopped treating topics as extraction artifacts and started treating them as navigation surfaces: `/topics`, issue chips, related issues, public route invariants, protected route checks, known-bad route checks, and gold issue topics. This changed what “quality” meant. A topic is not good merely because an extractor scored it highly; it is good if it helps a reader move through the archive.
+
+**Lesson: evaluate extracted metadata by the product paths it powers.** For topics, the relevant questions are: can users click it, does the topic page load, does it connect related issues, does it avoid boilerplate, and does it describe the issue better than the old system?
+
+## What we learned about Worker CPU limits
+
+### `waitUntil()` is not durable execution
+
+The monolithic admin topic rebuild returned `202` and then ran the full corpus rebuild in `executionCtx.waitUntil()`. That made the route look responsive, but the background task still had to fit inside Worker CPU limits. Once extraction became more sophisticated, the job died during `extract_issue_topics` and left `pipeline_runs` stuck as `running`.
+
+The route did not fail at the HTTP boundary; the work failed after the response. That is the dangerous version of a timeout because operators see “started” rather than “failed.” We had to tail production to see `Worker exceeded CPU time limit`.
+
+**Lesson: `waitUntil()` extends work after the response; it does not turn a Worker into a workflow engine.** If the work is expensive, split it into queue jobs or use a durable execution system. Returning `202` is not proof that the job can finish.
+
+### Queue-backed rebuilds need a finalize phase
+
+Splitting extraction into `topic-extract-batch` jobs solved the CPU problem, but batching alone was not enough. The rebuild still needed a global step: apply the cross-issue candidate floor, persist `issue_topics`, rebuild corpus aggregates, rebuild timelines, annotate confidence, and enqueue embeddings. That became `topic-finalize-rebuild`.
+
+The important pattern is:
+
+```text
+planner -> many bounded extraction jobs -> one finalize job -> enrichment jobs
+```
+
+Each extraction job stays under CPU limits. The finalize job waits for all extraction jobs and performs set-oriented D1 work. Durable `pipeline_jobs.result_json` carries batch output across queue invocations.
+
+**Lesson: distributed rebuilds need a barrier.** Fan-out handles local work; a finalize phase handles global invariants. Without a barrier, cross-issue rules either run too early or get duplicated in every batch.
+
+### Stale operational state is data debt
+
+Failed monolithic rebuilds left several `pipeline_runs` in `running`. The public topic data was usable, but the operator surface lied. We marked stale runs failed and recorded why: superseded by offline backfill and queue-backed rebuild after Worker CPU exhaustion.
+
+**Lesson: operational tables are user-facing too — the users are operators.** If run/job tables say work is running when it is impossible for it to resume, the system is harder to trust. Stale state needs explicit cleanup and explanatory notes.
+
+## What we learned about documentation drift
+
+### Specs must say what is true now, not only what was planned
+
+The Yaket spec still described `POST /admin/rebuild-topics?backfill=true` as a monolithic walk of every issue. The queue spec described queue-backed rebuild as a future phase. The research docs said `topic_type` should be added. All of those statements were once useful, then became misleading after implementation changed.
+
+We added `docs/topic-system-status.md` as the current scorecard and `docs/internal-consistency-audit.md` as the reconciliation point. Historical research remains useful, but it now points to the current status rather than competing with it.
+
+**Lesson: when architecture changes, update the docs in the same unit of work.** A passing test suite does not prevent stale docs from sending the next engineer down the wrong path. Treat docs like public API: if behavior changes, the contract must change too.
