@@ -212,6 +212,42 @@ describe('buildCorpusTopics', () => {
     expect(corpus.map(t => t.keyword)).not.toContain('language models');
   });
 
+  it('carries the dominant non-unknown topic_type into corpus_topics', async () => {
+    const db = makeD1();
+    const a = await seedIssue(db as any, { issue_number: 1 });
+    const b = await seedIssue(db as any, { issue_number: 2 });
+    const c = await seedIssue(db as any, { issue_number: 3 });
+
+    await replaceIssueTopics(db as any, a, [{ ...topic({ keyword: 'attention', rank: 1 }), topic_type: 'theme' }]);
+    await replaceIssueTopics(db as any, b, [{ ...topic({ keyword: 'attention', rank: 1 }), topic_type: 'theme' }]);
+    await replaceIssueTopics(db as any, c, [{ ...topic({ keyword: 'attention', rank: 1 }), topic_type: 'unknown' }]);
+
+    await buildCorpusTopics(db as any, { minDocFrequency: 3 });
+    const row = (await getCorpusTopics(db as any)).find(r => r.keyword === 'attention');
+    expect(row?.topic_type).toBe('theme');
+    expect(row?.quality_status).toBe('valid');
+    expect(row?.eligibility_status).toBe('public_topic');
+  });
+
+  it('keeps crypto and cryptocurrency separate but demotes cryptocurrency in public corpus ranking', async () => {
+    const db = makeD1();
+    for (let i = 1; i <= 3; i++) {
+      const issue = await seedIssue(db as any, { issue_number: i });
+      await replaceIssueTopics(db as any, issue, [
+        { ...topic({ keyword: 'crypto', keyword_display: 'Crypto', rank: 1, score: 0.05 }), topic_type: 'technology' },
+        { ...topic({ keyword: 'cryptocurrency', keyword_display: 'Cryptocurrency', rank: 2, score: 0.05 }), topic_type: 'technology' },
+      ]);
+    }
+
+    await buildCorpusTopics(db as any, { minDocFrequency: 3 });
+    const corpus = await getCorpusTopics(db as any, { limit: 10 });
+    const crypto = corpus.find(r => r.keyword === 'crypto')!;
+    const cryptocurrency = corpus.find(r => r.keyword === 'cryptocurrency')!;
+    expect(crypto).toBeDefined();
+    expect(cryptocurrency).toBeDefined();
+    expect(crypto.aggregate_score).toBeGreaterThan(cryptocurrency.aggregate_score);
+  });
+
   it('aggregates keyword frequencies across issues', async () => {
     const db = makeD1();
     const a = await seedIssue(db as any, { issue_number: 1, published_at: '2024-01-01' });

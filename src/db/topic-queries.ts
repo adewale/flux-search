@@ -216,7 +216,8 @@ export async function buildCorpusTopics(
   await db.prepare(`
     INSERT INTO corpus_topics (
       keyword, keyword_display, doc_frequency, avg_score, aggregate_score,
-      distinctiveness, first_seen, last_seen, ngram_size, updated_at
+      distinctiveness, first_seen, last_seen, ngram_size, updated_at,
+      topic_type, quality_status, eligibility_status
     )
     SELECT
       cluster.canonical AS keyword,
@@ -230,7 +231,10 @@ export async function buildCorpusTopics(
       cluster.first_seen,
       cluster.last_seen,
       cluster.ngram_size,
-      ? AS updated_at
+      ? AS updated_at,
+      cluster.topic_type,
+      'valid' AS quality_status,
+      'public_topic' AS eligibility_status
     FROM (
       SELECT
         COALESCE(NULLIF(t.stem, ''), t.keyword) AS cluster_key,
@@ -244,7 +248,17 @@ export async function buildCorpusTopics(
         AVG(t.score) AS avg_score,
         MIN(i.published_at) AS first_seen,
         MAX(i.published_at) AS last_seen,
-        MAX(t.ngram_size) AS ngram_size
+        MAX(t.ngram_size) AS ngram_size,
+        COALESCE(
+          (SELECT topic_type FROM issue_topics it4
+           WHERE COALESCE(NULLIF(it4.stem,''), it4.keyword) = COALESCE(NULLIF(t.stem,''), t.keyword)
+             AND it4.topic_type IS NOT NULL
+             AND it4.topic_type != 'unknown'
+           GROUP BY topic_type
+           ORDER BY COUNT(*) DESC, topic_type ASC
+           LIMIT 1),
+          'unknown'
+        ) AS topic_type
       FROM issue_topics t
       JOIN issues i ON i.id = t.issue_id
       WHERE t.suppression_reason IS NULL
@@ -255,11 +269,27 @@ export async function buildCorpusTopics(
   `).bind(totalIssues, totalIssues, new Date().toISOString(), minDf).run();
 
   await applyDomainDistinctivenessBoost(db, totalIssues);
+  await applyPublicRedundancyDemotions(db);
   await pruneNestedCorpusTopicFragments(db);
 
   const result = await db.prepare('SELECT COUNT(*) as c FROM corpus_topics')
     .first<{ c: number }>();
   return result?.c ?? 0;
+}
+
+async function applyPublicRedundancyDemotions(db: D1Database): Promise<void> {
+  const rows = await db.prepare(
+    'SELECT keyword FROM corpus_topics WHERE keyword IN (\'crypto\', \'cryptocurrency\')',
+  ).all<{ keyword: string }>();
+  const present = new Set(rows.results.map(r => r.keyword));
+  // Keep crypto and cryptocurrency separate canonicals, but avoid letting the
+  // narrower asset/currency label visually duplicate the broader ecosystem
+  // label at the very top of public topic lists.
+  if (present.has('crypto') && present.has('cryptocurrency')) {
+    await db.prepare(
+      'UPDATE corpus_topics SET aggregate_score = aggregate_score * 0.25 WHERE keyword = \'cryptocurrency\'',
+    ).run();
+  }
 }
 
 async function applyDomainDistinctivenessBoost(db: D1Database, totalIssues: number): Promise<void> {
