@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-04-30
+
+### Added
+
+- Added correct-by-construction topic boundary: `CleanText`, `TopicRegistry`, and `constructCandidate()`.
+- Added queue-backed topic rebuilds with `topic-extract-batch` and `topic-finalize-rebuild` jobs.
+- Added topic-quality rollout and benchmark reports under `reports/correct-by-construction/`.
+- Added current topic system status and internal consistency audit docs.
+
+### Changed
+
+- `POST /admin/rebuild-topics` is now queue-backed instead of monolithic.
+- `corpus_topics` now carries `topic_type`, `quality_status`, and `eligibility_status` from constructed issue candidates.
+- `crypto` and `cryptocurrency` remain separate canonical topics, but `cryptocurrency` is demoted in public ranking when both are present.
+
+### Verified
+
+- Current public corpus topics: 134.
+- Correct-by-construction scorecard improved from old baseline: average hits@5 `2.64 → 3.40`, minimum hits@5 `0 → 2`, issues with ≥3 hits@5 `15/25 → 21/25`, issues with ≥4 hits@5 `5/25 → 12/25`.
+- Known bad/artifact public topics remain at 0.
+- `npm test` → 918 passing tests.
+- `npm run typecheck` → passed.
+- Deployed Worker version `711ecd04-f3f4-4ccd-ba24-778060026bbb`.
+
 ## 2026-04-29
 
 ### Added

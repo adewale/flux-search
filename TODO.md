@@ -11,3 +11,5 @@
 ## Operations
 
 - [ ] **Re-bootstrap is manual** — requires running curl with the admin token in 5 batches (`?force=true&offset=0,50,100,150,200`). Could be automated with a single endpoint that pages through all issues internally, or via Cloudflare Workflows for durable execution beyond the Worker CPU limit.
+- [ ] **Topic type tail curation** — high-impact topics are typed, but many low-frequency corpus topics remain `unknown`. Add registry entries only when they improve UI, aliasing, or audits.
+- [ ] **Rotate exposed admin token** — rotate `ADMIN_TOKEN` after any chat/log exposure.

@@ -28,7 +28,7 @@ Inputs:
 - Rewriting search ranking or result response shape.
 - Moving raw corpus files to R2.
 - Queueing every ingest step immediately.
-- Removing the current inline rebuild path before queue-backed runs are proven stable.
+- Removing remaining fallback/helper assumptions until queue-backed runs are proven stable over time.
 - Introducing non-Cloudflare infrastructure.
 
 ## Cloudflare Queues constraints to honor
@@ -461,6 +461,21 @@ Common fields:
 
 Avoid low-context helper logs as the primary diagnostic surface.
 
+## Current production status
+
+Queue-backed topic rebuilds are now the production default for `POST /admin/rebuild-topics`. The earlier monolithic Worker rebuild exceeded Cloudflare CPU limits during full-corpus `extract_issue_topics`, so the route now plans work and enqueues bounded jobs:
+
+```text
+POST /admin/rebuild-topics
+  -> pipeline_run
+  -> phrase lexicon build
+  -> topic-extract-batch jobs
+  -> topic-finalize-rebuild job
+  -> embed-corpus-topics jobs
+```
+
+`topic-finalize-rebuild` waits for all extraction batches, applies the cross-issue candidate floor, writes `issue_topics`, rebuilds `corpus_topics`, rebuilds the topic timeline, annotates confidence/burst metadata, and enqueues embedding batches.
+
 ## Public behavior contract
 
 Queue migration must not change:
@@ -473,7 +488,7 @@ Queue migration must not change:
 - `/topics` sorting semantics unless explicitly approved
 - static frontend routes
 
-Topic rebuilds may update topic freshness, but queue-backed and inline rebuilds should produce equivalent D1 read state for the same fixture corpus.
+Topic rebuilds may update topic freshness. Queue-backed rebuilds are the canonical production path; inline/monolithic rebuilds are no longer a production reliability target.
 
 ## Rollout plan
 
@@ -504,23 +519,23 @@ Topic rebuilds may update topic freshness, but queue-backed and inline rebuilds 
 - Inline path remains as fallback.
 - DLQ inspection route exists.
 
-### Phase 3 — Queue per-issue topic rebuilds
+### Phase 3 — Queue full topic rebuilds — implemented
 
-- New or changed issues enqueue `rebuild-issue-topics` jobs.
-- Consumer uses content hash to skip unchanged work.
-- Aggregate/finalize phase runs after jobs complete or on next planner pass.
+- `topic-extract-batch` jobs rebuild constructed candidates for bounded issue batches.
+- `topic-finalize-rebuild` applies cross-issue filtering, writes aggregate tables, and enqueues embeddings.
+- Durable `pipeline_jobs.result_json` stores batch output for finalization.
 
-### Phase 4 — Queue-backed default
+### Phase 4 — Queue-backed default — implemented
 
-Make queue-backed rebuild the default only after:
+Queue-backed rebuild is the default for `POST /admin/rebuild-topics`. Continue monitoring:
 
-- 3 consecutive successful weekly topic queue runs
-- DLQ remains empty or replay succeeds
-- public response comparison passes
-- no deferred job older than 48 hours
-- operator routes answer the required questions
+- successful weekly topic queue runs
+- empty/replayable DLQ
+- public response comparison
+- no stale deferred job older than 48 hours
+- operator routes answering required questions
 
-### Phase 5 — Remove inline fallback
+### Phase 5 — Remove remaining fallback assumptions
 
 Only after:
 

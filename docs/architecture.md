@@ -49,6 +49,27 @@ Substack sitemap ──► sitemap-parser ──► URLs
                                            (FTS5) (D1)   (embeddings)
 ```
 
+### Topic rebuilds
+
+Topic extraction/rebuild is queue-backed. The previous monolithic Worker rebuild exceeded Cloudflare CPU limits during all-issue extraction, so production rebuilds now split expensive work into bounded queue jobs.
+
+```text
+/admin/rebuild-topics
+    │
+    ├─ create pipeline_run
+    ├─ build phrase lexicon
+    ├─ enqueue topic-extract-batch jobs
+    └─ enqueue topic-finalize-rebuild job
+
+Queue consumer
+    ├─ topic-extract-batch: extract constructed candidates for a small issue batch
+    ├─ topic-finalize-rebuild: apply cross-issue floor, persist issue_topics,
+    │                         rebuild corpus_topics/timeline/annotations
+    └─ embed-corpus-topics: update topic embeddings/similarities
+```
+
+Public corpus topics are built from constructed candidates with `topic_type`, `quality_status`, `eligibility_status`, and evidence metadata where available. High-impact topics are typed; ambiguous tail topics may remain `unknown` until curation is valuable.
+
 ### Search (per request)
 
 ```
@@ -130,7 +151,7 @@ fields (`issue_id`, `title`, `issue_number`, `published_at`, `snippet`,
 ### Routes (`src/routes/`)
 - `search.ts` — `GET /search`, `GET /autocomplete`. Orchestrates query parsing, parallel FTS + Vectorize search, hybrid ranking, pagination.
 - `issues.ts` — `GET /issues/:id`, `GET /issues/issue/:number`. Issue detail API.
-- `admin.ts` — `POST /admin/bootstrap`, `POST /admin/reindex`, `GET /admin/crawl-runs/:id`, `GET /admin/coverage`. Protected by bearer token auth.
+- `admin.ts` — `POST /admin/bootstrap`, `POST /admin/reindex`, queue-backed `POST /admin/rebuild-topics`, aggregate-only `POST /admin/rebuild-topic-aggregates`, pipeline inspection routes, `GET /admin/crawl-runs/:id`, `GET /admin/coverage`. Protected by bearer token auth.
 
 ### Search engine (`src/lib/`)
 - `query-parser.ts` — Parses raw query string into free text, quoted phrases, and filter operators (`before:`, `after:`, `year:`, `issue:`, `section:`).
@@ -139,6 +160,7 @@ fields (`issue_id`, `title`, `issue_number`, `published_at`, `snippet`,
 - `chunker.ts` — Splits issue text into 300-800 token chunks for semantic indexing. Respects section boundaries. First chunk is always title + summary.
 - `embedder.ts` — Batches text chunks through Workers AI for 768-dim embeddings, upserts to Vectorize.
 - `normalizer.ts` — Transforms crawled HTML into structured issue records. Extracts the intrinsic structure of FLUX Review issues: opening quote, lead essay title, lead essay body, headings. Cleans Substack boilerplate from titles.
+- `topic-candidate.ts` / `topic-registry.ts` / `clean-text.ts` — Correct-by-construction topic boundary: proposals become typed, valid, evidence-backed candidates or explicit rejections before persistence.
 - `deduplicator.ts` — Checks for duplicate issues by source URL, content hash, or issue number + date.
 
 ### Crawler (`src/crawler/`)

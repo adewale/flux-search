@@ -1,5 +1,7 @@
 # Yaket Topic Extraction Specification
 
+> Status note, 2026-04-30: this document describes the original Yaket topic extraction plan. Production topic rebuilds now use the correct-by-construction boundary and queue-backed rebuild architecture documented in `specs/topic-pipeline-correct-by-construction.spec.md`, `specs/flux-queues.spec.md`, and `docs/topic-system-status.md`.
+
 Extract key topics (words and phrases) from each issue of The FLUX Review and from the overall corpus, then surface them across the site as chips, filters, facets, and a dedicated topics page.
 
 ## Motivation
@@ -14,7 +16,7 @@ Search today is lexical + semantic over chunks. Readers have no way to ask "what
 
 ## Library
 
-[`@ade_oshineye/yaket@0.5.3`](https://www.npmjs.com/package/@ade_oshineye/yaket) — a TypeScript port of YAKE with a `/worker` entry point, fully bundled stopwords, and no network dependency. Runs inside Cloudflare Workers.
+[`@ade_oshineye/yaket@0.5.3`](https://www.npmjs.com/package/@ade_oshineye/yaket) — a TypeScript port of YAKE, fully bundled stopwords, and no network dependency. Runs inside Cloudflare Workers.
 
 - Deterministic (same input → same output). Re-extraction is a no-op when `content_hash` is unchanged.
 - No LLM; no per-call cost.
@@ -192,7 +194,7 @@ JOIN issues i ON i.id = t.issue_id
 GROUP BY t.keyword, i.year, i.month;
 ```
 
-Scale: 234 issues × ~25 topics = ~6k rows. Single D1 transaction, no batching needed.
+Historical estimate: 234 issues × ~25 topics = ~6k rows. Current production no longer assumes a single Worker transaction is safe; full rebuild work is queue-backed.
 
 ### Triggers
 
@@ -200,12 +202,12 @@ Scale: 234 issues × ~25 topics = ~6k rows. Single D1 transaction, no batching n
 |---|---|
 | `ingestPage` | Per-issue extraction for the newly-ingested issue |
 | `runReindex` | Walks all issues → rebuilds `issue_topics` |
-| `POST /admin/rebuild-topics` | Backfill + aggregate; `?backfill=true` re-extracts every issue |
-| Weekly cron (`src/cron/weekly-sync.ts`) | Calls `rebuild-topics` after ingest |
+| `POST /admin/rebuild-topics` | Queue-backed full rebuild planner; enqueues extraction/finalization/embedding jobs |
+| Weekly cron (`src/cron/weekly-sync.ts`) | Calls rebuild/enrichment paths after ingest |
 
 ### Backfill
 
-`POST /admin/rebuild-topics?backfill=true` walks every issue, extracts, upserts, then aggregates. Idempotent because YAKE is deterministic.
+`POST /admin/rebuild-topics` creates a pipeline run, builds the phrase lexicon, enqueues bounded `topic-extract-batch` jobs, and enqueues `topic-finalize-rebuild`. The old monolithic `?backfill=true` description is historical; it exceeded Worker CPU limits as the pipeline became more sophisticated.
 
 ## Surfacing on the website
 
