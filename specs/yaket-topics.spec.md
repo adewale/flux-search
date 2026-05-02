@@ -1,6 +1,6 @@
 # Yaket Topic Extraction Specification
 
-> Status note, 2026-04-30: this document describes the original Yaket topic extraction plan. Production topic rebuilds now use the correct-by-construction boundary and queue-backed rebuild architecture documented in `specs/topic-pipeline-correct-by-construction.spec.md`, `specs/flux-queues.spec.md`, and `docs/topic-system-status.md`.
+> Status note, 2026-05-01: this document describes the original Yaket topic extraction plan. Current production behavior is documented in `docs/topic-pipeline.md`. Production topic rebuilds now use the correct-by-construction boundary and queue-backed rebuild architecture documented in `specs/topic-pipeline-correct-by-construction.spec.md`, `specs/flux-queues.spec.md`, and `docs/topic-system-status.md`.
 
 Extract key topics (words and phrases) from each issue of The FLUX Review and from the overall corpus, then surface them across the site as chips, filters, facets, and a dedicated topics page.
 

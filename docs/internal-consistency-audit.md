@@ -1,6 +1,6 @@
 # Internal consistency audit
 
-_Last updated: 2026-04-30_
+_Last updated: 2026-05-01_
 
 ## Scope
 
@@ -10,6 +10,8 @@ Reviewed topic-related docs/specs for consistency with the current implementatio
 - `docs/topic-quality-rollout.md`
 - `docs/topic-quality-research.md`
 - `docs/topic-quality-experiments.md`
+- `docs/topic-pipeline.md`
+- `docs/topic-operations.md`
 - `docs/topic-system-status.md`
 - `specs/topic-pipeline-correct-by-construction.spec.md`
 - `specs/flux-queues.spec.md`
@@ -18,8 +20,10 @@ Reviewed topic-related docs/specs for consistency with the current implementatio
 
 ## Current source of truth
 
+- Canonical current topic pipeline: `docs/topic-pipeline.md`
+- Operational playbook: `docs/topic-operations.md`
 - Correct-by-construction design/status: `specs/topic-pipeline-correct-by-construction.spec.md`
-- Operational rollout: `docs/topic-quality-rollout.md`
+- Operational rollout script docs: `docs/topic-quality-rollout.md`
 - Current production scorecard: `docs/topic-system-status.md`
 - Queue architecture: `specs/flux-queues.spec.md`
 - Benchmark reports: `reports/correct-by-construction/*.json`
@@ -62,8 +66,8 @@ Reviewed topic-related docs/specs for consistency with the current implementatio
 
 ## Known documentation caveats
 
-- `docs/topic-quality-research.md` and `docs/topic-quality-experiments.md` are historical research notes. They now include status notes where recommendations have been implemented, but they should not override `docs/topic-system-status.md` or the current specs.
-- `specs/yaket-topics.spec.md` documents the original Yaket topic extraction plan. It now points readers to the queue-backed/correct-by-construction specs for current production behavior.
+- `docs/topic-quality-research.md` and `docs/topic-quality-experiments.md` are historical research notes. They now include status notes where recommendations have been implemented, but they should not override `docs/topic-pipeline.md`, `docs/topic-system-status.md`, or the current specs.
+- `specs/yaket-topics.spec.md` documents the original Yaket topic extraction plan. It now points readers to `docs/topic-pipeline.md` and the queue-backed/correct-by-construction specs for current production behavior.
 
 ## Verdict
 

@@ -1,5 +1,7 @@
 # Correct-by-Construction Topic Pipeline Design
 
+> Current production pipeline source of truth: `docs/topic-pipeline.md`. This spec explains the design rationale and migration path behind that implementation.
+
 ## Premise
 
 This spec describes how the topic pipeline would be designed if we started from the principle:

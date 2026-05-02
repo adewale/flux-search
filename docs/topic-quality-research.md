@@ -1,6 +1,6 @@
 # Surfacing High-Quality Topics Without LLMs
 
-> Status note, 2026-04-30: this is historical research. Current production status and scorecard live in `docs/topic-system-status.md`. Implemented pieces include correct-by-construction candidate construction, queue-backed rebuilds, domain-distinctive ranking, public-rank demotion for `cryptocurrency` when `crypto` is present, and `topic_type` propagation into corpus aggregates.
+> Status note, 2026-05-01: this is historical research. Current production pipeline lives in `docs/topic-pipeline.md`; current status and scorecard live in `docs/topic-system-status.md`. Implemented pieces include correct-by-construction candidate construction, queue-backed rebuilds, domain-distinctive ranking, public-rank demotion for `cryptocurrency` when `crypto` is present, and `topic_type` propagation into corpus aggregates.
 
 This note summarizes non-LLM approaches from information retrieval, keyphrase extraction, topic modeling, terminology extraction, and corpus navigation that are relevant to Flux Search.
 

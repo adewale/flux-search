@@ -1,5 +1,7 @@
 # Flux Search Queue Migration Spec
 
+> Current topic queue behavior is summarized in `docs/topic-pipeline.md` and operated via `docs/topic-operations.md`. This spec remains the detailed queue design/reference.
+
 ## Purpose
 
 Define a Flux-specific plan for using Cloudflare Queues to make topic enrichment, ingest follow-up work, and future corpus maintenance more efficient, observable, and resilient.

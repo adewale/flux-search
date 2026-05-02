@@ -1,5 +1,7 @@
 # Architecture
 
+> Topic pipeline source of truth: see `docs/topic-pipeline.md`. Topic operations/playbooks: see `docs/topic-operations.md`. Current topic scorecard: see `docs/topic-system-status.md`.
+
 ## System overview
 
 Flux Search is a Cloudflare Workers application that provides hybrid lexical + semantic search across the FLUX Review newsletter archive. It serves all issues from 2021 to present.

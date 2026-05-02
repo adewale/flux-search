@@ -1,6 +1,6 @@
 # Non-LLM Topic Quality Experiments
 
-> Status note, 2026-04-30: this backlog has partially landed. Current status is in `docs/topic-system-status.md`; old-vs-new reports are in `reports/correct-by-construction/`. The current production path is correct-by-construction plus queue-backed rebuild, not a monolithic extractor pass.
+> Status note, 2026-05-01: this backlog has partially landed. Current pipeline is in `docs/topic-pipeline.md`; current status is in `docs/topic-system-status.md`; old-vs-new reports are in `reports/correct-by-construction/`. The current production path is correct-by-construction plus queue-backed rebuild, not a monolithic extractor pass.
 
 This is a measurable backlog of non-LLM techniques for improving surfaced topic quality in Flux Search. Each experiment should be evaluated against:
 

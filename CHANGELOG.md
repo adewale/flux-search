@@ -8,6 +8,7 @@
 - Added queue-backed topic rebuilds with `topic-extract-batch` and `topic-finalize-rebuild` jobs.
 - Added topic-quality rollout and benchmark reports under `reports/correct-by-construction/`.
 - Added current topic system status and internal consistency audit docs.
+- Added canonical topic pipeline and topic operations docs.
 
 ### Changed
 

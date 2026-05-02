@@ -1,6 +1,8 @@
 # Topic system status
 
-_Last updated: 2026-04-30_
+_Last updated: 2026-05-01_
+
+For the full current pipeline, see `docs/topic-pipeline.md`. For rebuild/benchmark/debug commands, see `docs/topic-operations.md`.
 
 ## Current production state
 
@@ -107,6 +109,17 @@ topic-finalize-rebuild
 ```
 
 This keeps each Worker invocation under CPU limits and makes full rebuilds resumable and inspectable.
+
+## Decision log
+
+| Decision | Current policy | Reason |
+| --- | --- | --- |
+| Rebuild architecture | Queue-backed by default | Monolithic Worker rebuild exceeded CPU during full-corpus extraction |
+| Topic validity | Construct candidates before ranking/persistence | Invalid strings should not become rankable durable state |
+| `crypto` / `cryptocurrency` | Separate canonicals; demote `cryptocurrency` in public ranking when both are present | Flux uses `crypto` broadly and `cryptocurrency` narrowly, but adjacent top ranks were redundant |
+| `unknown` topic type | Allowed for ambiguous tail topics | Wrong certainty is worse than honest uncertainty |
+| Blocklist | Explicit deny wins over known/protected entries | Operator safety valve for bad surfaces |
+| `nodewordfreq` | Offline build/calibration only | Keeps Worker runtime small and attribution boundary clear |
 
 ## Remaining work
 

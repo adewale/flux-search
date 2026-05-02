@@ -1,6 +1,6 @@
 # Topic quality rollout scripts
 
-Use this reusable operator workflow after topic-quality, topic-pipeline, or correct-by-construction changes. For the current production scorecard, see `docs/topic-system-status.md`.
+Use this reusable operator workflow after topic-quality, topic-pipeline, or correct-by-construction changes. For the canonical pipeline, see `docs/topic-pipeline.md`; for the full operations playbook, see `docs/topic-operations.md`; for the current production scorecard, see `docs/topic-system-status.md`.
 
 ## Full rollout
 
