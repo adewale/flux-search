@@ -8,6 +8,7 @@ import {
   createPipelineJob,
   deferPipelineJob,
   failPipelineJob,
+  failPipelineRunIfPresent,
   idempotencyKeyForMessage,
   recordPipelinePhase,
   succeedPipelineJob,
@@ -127,7 +128,7 @@ export async function enqueueTopicRebuild(env: Env, runId: string, issueIds: str
   if (!env.ENRICHMENT_QUEUE) return { extractJobs: 0, finalizeJobs: 0 };
   const correlationId = randomId();
   const queuedAt = new Date().toISOString();
-  const messages: Array<TopicExtractBatchMessage | TopicFinalizeRebuildMessage> = [];
+  const messages: TopicExtractBatchMessage[] = [];
   let batchIndex = 0;
   for (let i = 0; i < issueIds.length; i += batchSize) {
     messages.push({
@@ -141,17 +142,8 @@ export async function enqueueTopicRebuild(env: Env, runId: string, issueIds: str
       issueIds: issueIds.slice(i, i + batchSize),
     });
   }
-  messages.push({
-    schemaVersion: 1,
-    kind: 'topic-finalize-rebuild',
-    runId,
-    jobId: randomId(),
-    correlationId,
-    queuedAt,
-    expectedExtractJobs: batchIndex,
-  });
 
-  const sendable: typeof messages = [];
+  const sendable: TopicExtractBatchMessage[] = [];
   for (const message of messages) {
     const created = await createPipelineJob(env.DB, {
       id: message.jobId,
@@ -167,10 +159,57 @@ export async function enqueueTopicRebuild(env: Env, runId: string, issueIds: str
   for (let i = 0; i < sendable.length; i += 100) {
     await env.ENRICHMENT_QUEUE.sendBatch(sendable.slice(i, i + 100).map(body => ({ body })));
   }
-  return {
-    extractJobs: sendable.filter(m => m.kind === 'topic-extract-batch').length,
-    finalizeJobs: sendable.filter(m => m.kind === 'topic-finalize-rebuild').length,
+  // The finalizer is deliberately not published with the extract jobs.
+  // Cloudflare Queues do not guarantee publish order, and a retrying early
+  // finalizer can exhaust max_retries/DLQ before slower extracts complete.
+  // Each extract success calls enqueueTopicFinalizeIfReady(), which provides
+  // the durable barrier using pipeline_jobs state.
+  return { extractJobs: sendable.length, finalizeJobs: 0 };
+}
+
+async function enqueueTopicFinalizeIfReady(env: Env, runId: string, correlationId: string | null): Promise<boolean> {
+  if (!env.ENRICHMENT_QUEUE) return false;
+
+  const counts = await env.DB.prepare(`
+    SELECT
+      COUNT(*) AS total,
+      SUM(CASE WHEN status = 'succeeded' THEN 1 ELSE 0 END) AS succeeded,
+      SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed
+    FROM pipeline_jobs
+    WHERE run_id = ? AND kind = 'topic-extract-batch'
+  `).bind(runId).first<{ total: number; succeeded: number | null; failed: number | null }>();
+
+  const total = counts?.total ?? 0;
+  const succeeded = counts?.succeeded ?? 0;
+  const failed = counts?.failed ?? 0;
+  if (failed > 0) {
+    await failPipelineRunIfPresent(env.DB, runId, 'topic rebuild extract batch failed');
+    return false;
+  }
+  if (total === 0 || succeeded < total) return false;
+
+  const queuedAt = new Date().toISOString();
+  const message: TopicFinalizeRebuildMessage = {
+    schemaVersion: 1,
+    kind: 'topic-finalize-rebuild',
+    runId,
+    jobId: randomId(),
+    correlationId: correlationId ?? randomId(),
+    queuedAt,
+    expectedExtractJobs: total,
   };
+  const created = await createPipelineJob(env.DB, {
+    id: message.jobId,
+    runId,
+    kind: message.kind,
+    semanticKey: idempotencyKeyForMessage(message),
+    payload: message,
+    correlationId: message.correlationId,
+    queuedAt,
+  });
+  if (!created) return false;
+  await env.ENRICHMENT_QUEUE.sendBatch([{ body: message }]);
+  return true;
 }
 
 export async function enqueueCorpusTopicEmbedding(env: Env, runId: string, batchSize = 25): Promise<number> {
@@ -304,6 +343,7 @@ export async function handleEnrichmentMessage(message: EnrichmentMessage, env?: 
           summary: { issues: extracted.result.issues.length, suppressed: extracted.result.suppressed },
         });
         if (jobId) await succeedPipelineJob(env.DB, jobId, extracted.result);
+        await enqueueTopicFinalizeIfReady(env, runId, correlationId);
         return { embedded: 0, extracted: extracted.result.issues.length };
       }
       case 'topic-finalize-rebuild': {
@@ -351,7 +391,10 @@ export async function handleEnrichmentMessage(message: EnrichmentMessage, env?: 
   } catch (err) {
     if (env && jobId) {
       if (shouldRetryError(err)) await deferPipelineJob(env.DB, jobId, err);
-      else await failPipelineJob(env.DB, jobId, err);
+      else {
+        await failPipelineJob(env.DB, jobId, err);
+        if (kind === 'topic-extract-batch') await failPipelineRunIfPresent(env.DB, runId, err);
+      }
     }
     throw err;
   }

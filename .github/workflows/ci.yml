@@ -19,6 +19,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm audit --omit=dev --audit-level=moderate
       - run: npm run corpus:process
       - run: npm test
       - run: npm run typecheck

@@ -2,6 +2,10 @@ import type { Env } from '../env';
 import type { SearchFilters, IssueRow } from '../db/types';
 import { getIssueIdsByTopic } from '../db/topic-queries';
 
+const EMBEDDING_CACHE_TTL_MS = 10 * 60 * 1000;
+const EMBEDDING_CACHE_MAX = 128;
+const embeddingCache = new Map<string, { vector: number[]; expiresAt: number }>();
+
 export interface SemanticCandidate {
   issueId: string;
   issue: IssueRow;
@@ -33,17 +37,16 @@ async function doVectorSearch(
   filters: SearchFilters,
   topK: number
 ): Promise<SemanticCandidate[]> {
-  const embeddingResult = await env.AI.run('@cf/baai/bge-base-en-v1.5', {
-    text: [queryText],
-  });
+  const vectorizeFilter = await buildVectorizeFilter(env, filters);
+  if (vectorizeFilter === null) return [];
 
-  if (!('data' in embeddingResult) || !embeddingResult.data) return [];
-  if (!embeddingResult.data[0]) return [];
-  const queryVector = embeddingResult.data[0];
+  const queryVector = await embedQuery(env, queryText);
+  if (queryVector.length === 0) return [];
 
   const matches = await env.VECTORIZE.query(queryVector, {
     topK,
     returnMetadata: 'all',
+    ...(vectorizeFilter ? { filter: vectorizeFilter } : {}),
   });
 
   if (!matches.matches || matches.matches.length === 0) return [];
@@ -122,6 +125,56 @@ async function doVectorSearch(
   candidates.forEach((c, i) => { c.rank = i + 1; });
 
   return candidates;
+}
+
+async function embedQuery(env: Env, queryText: string): Promise<number[]> {
+  const key = queryText.trim().toLowerCase().replace(/\s+/g, ' ');
+  const now = Date.now();
+  const cached = embeddingCache.get(key);
+  if (cached && cached.expiresAt > now) return cached.vector;
+  if (cached) embeddingCache.delete(key);
+
+  const embeddingResult = await env.AI.run('@cf/baai/bge-base-en-v1.5', {
+    text: [queryText],
+  });
+  if (!('data' in embeddingResult) || !embeddingResult.data?.[0]) return [];
+  const vector = embeddingResult.data[0];
+  if (embeddingCache.size >= EMBEDDING_CACHE_MAX) {
+    const oldest = embeddingCache.keys().next().value;
+    if (oldest) embeddingCache.delete(oldest);
+  }
+  embeddingCache.set(key, { vector, expiresAt: now + EMBEDDING_CACHE_TTL_MS });
+  return vector;
+}
+
+async function buildVectorizeFilter(env: Env, filters: SearchFilters): Promise<VectorizeVectorMetadataFilter | null | undefined> {
+  const filter: VectorizeVectorMetadataFilter = {};
+  const publishedAt: Record<string, string> = {};
+
+  if (filters.year) {
+    publishedAt.$gte = `${filters.year}-01-01`;
+    publishedAt.$lt = `${filters.year + 1}-01-01`;
+  }
+  if (filters.after) {
+    if (!publishedAt.$gte || filters.after >= publishedAt.$gte) {
+      delete publishedAt.$gte;
+      publishedAt.$gt = filters.after;
+    }
+  }
+  if (filters.before) {
+    if (!publishedAt.$lt || filters.before <= publishedAt.$lt) publishedAt.$lt = filters.before;
+  }
+  if (Object.keys(publishedAt).length > 0) filter.published_at = publishedAt;
+
+  if (filters.section) filter.section_label_public = filters.section;
+
+  if (filters.topic) {
+    const topicIssueIds = await getIssueIdsByTopic(env.DB, filters.topic);
+    if (topicIssueIds.length === 0) return null;
+    filter.issue_id = { $in: topicIssueIds };
+  }
+
+  return Object.keys(filter).length > 0 ? filter : undefined;
 }
 
 async function fetchIssues(db: D1Database, ids: string[]): Promise<IssueRow[]> {
