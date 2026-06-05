@@ -1,5 +1,6 @@
 import type { Env } from '../env';
 import type { IssueChunkRow } from '../db/types';
+import { toDisplaySection } from './sections';
 
 const BATCH_SIZE = 100; // Workers AI embedding batch limit
 
@@ -59,8 +60,10 @@ export async function upsertVectors(
         issue_id: issueMeta.issue_id,
         issue_number: issueMeta.issue_number ?? 0,
         published_at: issueMeta.published_at || '',
+        year: issueMeta.published_at ? Number(issueMeta.published_at.slice(0, 4)) : 0,
         title: issueMeta.title,
         section_label: e.chunk.section_label || '',
+        section_label_public: toDisplaySection(e.chunk.section_label),
         chunk_text: truncateForMetadata(e.chunk.chunk_text),
       },
     }));

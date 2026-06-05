@@ -4,4 +4,5 @@
 export type Env = globalThis.Env & {
   ADMIN_TOKEN: string;
   ENRICHMENT_QUEUE: Queue;
+  SEARCH_RATE_LIMITER?: RateLimit;
 };

@@ -187,6 +187,19 @@ before tests. If this regresses, restore that workflow step. The gold topic test
 
 Do not move more work back into `waitUntil()` or a monolithic route. Split the work into queue jobs or precompute offline. `waitUntil()` is not durable execution; it still has Worker CPU limits.
 
+## Public search cost controls
+
+Text searches call Workers AI for an embedding and Vectorize for semantic candidates. Production binds `SEARCH_RATE_LIMITER` in `wrangler.jsonc` so repeated public semantic searches are limited before metered work runs; filter-only and direct issue lookup routes do not invoke the limiter.
+
+Operational checks:
+
+```bash
+npm audit --omit=dev --audit-level=moderate
+npm run vectorize:metadata-indexes
+```
+
+Create Cloudflare dashboard alerts for Workers AI and Vectorize usage spikes above normal weekly traffic. The rate limiter is a guardrail, not a budget alert: keep dashboard alerting enabled before campaigns or public launches.
+
 ## Security
 
 Rotate `ADMIN_TOKEN` after exposure:

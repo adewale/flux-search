@@ -119,6 +119,14 @@ export async function failPipelineJob(db: D1Database, jobId: string, error: unkn
   `).bind(now, now, now, String(error), String(error), jobId).run());
 }
 
+export async function failPipelineRunIfPresent(db: D1Database, runId: string, error: unknown, now = new Date().toISOString()): Promise<void> {
+  await retryD1Write(() => db.prepare(`
+    UPDATE pipeline_runs
+    SET completed_at = COALESCE(completed_at, ?), status = 'failed', notes = ?
+    WHERE id = ? AND status != 'completed'
+  `).bind(now, String(error), runId).run());
+}
+
 export async function deferPipelineJob(db: D1Database, jobId: string, error: unknown): Promise<void> {
   const now = new Date();
   const nextAttemptAt = new Date(now.getTime() + 60_000).toISOString();

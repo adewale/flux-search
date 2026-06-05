@@ -2,6 +2,9 @@
   "name": "flux-search",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
@@ -12,9 +15,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "corpus:fetch": "bash scripts/fetch-corpus.sh",
-    "corpus:process": "npx tsx scripts/process-corpus.ts",
-    "corpus:validate": "npx tsx scripts/validate-corpus.ts",
+    "corpus:process": "tsx scripts/process-corpus.ts",
+    "corpus:validate": "tsx scripts/validate-corpus.ts",
     "corpus:pipeline": "npm run corpus:fetch && npm run corpus:process && npm run corpus:validate",
+    "vectorize:metadata-indexes": "bash scripts/ensure-vectorize-metadata-indexes.sh",
     "metrics:topic-queue": "node scripts/topic-queue-metrics.mjs",
     "smoke:queue-metrics": "node scripts/topic-queue-metrics.mjs",
     "smoke:operator-routes": "node scripts/smoke-operator-routes.mjs",
@@ -30,7 +34,7 @@
   },
   "dependencies": {
     "@ade_oshineye/yaket": "0.5.3",
-    "hono": "^4.7.0"
+    "hono": "^4.12.23"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
@@ -38,6 +42,7 @@
     "fast-check": "^4.6.0",
     "nodewordfreq": "^0.2.1",
     "playwright": "^1.59.1",
+    "tsx": "^4.22.4",
     "typescript": "^5.8.0",
     "vitest": "^4.1.2",
     "wrangler": "^4.10.0"

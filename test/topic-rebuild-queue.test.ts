@@ -25,14 +25,16 @@ describe('queue-backed topic rebuild', () => {
     } as any;
 
     const queued = await enqueueTopicRebuild(env, 'run-q', ['i1', 'i2', 'i3'], 2);
-    expect(queued).toEqual({ extractJobs: 2, finalizeJobs: 1 });
+    expect(queued).toEqual({ extractJobs: 2, finalizeJobs: 0 });
+    expect(sent.some(m => 'kind' in m && m.kind === 'topic-finalize-rebuild')).toBe(false);
+
+    const extracts = sent.filter(m => 'kind' in m && m.kind === 'topic-extract-batch');
+    await handleEnrichmentMessage(extracts[0], env);
+    expect(sent.some(m => 'kind' in m && m.kind === 'topic-finalize-rebuild')).toBe(false);
+    await handleEnrichmentMessage(extracts[1], env);
 
     const finalize = sent.find(m => 'kind' in m && m.kind === 'topic-finalize-rebuild')!;
-    await expect(handleEnrichmentMessage(finalize, env)).rejects.toThrow(/waiting/);
-
-    for (const message of sent.filter(m => 'kind' in m && m.kind === 'topic-extract-batch')) {
-      await handleEnrichmentMessage(message, env);
-    }
+    expect(finalize).toBeDefined();
     await handleEnrichmentMessage(finalize, env, 2);
 
     const run = await db.prepare('SELECT status FROM pipeline_runs WHERE id = ?').bind('run-q').first<{ status: string }>();

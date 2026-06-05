@@ -29,7 +29,7 @@ Section types: `lead_essay`, `signposts`, `lens`, `book`, `postcard`, `worth_you
 
 ## Quick start
 
-> Requires Node.js 18+, a Cloudflare account, and `npm install -g wrangler`
+> Requires Node.js 22+, a Cloudflare account, and `npm install -g wrangler`
 
 ```bash
 git clone https://github.com/adewale/flux-search.git
@@ -42,7 +42,10 @@ Create a D1 database and Vectorize index, then update `wrangler.jsonc` with your
 ```bash
 wrangler d1 create flux-search-db
 wrangler vectorize create flux-search-chunks --dimensions 768 --metric cosine
+npm run vectorize:metadata-indexes
 ```
+
+The metadata-index step enables pre-topK Vectorize filtering for date, section, and topic-constrained semantic searches.
 
 Run migrations and start the dev server:
 

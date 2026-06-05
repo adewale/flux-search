@@ -158,9 +158,15 @@ searchRoutes.get('/search', async (c) => {
     });
   }
 
-  // Run lexical and semantic search in parallel
+  // Run lexical and semantic search in parallel. Semantic search invokes
+  // metered Workers AI + Vectorize, so protect public text searches with a
+  // Rate Limiting binding when deployed. Local/tests without the binding
+  // keep the same behavior.
   const ftsQuery = buildFtsQuery(parsed);
   const semanticQuery = [parsed.freeText, ...parsed.phrases].filter(Boolean).join(' ');
+  if (semanticQuery && !(await allowSemanticSearch(c.env, c.req.raw))) {
+    return c.json({ error: 'rate_limited' }, 429);
+  }
 
   // Pre-compute topic-boost candidates: extract topic-shaped strings from
   // the query (free text, phrases, topic operator) and look up which
@@ -248,6 +254,15 @@ searchRoutes.get('/autocomplete', async (c) => {
     suggestions: words.map(w => ({ type: 'word', value: w })),
   });
 });
+
+async function allowSemanticSearch(env: Env, request: Request): Promise<boolean> {
+  if (!env.SEARCH_RATE_LIMITER) return true;
+  const ip = request.headers.get('cf-connecting-ip')
+    ?? request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    ?? 'anonymous';
+  const outcome = await env.SEARCH_RATE_LIMITER.limit({ key: ip });
+  return outcome.success;
+}
 
 /** Strip FTS5 special characters that would be interpreted as syntax. */
 function sanitizeFtsInput(text: string): string {
