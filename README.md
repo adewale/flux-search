@@ -24,8 +24,9 @@ Search every issue of [The FLUX Review](https://read.fluxcollective.org) newslet
 | `year:` | `year:2023` | Issues from a specific year |
 | `issue:` | `issue:198` | Jump to a specific issue |
 | `section:` | `section:lead_essay` | Filter by section type |
+| `topic:` | `topic:"institutional trust"` | Filter to issues tagged with an extracted topic |
 
-Section types: `lead_essay`, `signposts`, `lens`, `book`, `postcard`, `worth_your_time`, `fluxers`.
+Section types: `lead_essay`, `signposts`, `lens`, `book`, `postcard`, `worth_your_time`, `fluxers`, `other`.
 
 ## Quick start
 

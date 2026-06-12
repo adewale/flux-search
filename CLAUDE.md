@@ -91,6 +91,9 @@ curl -X POST .../admin/reindex -H "Authorization: Bearer $ADMIN_TOKEN"
 
 # Update visual regression baselines after UI changes:
 npx playwright test e2e/visual-regression.spec.ts --update-snapshots
+
+# e2e tests hit the deployed Worker by default; to test local changes:
+PLAYWRIGHT_BASE_URL=http://localhost:8787 npx playwright test
 ```
 
 ## Design principles
@@ -118,8 +121,10 @@ npx playwright test e2e/visual-regression.spec.ts --update-snapshots
 CSS custom properties cannot be referenced from `@media` queries, so the breakpoint scale is documented in `:root` as a comment and the values are repeated in each query. Three breakpoints, no more:
 
 - `(max-width: 640px) and (orientation: portrait)` — handheld portrait.
-- `(min-width: 900px)` — tablet+. The issue page swaps from inline `<details>` to a sticky side panel here.
+- `(min-width: 900px)` — tablet+. The issue page swaps from inline `<details>` to a sticky side panel here. Its exclusive complement `(max-width: 899px)` counts as the same breakpoint.
 - `(max-width: 920px) and (orientation: landscape)` — handheld landscape.
+
+Capability queries (`prefers-reduced-motion`, `hover/pointer`) are orthogonal to the layout scale and allowed. The full allowlist — and the token rules above — are pinned by `test/css-tokens.test.ts`.
 
 ## Where to find things
 
