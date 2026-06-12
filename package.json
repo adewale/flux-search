@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "@ade_oshineye/yaket": "0.5.3",
-    "hono": "^4.12.23"
+    "hono": "^4.12.25"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
