@@ -4,19 +4,9 @@
  * `density.js` (geometry math) elsewhere in the app.
  *
  * The renderers escape user-controlled strings; callers must NOT pre-escape.
- * Consistent with `escapeHtml` in lib/utils.js — duplicated here to keep
- * this module dependency-free for ease of testing.
  */
 
-function escapeHtml(s) {
-  if (s == null) return '';
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+import { escapeHtml } from './utils.js';
 
 /**
  * Render a horizontal row of chip-shaped links for an issue's topics.
