@@ -216,3 +216,70 @@ function makeRankedResult(opts: { section?: string }) {
     },
   };
 }
+
+// ========================
+// 5. Lead essay uniqueness
+// ========================
+// The module contract (sections.ts docstring, CLAUDE.md): "The lead essay is
+// always the FIRST ## heading that doesn't match a known recurring section
+// pattern." Headings after it that match nothing are one-off sections, not
+// additional lead essays — they must classify as 'other'.
+describe('lead essay heading uniqueness', () => {
+  it('classifies only the first unknown heading as lead_essay', () => {
+    const md = [
+      '## The map is not the territory', // unknown → lead essay
+      '',
+      'Lead essay body text.',
+      '',
+      '## 🛣️🚩 Signposts',
+      '',
+      'A signpost item.',
+      '',
+      '## A one-off mid-issue heading', // unknown, but lead essay already found
+      '',
+      'One-off body.',
+    ].join('\n');
+
+    const types = parseSections(md).map(s => s.type);
+    expect(types).toEqual(['lead_essay', 'signposts', 'other']);
+  });
+
+  it('still classifies recurring sections after a one-off heading', () => {
+    const md = [
+      '## Opening thesis',
+      '',
+      'Body.',
+      '',
+      '## Interlude', // one-off
+      '',
+      'Interlude body.',
+      '',
+      '## 📖 A book for your shelf',
+      '',
+      'Book blurb.',
+    ].join('\n');
+
+    const sections = parseSections(md);
+    expect(sections.map(s => s.type)).toEqual(['lead_essay', 'other', 'book']);
+    expect(sections[1].title).toBe('Interlude');
+  });
+
+  it('PBT: at most one heading-derived section is the lead essay', () => {
+    // Titles from a constrained alphabet so they can never match a known
+    // recurring-section pattern (those all require alphabetic keywords).
+    const unknownTitle = fc.stringMatching(/^[0-9x]{1,12}$/);
+    fc.assert(
+      fc.property(
+        fc.array(unknownTitle, { minLength: 2, maxLength: 6 }),
+        (titles) => {
+          const md = titles.map(t => `## ${t}\n\nBody for ${t}.`).join('\n\n');
+          const types = parseSections(md).map(s => s.type);
+          expect(types[0]).toBe('lead_essay');
+          expect(types.filter(t => t === 'lead_essay')).toHaveLength(1);
+          expect(types.slice(1).every(t => t === 'other')).toBe(true);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});
