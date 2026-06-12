@@ -187,6 +187,10 @@ export async function searchFilterOnly(
     sql += ' AND year = ?';
     params.push(filters.year);
   }
+  if (filters.issueNumber) {
+    sql += ' AND issue_number = ?';
+    params.push(filters.issueNumber);
+  }
   if (filters.topic) {
     sql += ' AND EXISTS (SELECT 1 FROM issue_topics WHERE issue_topics.issue_id = issues.id AND issue_topics.keyword = ?)';
     params.push(filters.topic);

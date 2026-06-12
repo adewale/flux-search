@@ -138,6 +138,46 @@ function wrap(sqlite: DatabaseSync): D1Like {
   };
 }
 
+/**
+ * Create the FTS5 index + sync triggers (mirrors migration 0004, the
+ * canonical FTS schema). Opt-in because most tests don't search; call it
+ * BEFORE seeding issues so the insert triggers populate the index.
+ */
+export function enableFts(db: D1Like): void {
+  db._sqlite.exec(`
+CREATE VIRTUAL TABLE IF NOT EXISTS issues_fts USING fts5(
+  title,
+  subtitle,
+  headings,
+  summary,
+  full_text_plain,
+  contributors,
+  content='issues',
+  content_rowid='rowid',
+  tokenize='porter unicode61'
+);
+
+CREATE TRIGGER IF NOT EXISTS issues_ai AFTER INSERT ON issues BEGIN
+  INSERT INTO issues_fts(rowid, title, subtitle, headings, summary, full_text_plain, contributors)
+  VALUES (new.rowid, new.title, new.subtitle, new.headings, new.summary, new.full_text_plain, new.contributors);
+END;
+
+CREATE TRIGGER IF NOT EXISTS issues_ad AFTER DELETE ON issues BEGIN
+  INSERT INTO issues_fts(issues_fts, rowid, title, subtitle, headings, summary, full_text_plain, contributors)
+  VALUES ('delete', old.rowid, old.title, old.subtitle, old.headings, old.summary, old.full_text_plain, old.contributors);
+END;
+
+CREATE TRIGGER IF NOT EXISTS issues_au AFTER UPDATE ON issues BEGIN
+  INSERT INTO issues_fts(issues_fts, rowid, title, subtitle, headings, summary, full_text_plain, contributors)
+  VALUES ('delete', old.rowid, old.title, old.subtitle, old.headings, old.summary, old.full_text_plain, old.contributors);
+  INSERT INTO issues_fts(rowid, title, subtitle, headings, summary, full_text_plain, contributors)
+  VALUES (new.rowid, new.title, new.subtitle, new.headings, new.summary, new.full_text_plain, new.contributors);
+END;
+
+CREATE VIRTUAL TABLE IF NOT EXISTS issues_fts_vocab USING fts5vocab(issues_fts, instance);
+`);
+}
+
 export async function seedIssue(db: D1Like, overrides: Record<string, unknown> = {}): Promise<string> {
   const id = overrides.id as string ?? crypto.randomUUID();
   const row = {
