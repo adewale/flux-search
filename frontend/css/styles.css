@@ -77,7 +77,6 @@
   --accent-hover: #b45309;
   --tag-bg: #f5f5f4;
   --highlight: #fef08a;
-  --shadow: rgba(28, 25, 23, 0.08);
   --radius-sm: 3px;
   --radius: 6px;
   --radius-pill: 999px;        /* chip primitive — distinct from corner radii */
@@ -429,7 +428,7 @@ body {
   font-size: var(--size-sm);
   font-weight: 600;
   border: 1px solid var(--border);
-  border-radius: 50%;
+  border-radius: var(--radius-pill); /* equal width/height — renders as a circle */
   color: var(--text-tertiary);
   cursor: pointer;
   user-select: none;
@@ -544,20 +543,13 @@ body {
   background: var(--tag-bg);
 }
 
-/* Filter chips */
+/* Filter chips — container only; the chips inside are the shared .chip
+ * primitive defined in the topics block below. */
 .filter-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.375rem;
   margin-bottom: 0.75rem;
-}
-
-.chip {
-  font-size: var(--size-sm);
-  color: var(--text-secondary);
-  background: var(--tag-bg);
-  padding: 0.125rem 0.5rem;
-  border-radius: var(--radius-sm);
 }
 
 /* Results meta */
@@ -861,7 +853,7 @@ body {
   background: var(--highlight);
   color: var(--text);
   padding: 0.05em 0.15em;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
 }
 
 /*
@@ -1361,7 +1353,7 @@ body {
   left: 0.25rem;
   right: 0.25rem;
   height: 2px;
-  border-radius: 1px;
+  border-radius: var(--radius-sm); /* clamps to half the 2px height */
   background: var(--accent);
   transform: scaleX(0);
   transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
@@ -1464,7 +1456,7 @@ body {
   height: 20px;
   border: 2px solid var(--border);
   border-top-color: var(--text-secondary);
-  border-radius: 50%;
+  border-radius: var(--radius-pill); /* equal width/height — renders as a circle */
   animation: spin 0.6s linear infinite;
 }
 
