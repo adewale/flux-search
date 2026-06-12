@@ -36,8 +36,11 @@ export function normalizePage(page: CrawlPageResult, crawlRunId: string): Normal
   // Summary: prefer lead essay first paragraph over generic extraction
   const summary = leadEssaySummary || extractSummary(cleanMarkdown);
 
-  const year = publishedAt ? new Date(publishedAt).getFullYear() : null;
-  const month = publishedAt ? new Date(publishedAt).getMonth() + 1 : null;
+  // published_at is always YYYY-MM-DD; derive year/month from the string.
+  // Date getters read the process timezone, which shifts boundary dates by
+  // a day when the corpus is processed west of UTC.
+  const year = publishedAt ? parseInt(publishedAt.slice(0, 4), 10) : null;
+  const month = publishedAt ? parseInt(publishedAt.slice(5, 7), 10) : null;
   const wordCount = plainText.split(/\s+/).filter(Boolean).length;
 
   return {

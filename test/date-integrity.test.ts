@@ -117,3 +117,54 @@ describe('date range constraints', () => {
     );
   });
 });
+
+// ========================
+// Timezone-independent derived fields
+// ========================
+// year/month must be derived from the published_at STRING, not from local
+// Date getters: `new Date('2024-01-01')` parses as UTC midnight, and
+// `.getFullYear()` reads it in the process timezone. West of UTC that's
+// 2023-12-31 — so corpus processing on a developer machine could shift
+// year/month at boundaries. (Run with TZ=America/New_York to reproduce
+// against the old implementation; these must pass in ANY timezone.)
+describe('derived year/month match published_at in any timezone', () => {
+  it('keeps year/month on the UTC date at the year boundary', () => {
+    const result = normalizePage(makePage(
+      '# Title\n\nContent. ' + 'More. '.repeat(30),
+      { 'article:published_time': '2024-01-01T00:00:00Z' }
+    ), 'run-1');
+    expect(result.issue.published_at).toBe('2024-01-01');
+    expect(result.issue.year).toBe(2024);
+    expect(result.issue.month).toBe(1);
+  });
+
+  it('keeps year/month on the UTC date at a month boundary', () => {
+    const result = normalizePage(makePage(
+      '# Title\n\nContent. ' + 'More. '.repeat(30),
+      { 'article:published_time': '2023-06-01T00:00:00Z' }
+    ), 'run-1');
+    expect(result.issue.year).toBe(2023);
+    expect(result.issue.month).toBe(6);
+  });
+
+  it('PBT: year and month always equal the published_at string components', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 2021, max: 2026 }),
+        fc.integer({ min: 1, max: 12 }),
+        fc.integer({ min: 1, max: 28 }),
+        (y, m, d) => {
+          const iso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const result = normalizePage(makePage(
+            '# Title\n\nContent. ' + 'More. '.repeat(30),
+            { 'article:published_time': `${iso}T00:00:00Z` }
+          ), 'run-1');
+          expect(result.issue.published_at).toBe(iso);
+          expect(result.issue.year).toBe(y);
+          expect(result.issue.month).toBe(m);
+        }
+      ),
+      { numRuns: 150 }
+    );
+  });
+});
