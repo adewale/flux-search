@@ -68,6 +68,13 @@ export function parseSections(markdown: string): ParsedSection[] {
   let currentBody: string[] = [];
   let preHeadingBody: string[] = [];
   let foundFirstSection = false;
+  let leadEssayTaken = false;
+
+  const flush = () => {
+    const section = makeSection(currentTitle, currentBody.join('\n').trim(), !leadEssayTaken);
+    if (section.type === 'lead_essay') leadEssayTaken = true;
+    sections.push(section);
+  };
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -75,7 +82,7 @@ export function parseSections(markdown: string): ParsedSection[] {
     if (trimmed.startsWith('## ')) {
       // Flush previous section
       if (foundFirstSection) {
-        sections.push(makeSection(currentTitle, currentBody.join('\n').trim()));
+        flush();
       }
 
       // Start new section
@@ -92,7 +99,7 @@ export function parseSections(markdown: string): ParsedSection[] {
 
   // Flush last section
   if (foundFirstSection) {
-    sections.push(makeSection(currentTitle, currentBody.join('\n').trim()));
+    flush();
   }
 
   // If there's substantial text before the first heading, treat it as the lead essay.
@@ -110,7 +117,7 @@ export function parseSections(markdown: string): ParsedSection[] {
   return sections;
 }
 
-function makeSection(rawTitle: string, body: string): ParsedSection {
+function makeSection(rawTitle: string, body: string, allowLeadEssay: boolean): ParsedSection {
   const cleanTitle = stripEmoji(rawTitle);
 
   // Check if this is a known recurring section
@@ -120,6 +127,7 @@ function makeSection(rawTitle: string, body: string): ParsedSection {
     }
   }
 
-  // First unknown section is the lead essay
-  return { type: 'lead_essay', title: cleanTitle, body };
+  // Only the FIRST unknown section is the lead essay; later one-off
+  // headings are 'other', not additional lead essays.
+  return { type: allowLeadEssay ? 'lead_essay' : 'other', title: cleanTitle, body };
 }

@@ -63,13 +63,20 @@
 
   <script type="module" src="/js/issue-page.js"></script>
   <script type="module">
-    // Load marked from CDN asynchronously — page renders immediately with
-    // the built-in markdown fallback in issue-page.js. If marked arrives
-    // later it will be used for subsequent section tab clicks.
-    import('https://cdn.jsdelivr.net/npm/marked@18/lib/marked.esm.js')
-      .then(function (mod) {
-        window.marked = mod.marked;
-        mod.marked.setOptions({ breaks: false, gfm: true, silent: true });
+    // Load marked + DOMPurify from CDN asynchronously — the page renders
+    // immediately with the built-in escaping fallback in issue-page.js.
+    // Both must arrive before marked is used: marked passes raw HTML through,
+    // so its output is only safe once DOMPurify can sanitize it. DOMPurify is
+    // assigned first so the renderer's marked-&&-DOMPurify guard never sees
+    // marked alone.
+    Promise.all([
+      import('https://cdn.jsdelivr.net/npm/marked@18/lib/marked.esm.js'),
+      import('https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.es.mjs'),
+    ])
+      .then(function (mods) {
+        mods[0].marked.setOptions({ breaks: false, gfm: true, silent: true });
+        window.DOMPurify = mods[1].default;
+        window.marked = mods[0].marked;
       })
       .catch(function () { /* degrade gracefully — built-in fallback handles it */ });
   </script>

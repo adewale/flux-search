@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { extractTopicsMulti } from '../src/lib/topic-multi-extract';
 import { buildPhraseLexicon } from '../src/lib/pmi-lexicon';
+import { loadCorpusIssuesByNumber } from './corpus-helpers';
 
 const GOLD: Array<{ issue: number; expected: string[] }> = [
   { issue: 214, expected: ['zugzwang', 'saddle point', 'systems thinking', 'crypto', 'charlie warzel'] },
@@ -32,15 +33,6 @@ const GOLD: Array<{ issue: number; expected: string[] }> = [
   { issue: 202, expected: ['large language models', 'internet archive', 'wayback machine', 'eating the economy', 'paul kedrosky'] },
 ];
 
-function loadIssues(): Map<number, any> {
-  const byNumber = new Map<number, any>();
-  for (const f of readdirSync('data/processed').filter(f => f.endsWith('.json'))) {
-    const issue = JSON.parse(readFileSync(join('data/processed', f), 'utf8'));
-    byNumber.set(issue.issue_number, issue);
-  }
-  return byNumber;
-}
-
 function migrationBlocklist(): Set<string> {
   const out = new Set<string>();
   for (const f of readdirSync('migrations').filter(f => /topic.*blocklist|fragment|phrase/.test(f))) {
@@ -51,7 +43,7 @@ function migrationBlocklist(): Set<string> {
 }
 
 describe('representative issue topic gold set', () => {
-  const byNumber = loadIssues();
+  const byNumber = loadCorpusIssuesByNumber();
   const phraseLexicon = buildPhraseLexicon([...byNumber.values()].map(i => i.full_text_plain ?? ''));
   const blocklist = migrationBlocklist();
 

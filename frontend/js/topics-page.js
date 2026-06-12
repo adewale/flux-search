@@ -4,18 +4,8 @@
 //   /topics            → index of all corpus topics
 //   /topics/<keyword>  → detail page for that keyword
 import { topicsIndexHtml } from './lib/topic-render.js';
-import { formatDate } from './lib/utils.js';
+import { escapeHtml, formatDate } from './lib/utils.js';
 import { topicSparklineSvg } from './lib/topic-sparkline.js';
-
-function escapeHtml(s) {
-  if (s == null) return '';
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 
 var pathMatch = window.location.pathname.match(/^\/topics(?:\/(.+))?$/);
 if (pathMatch && pathMatch[1]) {

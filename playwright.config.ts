@@ -4,7 +4,10 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 30000,
   use: {
-    baseURL: 'https://flux-search.adewale-883.workers.dev',
+    // Defaults to the deployed Worker; point PLAYWRIGHT_BASE_URL at a local
+    // `npm run dev` server (http://localhost:8787) to e2e-test unreleased
+    // changes instead of production.
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://flux-search.adewale-883.workers.dev',
     screenshot: 'on',
     viewport: { width: 1280, height: 800 },
   },

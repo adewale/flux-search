@@ -1,9 +1,16 @@
 // Shared utilities — the "atoms" that patterns compose from
 
+// Pure string escaping — no DOM dependency, so it runs in unit tests and
+// can be shared by every module. Escapes quotes too (the old DOM-based
+// version didn't), making it safe for attribute contexts.
 export function escapeHtml(str) {
-  var div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // Escape HTML but preserve <mark>...</mark> tags from FTS highlighting
@@ -45,7 +52,15 @@ export function markdownToHtml(md) {
   html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  // Links: only http(s), site-relative, and fragment targets become anchors.
+  // Anything else (javascript:, data:, ...) renders as plain text — issue
+  // bodies are crawled third-party content.
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function (_m, text, url) {
+    if (/^(https?:\/\/|\/|#)/i.test(url)) {
+      return '<a href="' + url + '" target="_blank" rel="noopener">' + text + '</a>';
+    }
+    return text;
+  });
   html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
   html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
   html = html.replace(/\n\n/g, '</p><p>');
@@ -56,4 +71,16 @@ export function markdownToHtml(md) {
   html = html.replace(/<p>(<blockquote>)/g, '$1');
   html = html.replace(/(<\/blockquote>)<\/p>/g, '$1');
   return html;
+}
+
+// Issue-page section content. The title is stored newsletter content, so it
+// is escaped; the body goes through the caller's markdown renderer (the
+// issue page passes its sanitizing renderer) or the built-in escaping
+// converter above.
+export function renderSectionHtml(section, markdownRenderer) {
+  var render = markdownRenderer || markdownToHtml;
+  var heading = section.title
+    ? '<h2 class="section-heading">' + escapeHtml(section.title) + '</h2>'
+    : '';
+  return heading + '<div class="section-body">' + render(section.body || '') + '</div>';
 }

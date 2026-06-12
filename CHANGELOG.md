@@ -1,5 +1,53 @@
 # Changelog
 
+## 2026-06-12
+
+### Added
+
+- Added `test/response-contract.test.ts`: route-level contract tests (real SQLite + FTS5 via `node:sqlite`) pinning the 7 top-level response fields, the 10 result fields, and the `parsed_query` shape across all three search paths.
+- Added `test/corpus-helpers.ts`: tests process `data/raw/` through the production crawl + normalize pipeline instead of reading the generated `data/processed/` directory — `npm test` now passes on a fresh clone (the issue-topic gold suite previously failed to collect without `npm run corpus:process`).
+- Added `test/frontend-utils.test.ts` and `test/css-tokens.test.ts`: unit + property-based coverage for the shared frontend string utilities, plus source-level contracts for the design-token rules in CLAUDE.md (single `.chip` definition, radius/tracking tokens, breakpoint allowlist, no unused tokens).
+- Added timezone-independence tests for derived `year`/`month` (reproduce with `TZ=America/New_York`).
+- Added `PLAYWRIGHT_BASE_URL` override so e2e tests can target a local dev server instead of production.
+
+### Changed
+
+- `issue:N` combined with other operators (e.g. `issue:5 section:lens`) now routes through the filter path so every operator listed in `applied_filters` is actually applied; `issue:N` alone still short-circuits with high confidence.
+- `parsed_query` now has the same `{free_text, phrases, filters}` shape on every search path (the issue-lookup path previously leaked the internal camelCase `ParsedQuery`).
+- `parseSections` classifies only the FIRST unknown `##` heading as `lead_essay`; later one-off headings become `other` (matches the documented contract).
+- `escapeHtml` in `frontend/js/lib/utils.js` is now a pure string function (no DOM), escapes quotes, and is the single shared implementation — local copies in `topic-render.js` and `topics-page.js` removed; `scripts/process-corpus.ts` now imports the HTML→markdown converter from `crawl-client` instead of carrying a diverged copy.
+- Issue page now escapes section titles, gates CDN `marked` rendering behind DOMPurify sanitization, and the built-in markdown converter only links http(s)/relative/fragment URLs.
+- Normalizer derives `year`/`month` from the `published_at` string instead of local-timezone Date getters.
+- CSS: removed the dead duplicate `.chip` rule, replaced raw `border-radius` values with tokens, removed the unused `--shadow` token.
+
+### Fixed
+
+- Documentation drift found by a codebase audit: result objects have 10 fields (including `topics`); the boost table now lists the topic-match boost (+1.5); the rate-limiter binding, `topic:` operator, `other` section type, all five state-machine states, and the `/latest-issue`, `/random-quote`, `/issues/issue/:number/sections` routes are documented; CHANGELOG entries backfilled below.
+
+### Verified
+
+- `npm test` → 962 passing tests (89 files, 0 skipped) on a fresh clone.
+- `npm run typecheck` → passed.
+
+## 2026-06-05
+
+### Added
+
+- Added a Workers Rate Limiting binding (`SEARCH_RATE_LIMITER`, 60/min per IP) guarding metered semantic text searches; over-limit requests get `429 {"error":"rate_limited"}`.
+- Added Vectorize metadata-index bootstrap script (`npm run vectorize:metadata-indexes`) enabling pre-topK filtering for date/section/topic-constrained semantic queries.
+- Added Dependabot config and `npm audit` to CI.
+
+### Changed
+
+- Hardened the topic rebuild queue: enrichment consumer claims, retries, and defers jobs more conservatively; vector search applies metadata filters server-side.
+
+## 2026-05-01
+
+### Changed
+
+- CI generates the processed corpus (`npm run corpus:process`) before running tests.
+- Updated topic system docs, internal consistency audit, topic rebuild lessons, and added canonical topic pipeline docs (2026-05-02).
+
 ## 2026-04-30
 
 ### Added
@@ -48,7 +96,7 @@
 - Remote D1 migration `0013_topic_quality_blocklist.sql` applied.
 - Deployed Worker version `938620da-474a-4a5f-a12e-2998889bd8d6`.
 
----
+## 2026-04-29 (earlier)
 
 ### Added
 

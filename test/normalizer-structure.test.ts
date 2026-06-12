@@ -176,8 +176,17 @@ describe('structure extraction properties', () => {
           expect(result.issue.opening_quote).not.toMatch(/^"/);
         }
       }),
-      { numRuns: 50 }
+      { numRuns: 200 }
     );
+  });
+
+  it('regression: quote-space-quote prefix is fully stripped (CI seed 1554332273)', () => {
+    // fast-check counterexample ` "   # ` builds the line `> " "   # "` —
+    // the old leading-strip regex stopped at the interior space and left a
+    // quote-prefixed result ('"   #').
+    const body = '> " "   # "\n\n## Topic\n\nContent. ' + 'More. '.repeat(50);
+    const result = normalizePage(makePage(body), 'run-1');
+    expect(result.issue.opening_quote).toBe('#');
   });
 
   it('title never contains "by The FLUX Collective"', () => {

@@ -18,10 +18,12 @@ Flux Search is a Cloudflare Workers application that provides hybrid lexical + s
                     └─────────────────────────────────┘
 ```
 
-Three Cloudflare bindings:
+Five Cloudflare bindings (plus static assets):
 - **D1** — SQLite database with FTS5 for lexical search and issue storage
 - **Vectorize** — 768-dimensional vector index for semantic search (one vector per chunk, typically 30-35 chunks per issue)
 - **Workers AI** — `@cf/baai/bge-base-en-v1.5` for embedding generation
+- **Queues** — `ENRICHMENT_QUEUE` for bounded topic-rebuild jobs
+- **Rate Limiting** — `SEARCH_RATE_LIMITER` guards metered semantic searches (60/min per IP; over-limit text searches get `429 {"error":"rate_limited"}`)
 
 No R2, no Browser Rendering, no KV. The architecture was simplified from the original spec after discovering these services weren't needed.
 
@@ -107,9 +109,11 @@ that caused bugs when violated — this diagram documents the correct sequence.
 ```
 Query string
     │
-    ├─ issue:N only ──► getIssueByNumber ──► detect section ──► aggregates ──► respond
+    ├─ issue:N (sole filter) ──► getIssueByNumber ──► detect section ──► aggregates ──► respond
     │
     ├─ filter only ──► searchFilterOnly ──► detect sections ──► aggregates ──► paginate ──► respond
+    │     (includes issue:N combined with other operators, so every
+    │      operator listed in applied_filters is actually applied)
     │
     └─ text search ──► parse ──► FTS + Vectorize (parallel)
                                         │
@@ -144,15 +148,17 @@ aggregates undercount sections and the section filter fails on FTS results.
 
 **Response contract:** All three paths return the same 7 top-level fields
 (`parsed_query`, `applied_filters`, `total_hits`, `year_distribution`,
-`quarter_distribution`, `section_facets`, `results`) and each result has 9
-fields (`issue_id`, `title`, `issue_number`, `published_at`, `snippet`,
-`snippet_section`, `confidence`, `canonical_url`, `matched_by`).
+`quarter_distribution`, `section_facets`, `results`); `parsed_query` is
+always `{free_text, phrases, filters}`; and each result has 10 fields
+(`issue_id`, `title`, `issue_number`, `published_at`, `snippet`,
+`snippet_section`, `confidence`, `canonical_url`, `matched_by`, `topics`).
+Pinned by `test/response-contract.test.ts`.
 
 ## Module map
 
 ### Routes (`src/routes/`)
-- `search.ts` — `GET /search`, `GET /autocomplete`. Orchestrates query parsing, parallel FTS + Vectorize search, hybrid ranking, pagination.
-- `issues.ts` — `GET /issues/:id`, `GET /issues/issue/:number`. Issue detail API.
+- `search.ts` — `GET /search`, `GET /autocomplete`, `GET /latest-issue`, `GET /random-quote`. Orchestrates query parsing, parallel FTS + Vectorize search, hybrid ranking, pagination.
+- `issues.ts` — `GET /issues/:id`, `GET /issues/issue/:number`, `GET /issues/issue/:number/sections`. Issue detail API (includes `related_issues`).
 - `admin.ts` — `POST /admin/bootstrap`, `POST /admin/reindex`, queue-backed `POST /admin/rebuild-topics`, aggregate-only `POST /admin/rebuild-topic-aggregates`, pipeline inspection routes, `GET /admin/crawl-runs/:id`, `GET /admin/coverage`. Protected by bearer token auth.
 
 ### Search engine (`src/lib/`)
@@ -180,7 +186,7 @@ fields (`issue_id`, `title`, `issue_number`, `published_at`, `snippet`,
 - `js/lib/autocomplete.js` — Reusable autocomplete with ARIA support.
 - `js/lib/density.js` — Pure computation for density strip bar positions and sizes.
 - `js/lib/result-list.js` — Result rendering, density strip SVG, section facets.
-- `js/lib/search-state.js` — State machine (LANDING, FEATURED_RESULTS, RESULTS, BROWSING).
+- `js/lib/search-state.js` — State machine (LANDING_FEATURED, FEATURED_RESULTS, LANDING, RESULTS, BROWSING).
 - `js/lib/search-state.d.ts` — TypeScript declarations for the state machine.
 - `js/lib/section-labels.js` — Shared section label map.
 - `js/lib/utils.js` — Shared: escapeHtml, formatDate, cleanSnippet, markdownToHtml.
@@ -230,7 +236,8 @@ Post-fusion boosts:
 | Phrase in title | +6.0 | Quoted phrase found in title |
 | Phrase in heading | +4.0 | Quoted phrase found in subtitle or headings |
 | Phrase in body | +3.0 | Quoted phrase found in full_text_plain |
-| Title term overlap | +1.5 | ≥2 query terms appear in title |
+| Title term overlap | +1.5 | ≥2 query terms appear in title (or the sole term of a single-term query) |
+| Topic match | +1.5 | Query free text/phrase matches an extracted topic on the issue |
 | Lexical+semantic agreement | +1.25 | Same issue appears in both result sets |
 | Multiple chunks | +0.75 | ≥2 semantic chunks from same issue |
 | Semantic-only penalty | -3.5 | Result only from Vectorize when ≥3 FTS results exist |
@@ -245,12 +252,15 @@ All tuning parameters are Cloudflare Worker env vars, changeable without redeplo
 - `RRF_K` — Reciprocal rank fusion smoothing constant (default: 40)
 - `ADMIN_TOKEN` — Secret for admin endpoints
 
+Plus one binding configured in `wrangler.jsonc`:
+- `SEARCH_RATE_LIMITER` — Workers Rate Limiting binding (60 requests/min per IP) applied to text searches before they reach metered Workers AI + Vectorize. Optional: local dev and tests without the binding skip the check.
+
 ## Testing
 
 Test categories:
 - Unit tests for all pure-logic modules (query parser, chunker, normalizer, ranker, auth, crawl client, sitemap parser)
 - Property-based tests with fast-check for regex-heavy functions, mathematical invariants, and string transformations
-- Corpus validation tests: crud removal and content survival across all raw HTML files
+- Corpus validation tests: crud removal and content survival across all raw HTML files (tests process `data/raw/` through the production pipeline directly — no generated `data/processed/` prerequisite)
 - Search consistency PBT: aggregate totals must equal total_hits across all query paths
 - Integration tests against the live API: response shape, aggregate consistency, pagination stability
 - Relevance evaluation harness: hand-labeled evaluation set of {query → expected result} cases

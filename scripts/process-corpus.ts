@@ -11,6 +11,7 @@ import { join } from 'path';
 import { normalizePage, computeContentHash } from '../src/lib/normalizer';
 import { parseSections } from '../src/lib/sections';
 import { chunkIssue } from '../src/lib/chunker';
+import { htmlToSimpleMarkdown, extractMetadata } from '../src/crawler/crawl-client';
 
 const RAW_DIR = 'data/raw';
 const PROCESSED_DIR = 'data/processed';
@@ -70,62 +71,6 @@ async function main() {
 
   console.log(`\nProcessed: ${processed}, Errors: ${errors}`);
   console.log(`Output: ${PROCESSED_DIR}/`);
-}
-
-function extractMetadata(html: string): Record<string, string> {
-  const metadata: Record<string, string> = {};
-  const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  if (titleMatch) metadata.title = titleMatch[1].trim();
-
-  const metaTagRegex = /<meta\s+([^>]+?)\/?\s*>/gi;
-  let tagMatch: RegExpExecArray | null;
-  while ((tagMatch = metaTagRegex.exec(html)) !== null) {
-    const attrs = tagMatch[1];
-    const nameMatch = attrs.match(/(?:name|property)="([^"]+)"/i);
-    const contentMatch = attrs.match(/content="([^"]+)"/i);
-    if (nameMatch && contentMatch) {
-      metadata[nameMatch[1]] = contentMatch[1];
-    }
-  }
-  return metadata;
-}
-
-function htmlToSimpleMarkdown(html: string): string {
-  let text = html;
-  text = text.replace(/<head[\s\S]*?<\/head>/gi, '');
-  text = text.replace(/<script[\s\S]*?<\/script>/gi, '');
-  text = text.replace(/<style[\s\S]*?<\/style>/gi, '');
-  text = text.replace(/<nav[\s\S]*?<\/nav>/gi, '');
-  text = text.replace(/<footer[\s\S]*?<\/footer>/gi, '');
-  text = text.replace(/<header[\s\S]*?<\/header>/gi, '');
-  text = text.replace(/<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, '[$2]($1)');
-  text = text.replace(/<(?:strong|b\b)[^>]*>([\s\S]*?)<\/(?:strong|b)>/gi, '**$1**');
-  text = text.replace(/<(?:em|i\b)[^>]*>([\s\S]*?)<\/(?:em|i)>/gi, '*$1*');
-  text = text.replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, '# $1\n\n');
-  text = text.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, '## $1\n\n');
-  text = text.replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, '### $1\n\n');
-  text = text.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, '> $1\n\n');
-  text = text.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '- $1\n');
-  text = text.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, '$1\n\n');
-  text = text.replace(/<[^>]+>/g, '');
-  text = text.replace(/&nbsp;/g, ' ');
-  text = text.replace(/&mdash;/g, '\u2014');
-  text = text.replace(/&ndash;/g, '\u2013');
-  text = text.replace(/&lsquo;/g, '\u2018');
-  text = text.replace(/&rsquo;/g, '\u2019');
-  text = text.replace(/&ldquo;/g, '\u201C');
-  text = text.replace(/&rdquo;/g, '\u201D');
-  text = text.replace(/&hellip;/g, '\u2026');
-  text = text.replace(/&bull;/g, '\u2022');
-  text = text.replace(/&#(\d+);/g, (_m, code) => String.fromCharCode(parseInt(code)));
-  text = text.replace(/&#x([0-9a-fA-F]+);/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)));
-  text = text.replace(/&amp;/g, '&');
-  text = text.replace(/&lt;/g, '<');
-  text = text.replace(/&gt;/g, '>');
-  text = text.replace(/&quot;/g, '"');
-  text = text.replace(/&#039;/g, "'");
-  text = text.replace(/\n{3,}/g, '\n\n');
-  return text.trim();
 }
 
 main().catch(err => {

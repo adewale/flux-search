@@ -2,15 +2,19 @@
 // Shows one section of an issue with navigation to other sections
 // and prev/next issue links.
 
-import { formatDate, markdownToHtml } from './lib/utils.js';
+import { formatDate, markdownToHtml, renderSectionHtml } from './lib/utils.js';
 import { formatSectionLabel as formatSectionType } from './lib/section-labels.js';
 import { topicSidePanelHtml, topicMobileDetailsHtml, relatedIssuesMobileDetailsHtml } from './lib/topic-render.js';
 
 function renderMarkdown(md) {
-  // Use marked if available (loaded async from CDN), otherwise use the
-  // built-in converter which handles headings, bold, italic, links,
-  // blockquotes, and lists — good enough for graceful degradation.
-  if (window.marked) return window.marked(md);
+  // Use marked if available (loaded async from CDN) — but only when
+  // DOMPurify is too: marked passes raw HTML in the source markdown straight
+  // through, and issue bodies are crawled third-party content. Otherwise use
+  // the built-in converter, which escapes everything — good enough for
+  // graceful degradation.
+  if (window.marked && window.DOMPurify) {
+    return window.DOMPurify.sanitize(window.marked(md));
+  }
   return markdownToHtml(md);
 }
 
@@ -144,10 +148,7 @@ function renderSection(section) {
   contentEl.style.animation = 'none';
   contentEl.offsetHeight; // force reflow
   contentEl.style.animation = '';
-  var html = renderMarkdown(section.body);
-  contentEl.innerHTML =
-    (section.title ? '<h2 class="section-heading">' + section.title + '</h2>' : '') +
-    '<div class="section-body">' + html + '</div>';
+  contentEl.innerHTML = renderSectionHtml(section, renderMarkdown);
 }
 
 function showError() {

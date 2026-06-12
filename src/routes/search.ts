@@ -28,13 +28,22 @@ searchRoutes.get('/search', async (c) => {
   }
 
   const parsed = parseQuery(q);
+  // Same shape on every path — see "Response contract" in docs/architecture.md.
+  const parsedQueryPayload = {
+    free_text: parsed.freeText,
+    phrases: parsed.phrases,
+    filters: parsed.filters,
+  };
 
-  // Direct issue number lookup — short circuit
-  if (parsed.filters.issueNumber && !parsed.freeText.trim() && parsed.phrases.length === 0) {
+  // Direct issue number lookup — short circuit. Only when issue: is the SOLE
+  // filter: combined queries like `issue:5 section:lens` fall through to the
+  // filter-only path so every operator listed in applied_filters is honored.
+  if (parsed.filters.issueNumber && !parsed.freeText.trim() && parsed.phrases.length === 0 &&
+      Object.keys(parsed.filters).length === 1) {
     const issue = await getIssueByNumber(c.env.DB, parsed.filters.issueNumber);
     if (!issue) {
       return c.json({
-        parsed_query: parsed,
+        parsed_query: parsedQueryPayload,
         applied_filters: parsed.operators,
         total_hits: 0,
         year_distribution: {},
@@ -63,7 +72,7 @@ searchRoutes.get('/search', async (c) => {
 
       const topics = await getTopicsByIssueId(c.env.DB, issue.id, 3);
       return c.json({
-        parsed_query: parsed,
+        parsed_query: parsedQueryPayload,
         applied_filters: parsed.operators,
         total_hits: 1,
         year_distribution: yearDist,
@@ -137,7 +146,7 @@ searchRoutes.get('/search', async (c) => {
     );
 
     return c.json({
-      parsed_query: { free_text: parsed.freeText, phrases: parsed.phrases, filters: parsed.filters },
+      parsed_query: parsedQueryPayload,
       applied_filters: parsed.operators,
       total_hits: withSections.length,
       year_distribution: yearDist,
@@ -214,11 +223,7 @@ searchRoutes.get('/search', async (c) => {
   );
 
   return c.json({
-    parsed_query: {
-      free_text: parsed.freeText,
-      phrases: parsed.phrases,
-      filters: parsed.filters,
-    },
+    parsed_query: parsedQueryPayload,
     applied_filters: parsed.operators,
     total_hits: ranked.length,
     year_distribution: computeYearDistribution(ranked),
