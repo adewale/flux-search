@@ -56,6 +56,9 @@ describe('toDisplaySection', () => {
 });
 
 describe('live API: no chunk labels in responses', () => {
+  // Four sequential round trips to the deployed Worker; the vitest default
+  // 5s timeout flaked in CI when broad queries ran slow. Generous explicit
+  // timeouts keep the live checks without the flake.
   it('search results never have title_summary as snippet_section', async () => {
     // title_summary is the most likely leak — it's the first chunk's label
     const queries = ['systems', 'the', 'trust', 'crypto'];
@@ -68,7 +71,7 @@ describe('live API: no chunk labels in responses', () => {
         ).not.toBe('title_summary');
       }
     }
-  });
+  }, 30000);
 
   it('section_facets keys are all display sections', async () => {
     const resp = await fetch('https://flux-search.adewale-883.workers.dev/search?q=trust&limit=20');
@@ -79,5 +82,5 @@ describe('live API: no chunk labels in responses', () => {
         `facet key "${key}" is not a display section`
       ).toBe(true);
     }
-  });
+  }, 15000);
 });

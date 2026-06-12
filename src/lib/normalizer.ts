@@ -110,8 +110,8 @@ function extractIssueStructure(markdown: string): {
       // Grab the quote text, strip > and quotes
       openingQuote = trimmed
         .replace(/^>\s*/, '')
-        .replace(/^\s*[""\u201C>]+\s*/, '')
-        .replace(/[""\u201D]+$/, '')
+        .replace(/^[\s"\u201C\u201D>]+/, '')
+        .replace(/[\s"\u201C\u201D]+$/, '')
         .trim();
       // Reject if the cleaned result is empty, whitespace, or contains
       // only quote/punctuation characters \u2014 those occur when a single
