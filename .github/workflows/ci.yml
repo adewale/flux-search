@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           # Node 22 is required for the built-in node:sqlite module that
           # test/helpers-d1.ts uses in place of better-sqlite3 (no native
