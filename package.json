@@ -37,14 +37,14 @@
     "hono": "^4.12.23"
   },
   "devDependencies": {
-    "@playwright/test": "^1.60.0",
-    "@types/node": "^25.9.3",
+    "@playwright/test": "^1.61.0",
+    "@types/node": "^26.0.0",
     "fast-check": "^4.8.0",
     "nodewordfreq": "^0.2.1",
     "playwright": "^1.59.1",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8",
-    "wrangler": "^4.100.0"
+    "vitest": "^4.1.9",
+    "wrangler": "^4.103.0"
   }
 }
