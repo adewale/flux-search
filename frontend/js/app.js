@@ -31,6 +31,7 @@ function initSearchPage() {
 
   var currentPage = 1;
   var pageSize = 20;
+  var searchGeneration = 0;
   var machine = createSearchMachine();
 
   var autocomplete = initAutocomplete(input, dropdown, {
@@ -47,19 +48,25 @@ function initSearchPage() {
   });
 
   // Reflect state into DOM and run side effects.
-  function apply(prev) {
+  function apply(prev, force) {
     var s = machine.state;
+    var transitioned = !prev || prev.name !== s.name || prev.query !== s.query;
+    // Async completions ignored by the reducer must not rewrite draft input.
+    // Popstate can force effects because page changes are outside machine state.
+    if (!transitioned && !force) return;
+
     input.value = s.query;
     if (clearBtn) setClearVisible(!!s.clearVisible);
 
-    var transitioned = !prev || prev.name !== s.name || prev.query !== s.query;
-    if (!transitioned) return;
-
     if (s.name === 'RESULTS' || s.name === 'FEATURED_RESULTS') {
-      performSearch(s.query, 1);
+      performSearch(s.query, currentPage);
       if (s.name === 'FEATURED_RESULTS') loadRecurringThemes();
       else hideRecurringThemes();
     } else if (s.name === 'LANDING' || s.name === 'LANDING_FEATURED') {
+      // A result request loses DOM ownership when navigation leaves search.
+      searchGeneration++;
+      loadingEl.hidden = true;
+      autocomplete.hide();
       clearAll(s);
       loadLandingQuote();
       if (s.autoLoadLatest) loadLatestSearch();
@@ -105,6 +112,8 @@ function initSearchPage() {
   // Initial load from URL.
   var params = new URLSearchParams(window.location.search);
   var initialQ = params.get('q') || '';
+  var initialPage = parseInt(params.get('page') || '1') || 1;
+  currentPage = initialPage > 0 ? initialPage : 1;
   dispatch({ type: 'LOAD', query: initialQ });
 
   form.addEventListener('submit', function (e) {
@@ -125,11 +134,12 @@ function initSearchPage() {
     var p = new URLSearchParams(window.location.search);
     var q = p.get('q') || '';
     var page = parseInt(p.get('page') || '1') || 1;
-    currentPage = page;
-    // Apply popstate without re-pushing history.
+    currentPage = page > 0 ? page : 1;
+    // Apply popstate without re-pushing history. Force side effects because
+    // the page number is URL state rather than search-machine state.
     var prev = machine.state;
     machine.send({ type: 'POPSTATE', query: q });
-    apply(prev);
+    apply(prev, true);
   });
 
   document.querySelectorAll('.example-query').forEach(function (btn) {
@@ -153,6 +163,11 @@ function initSearchPage() {
   // quick re-typing.
   if (clearBtn) {
     clearBtn.addEventListener('click', function () {
+      // Draft text is intentionally outside machine state. Clear it directly
+      // so DISMISS also works when LANDING/BROWSING reduces to a no-op.
+      input.value = '';
+      setClearVisible(false);
+      autocomplete.hide();
       dispatch({ type: 'DISMISS' });
       var fine = window.matchMedia('(hover: hover) and (pointer: fine)');
       if (fine && fine.matches) input.focus();
@@ -161,6 +176,11 @@ function initSearchPage() {
   }
 
   input.addEventListener('input', function () {
+    // Draft input is not a committed query, but it must cancel the cold-start
+    // latest-issue transition so a late response cannot overwrite user text.
+    if (machine.state.name === 'LANDING_FEATURED') {
+      machine.send({ type: 'EDIT' });
+    }
     if (clearBtn) setClearVisible(!!input.value);
   });
 
@@ -171,6 +191,7 @@ function initSearchPage() {
   }
 
   async function performSearch(q, page, isPagination) {
+    var generation = ++searchGeneration;
     autocomplete.hide();
     loadingEl.hidden = false;
     clearAll(machine.state, isPagination);
@@ -180,6 +201,9 @@ function initSearchPage() {
       var resp = await fetch('/search?q=' + encodeURIComponent(q) + '&page=' + page + '&limit=' + pageSize);
       var data = await resp.json();
 
+      // Only the newest search owns the result DOM. Older requests can finish
+      // later, but must never replace newer results or their loading state.
+      if (generation !== searchGeneration) return;
       loadingEl.hidden = true;
 
       if (data.results && data.results.length > 0) {
@@ -204,6 +228,7 @@ function initSearchPage() {
         emptyState.hidden = false;
       }
     } catch (err) {
+      if (generation !== searchGeneration) return;
       loadingEl.hidden = true;
       emptyState.hidden = false;
       console.error('Search error:', err);
@@ -230,6 +255,9 @@ function initSearchPage() {
     try {
       var resp = await fetch('/random-quote');
       var data = await resp.json();
+      // The request started on a landing state. Do not let a late response
+      // resurrect the quote after a user-driven search has taken ownership.
+      if (!machine.state.quoteVisible) return;
       if (data.quote) {
         var el = document.getElementById('landing-quote');
         document.getElementById('landing-quote-text').textContent = data.quote;

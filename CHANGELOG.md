@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-07-19
+
+### Fixed
+
+- User typing during cold start now cancels the pending latest-issue transition, so a late response cannot overwrite draft input.
+- Older search and autocomplete responses can no longer replace newer results or reopen stale suggestions; pagination honors initial page URLs and same-query history navigation.
+- The clear button keeps a continuous 44×44 interaction target by animating only its icon; mobile browser tests now emulate touch capabilities instead of viewport size alone.
+- Playwright journeys now wait for observable UI states instead of fixed sleeps or cold-start races.
+- Visual regression tests use committed API fixtures, refreshed desktop/mobile baselines, and no longer carry orphaned landing snapshots.
+
+### Verified
+
+- `npm test` → 967 passing tests (90 files).
+- `npm run typecheck` → passed.
+- Playwright against the Cloudflare version preview → 59 passed, 3 intentionally skipped.
+
 ## 2026-06-12
 
 ### Added

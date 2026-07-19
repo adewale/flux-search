@@ -117,6 +117,19 @@ describe('search state machine — states', () => {
     expect(s2.name).toBe('LANDING');
   });
 
+  it('typing during cold start cancels the pending latest issue', () => {
+    const m = createSearchMachine();
+    m.send({ type: 'LOAD', query: '' });
+    expect(m.state.name).toBe('LANDING_FEATURED');
+
+    m.send({ type: 'EDIT' });
+    expect(m.state.name).toBe('LANDING');
+
+    m.send({ type: 'LATEST_LOADED', query: 'issue:198' });
+    expect(m.state.name).toBe('LANDING');
+    expect(m.state.query).toBe('');
+  });
+
   it('user submits a new query from FEATURED_RESULTS → hides the quote', () => {
     const s = run([
       { type: 'LOAD', query: '' },

@@ -18,10 +18,7 @@ test.describe('Dismiss widget — logic (in-place clear)', () => {
 
     // Input is empty…
     await expect(page.locator('#search-input')).toHaveValue('');
-    // …and stays empty (no async auto-population).
-    await page.waitForTimeout(800);
-    await expect(page.locator('#search-input')).toHaveValue('');
-
+    // A separate controlled-route regression test covers late async responses.
     // Results are still showing — the SAME results.
     await expect(page.locator('.result-card')).toHaveCount(resultCountBefore);
 
@@ -34,8 +31,8 @@ test.describe('Dismiss widget — logic (in-place clear)', () => {
 
   test('dismiss does NOT hide the quote when it was showing (cold-start)', async ({ page }) => {
     await page.goto('/');
-    // Wait for the cold-start landing quote to load.
-    await page.waitForSelector('#landing-quote:not([hidden])', { timeout: 5_000 }).catch(() => {});
+    // Wait for both cold-start requests instead of swallowing a timeout.
+    await expect(page.locator('#landing-quote')).toBeVisible({ timeout: 10_000 });
     // And for the featured latest-issue results to populate.
     await expect(page.locator('.result-card').first()).toBeVisible({ timeout: 10_000 });
     await page.locator('#search-clear').click();
@@ -49,13 +46,19 @@ test.describe('Dismiss widget — logic (in-place clear)', () => {
     await page.goto('/');
     // Wait for the latest-issue query to be prefilled.
     await expect(page.locator('#search-input')).toHaveValue(/^issue:\d+$/, { timeout: 10_000 });
-    // ✕ must be visible.
+    // The prefilled query commits before its search response, so wait for the
+    // featured result before recording the result identity.
+    await expect(page.locator('.result-card').first()).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('#search-clear')).toBeVisible();
-    // Tapping it must clear the input but keep the results.
-    const resultsBefore = await page.locator('.result-card').count();
+    const hrefsBefore = await page.locator('.result-card > a').evaluateAll((links) =>
+      links.map((link) => link.getAttribute('href')),
+    );
+
     await page.locator('#search-clear').click();
     await expect(page.locator('#search-input')).toHaveValue('');
-    await expect(page.locator('.result-card')).toHaveCount(resultsBefore);
+    await expect.poll(() => page.locator('.result-card > a').evaluateAll((links) =>
+      links.map((link) => link.getAttribute('href')),
+    )).toEqual(hrefsBefore);
   });
 
   test('submitting a new query from BROWSING transitions cleanly', async ({ page }) => {
@@ -71,11 +74,18 @@ test.describe('Dismiss widget — logic (in-place clear)', () => {
     expect(new URL(page.url()).searchParams.get('q')).toBe('hope');
   });
 
-  test('clear button is hidden when the input is empty', async ({ page }) => {
+  test('clear button is hidden when empty and clears uncommitted drafts', async ({ page }) => {
+    await page.route('**/latest-issue', (route) => route.fulfill({ json: {} }));
+    await page.route('**/random-quote', (route) => route.fulfill({ json: {} }));
     await page.goto('/');
+    await expect(page.locator('#search-input')).toHaveValue('');
     await expect(page.locator('#search-clear')).toBeHidden();
+
     await page.fill('#search-input', 'x');
     await expect(page.locator('#search-clear')).toBeVisible();
+    await page.locator('#search-clear').click();
+    await expect(page.locator('#search-input')).toHaveValue('');
+    await expect(page.locator('#search-clear')).toBeHidden();
   });
 
   test('dismiss is idempotent', async ({ page }) => {
@@ -83,8 +93,8 @@ test.describe('Dismiss widget — logic (in-place clear)', () => {
     await expect(page.locator('.result-card').first()).toBeVisible({ timeout: 10_000 });
     await page.locator('#search-clear').click();
     await expect(page.locator('#search-input')).toHaveValue('');
-    // Second click (forced — it's hidden) remains a no-op.
-    await page.locator('#search-clear').click({ force: true }).catch(() => {});
+    // A DOM-level second click reaches the handler even though the button is hidden.
+    await page.locator('#search-clear').evaluate((button: HTMLButtonElement) => button.click());
     await expect(page.locator('#search-input')).toHaveValue('');
     await expect(page.locator('.result-card').first()).toBeVisible();
   });
@@ -105,12 +115,14 @@ test.describe('Dismiss widget — mobile ergonomics', () => {
   test('clear button is fully visible (not half-opacity)', async ({ page }) => {
     await page.goto('/?q=trust');
     const clear = page.locator('#search-clear');
-    const opacity = await clear.evaluate((el) => getComputedStyle(el).opacity);
-    expect(parseFloat(opacity)).toBeGreaterThanOrEqual(0.95);
+    await expect(clear).toBeVisible();
+    await expect.poll(async () =>
+      parseFloat(await clear.evaluate((el) => getComputedStyle(el).opacity)),
+    ).toBeGreaterThanOrEqual(0.95);
   });
 
   test('long query does not overlap the clear button', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?q=trust');
     const longQuery = 'institutional trust before:2024-01-01 section:essays issue:198';
     await page.fill('#search-input', longQuery);
     const inputBox = await page.locator('#search-input').boundingBox();
@@ -126,6 +138,9 @@ test.describe('Dismiss widget — mobile ergonomics', () => {
   test('dismiss on mobile blurs input (dismisses soft keyboard)', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'mobile', 'mobile-only');
     await page.goto('/?q=trust');
+    expect(await page.evaluate(() =>
+      window.matchMedia('(hover: hover) and (pointer: fine)').matches,
+    )).toBe(false);
     await page.locator('#search-input').focus();
     await page.locator('#search-clear').click();
     const active = await page.evaluate(() => document.activeElement?.id || '');
