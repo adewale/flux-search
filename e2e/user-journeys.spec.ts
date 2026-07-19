@@ -4,8 +4,9 @@ test.describe('Landing page', () => {
   test('shows quote of the day and search box', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('#search-input')).toBeVisible();
-    // Wait for landing quote to load (async fetch)
-    await page.waitForSelector('#landing-quote:not([hidden])', { timeout: 5000 }).catch(() => {});
+    // Wait for both independent cold-start requests to settle.
+    await expect(page.locator('#landing-quote')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('.result-card').first()).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: `e2e/screenshots/landing-${test.info().project.name}.png` });
   });
 });
@@ -13,8 +14,9 @@ test.describe('Landing page', () => {
 test.describe('Search journey', () => {
   test('search for trust → see results → click through', async ({ page }) => {
     await page.goto('/');
+    await expect(page.locator('.result-card').first()).toBeVisible({ timeout: 10_000 });
 
-    // Type and search
+    // Type and search after cold-start completion so the user owns the input.
     await page.fill('#search-input', 'trust');
     await page.press('#search-input', 'Enter');
 
@@ -57,21 +59,32 @@ test.describe('Issue landing page', () => {
 
 test.describe('Empty state', () => {
   test('shows suggestions for no results', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?q=trust');
+    await expect(page.locator('.result-card').first()).toBeVisible({ timeout: 10_000 });
     await page.fill('#search-input', 'qxzjvkwm');
     await page.press('#search-input', 'Enter');
-    // Wait for either empty state or results to load
-    await page.waitForTimeout(3000);
+
+    await expect(page.locator('#empty-state')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('#empty-state')).toContainText('No results found');
+    await expect(page.locator('.result-card')).toHaveCount(0);
+    await expect(page.locator('#loading')).toBeHidden();
     await page.screenshot({ path: `e2e/screenshots/empty-state-${test.info().project.name}.png` });
   });
 });
 
 test.describe('Autocomplete', () => {
   test('suggests words as you type', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/?q=trust');
+    await expect(page.locator('.result-card').first()).toBeVisible({ timeout: 10_000 });
+    await page.locator('#search-clear').click();
+    await expect(page.locator('#search-input')).toHaveValue('');
+
+    const autocompleteResponse = page.waitForResponse((response) =>
+      response.url().includes('/autocomplete?q=tru') && response.ok(),
+    );
     await page.fill('#search-input', 'tru');
-    // Wait for autocomplete to appear (200ms debounce + network)
-    await page.waitForSelector('.autocomplete-item', { timeout: 5000 });
+    await autocompleteResponse;
+    await expect(page.locator('.autocomplete-item').first()).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: `e2e/screenshots/autocomplete-${test.info().project.name}.png` });
   });
 });

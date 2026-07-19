@@ -20,6 +20,7 @@
  *   I12 The ✕ is never wrongly hidden — clearVisible is derived from
  *       query length in every state, even auto-populated ones like
  *       FEATURED_RESULTS.
+ *   I13 User editing permanently cancels the cold-start latest issue.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -52,6 +53,7 @@ const issueQuery = fc
 const event: fc.Arbitrary<Event> = fc.oneof(
   anyQuery.map((q) => ({ type: 'LOAD' as const, query: q })),
   issueQuery.map((q) => ({ type: 'LATEST_LOADED' as const, query: q })),
+  fc.constant({ type: 'EDIT' as const }),
   anyQuery.map((q) => ({ type: 'SUBMIT' as const, query: q })),
   anyQuery.map((q) => ({ type: 'EXAMPLE' as const, query: q })),
   section.map((s) => ({ type: 'FACET' as const, section: s })),
@@ -207,6 +209,20 @@ describe('PBT — search state machine invariants', () => {
         expect(m.state.name).toBe('FEATURED_RESULTS');
         expect(m.state.query).toBe(q);
         expect(m.state.clearVisible).toBe(true);
+      }),
+      { numRuns: 200 },
+    );
+  });
+
+  it('I13: EDIT prevents every later LATEST_LOADED event from taking over', () => {
+    fc.assert(
+      fc.property(fc.array(issueQuery, { minLength: 1, maxLength: 10 }), (queries) => {
+        const m = createSearchMachine();
+        m.send({ type: 'LOAD', query: '' });
+        m.send({ type: 'EDIT' });
+        for (const query of queries) m.send({ type: 'LATEST_LOADED', query });
+        expect(m.state.name).toBe('LANDING');
+        expect(m.state.query).toBe('');
       }),
       { numRuns: 200 },
     );

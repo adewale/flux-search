@@ -1,0 +1,477 @@
+{
+    "parsed_query": {
+        "free_text": "trust",
+        "phrases": [],
+        "filters": {}
+    },
+    "applied_filters": [],
+    "total_hits": 73,
+    "year_distribution": {
+        "2021": 5,
+        "2022": 17,
+        "2023": 13,
+        "2024": 12,
+        "2025": 18,
+        "2026": 8
+    },
+    "quarter_distribution": {
+        "2024-Q2": {
+            "lead_essay": 3,
+            "signposts": 1
+        },
+        "2023-Q1": {
+            "lead_essay": 2,
+            "worth_your_time": 1
+        },
+        "2024-Q1": {
+            "lead_essay": 2,
+            "worth_your_time": 1
+        },
+        "2023-Q3": {
+            "lead_essay": 3,
+            "worth_your_time": 1
+        },
+        "2026-Q2": {
+            "lead_essay": 3,
+            "postcard": 1
+        },
+        "2022-Q3": {
+            "lead_essay": 2,
+            "signposts": 1,
+            "postcard": 1,
+            "worth_your_time": 1
+        },
+        "2025-Q3": {
+            "lead_essay": 2,
+            "lens": 1
+        },
+        "2025-Q2": {
+            "lead_essay": 4,
+            "lens": 2
+        },
+        "2026-Q1": {
+            "lead_essay": 2,
+            "postcard": 1
+        },
+        "2022-Q1": {
+            "lead_essay": 2,
+            "worth_your_time": 4,
+            "postcard": 1
+        },
+        "2021-Q3": {
+            "lead_essay": 1,
+            "book": 2
+        },
+        "2024-Q4": {
+            "worth_your_time": 1,
+            "lead_essay": 1
+        },
+        "2025-Q4": {
+            "lead_essay": 3
+        },
+        "2025-Q1": {
+            "book": 1,
+            "lead_essay": 4,
+            "lens": 1
+        },
+        "2026-Q3": {
+            "lead_essay": 1
+        },
+        "2022-Q2": {
+            "worth_your_time": 2
+        },
+        "2023-Q2": {
+            "worth_your_time": 3,
+            "lead_essay": 1,
+            "lens": 1
+        },
+        "2023-Q4": {
+            "lead_essay": 1
+        },
+        "2022-Q4": {
+            "worth_your_time": 1,
+            "lens": 1,
+            "postcard": 1
+        },
+        "2024-Q3": {
+            "worth_your_time": 1,
+            "lens": 1,
+            "lead_essay": 1
+        },
+        "2021-Q2": {
+            "worth_your_time": 1
+        },
+        "2021-Q4": {
+            "book": 1
+        }
+    },
+    "section_facets": {
+        "lead_essay": 38,
+        "worth_your_time": 17,
+        "book": 4,
+        "lens": 7,
+        "postcard": 5,
+        "signposts": 2
+    },
+    "results": [
+        {
+            "issue_id": "aab7bbb6-6a37-457e-8d68-7cc8390afc19",
+            "title": "Navigating the symmetry of trust",
+            "issue_number": 144,
+            "published_at": "2024-05-02",
+            "snippet": "In a previous issue, we visited the integrative model of <mark>trust</mark> developed by Mayer et al. Let\u2019s revisit this rich framework.\nIn the...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/144",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Mental Models",
+                "benedict evans"
+            ]
+        },
+        {
+            "issue_id": "e256dbe9-9b5f-46d3-a690-aeed65d87862",
+            "title": "A model of trust",
+            "issue_number": 82,
+            "published_at": "2023-01-12",
+            "snippet": "...It\u2019s not perfect, but it can serve as a useful tool in our <mark>trust</mark>-related adventures, offering a proverbial stake in the ground...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/82",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Mental Models",
+                "Ursula K. Le Guin",
+                "Systems Thinking"
+            ]
+        },
+        {
+            "issue_id": "221c29f8-d3e2-41ee-b64e-3a028029ec6d",
+            "title": "The profound network value of trust",
+            "issue_number": 137,
+            "published_at": "2024-03-14",
+            "snippet": "...Organizational boundaries are one way of creating <mark>trust</mark> (within a limited context), but <mark>trust</mark> lowers transaction costs more broadly.\nAs our home repair example...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/137",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Web3",
+                "Judgment"
+            ]
+        },
+        {
+            "issue_id": "49dd9aa1-cf78-48a6-8940-83b414e1633f",
+            "title": "Trust is a long game",
+            "issue_number": 109,
+            "published_at": "2023-07-20",
+            "snippet": "...When we can all <mark>trust</mark> each other enough, each of us is free to be complex and varied, and our collective <mark>trust</mark> allows us...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/109",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Systems Thinking",
+                "British Columbia",
+                "Superb Owl"
+            ]
+        },
+        {
+            "issue_id": "f8c6f73a-ccd1-4025-b017-395566fdfc12",
+            "title": "Failing from above and below",
+            "issue_number": 240,
+            "published_at": "2026-06-18",
+            "snippet": "...The first is patient, methodical, studious \u2014 she does as her coaches tell her and <mark>trusts</mark> the limits they set. Hers is an incremental-win...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/240",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Attention",
+                "Machine Learning",
+                "social media"
+            ]
+        },
+        {
+            "issue_id": "a73c3c4e-3d5c-4aed-a04d-8f3e421a5762",
+            "title": "Making space for open-ended conversations",
+            "issue_number": 68,
+            "published_at": "2022-09-22",
+            "snippet": "...Collaborative debate helps group members begin to gain each other\u2019s <mark>trust</mark>, align, and learn how to work together.\nWhy is collaborative debate so...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/68",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Awareness",
+                "Systems Thinking",
+                "Federal Reserve"
+            ]
+        },
+        {
+            "issue_id": "ff9dc255-d9da-4c8d-ae04-2f4742255994",
+            "title": "Once bitten, twice shy",
+            "issue_number": 202,
+            "published_at": "2025-08-14",
+            "snippet": "...When that promise is broken, <mark>trust</mark> erodes. In personal relationships, this <mark>trust</mark> runs deeper still. There, what we believe in is the other person...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/202",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Large Language Models",
+                "Internet Archive",
+                "Paul Kedrosky"
+            ]
+        },
+        {
+            "issue_id": "30538f71-467d-439c-ba90-acfd99c40ea2",
+            "title": "Depth by degrees",
+            "issue_number": 194,
+            "published_at": "2025-06-12",
+            "snippet": "...Influence becomes thinner, more symbolic, more dependent on <mark>trust</mark> and narrative than on direct intervention. You might be able to make broader decisions at...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/194",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Prompting",
+                "Large Language Models",
+                "Claude Code"
+            ]
+        },
+        {
+            "issue_id": "b069eb79-d12c-46ed-b372-fce7d04a0192",
+            "title": "History on fast forward",
+            "issue_number": 225,
+            "published_at": "2026-03-05",
+            "snippet": "...Eventually, the shape of privacy and <mark>trust</mark> across these networks forms a kind of topology that governs the speed and veracity of information.\nResearch...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/225",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Saudi Arabia",
+                "Large Language Models"
+            ]
+        },
+        {
+            "issue_id": "2367ecd7-93e4-491c-9930-47b450c7c1c1",
+            "title": "The trap of mismatched perceptions",
+            "issue_number": 85,
+            "published_at": "2022-02-02",
+            "snippet": "...This is hard! How can we find ground truth that we can <mark>trust</mark>? We have to establish multiple, independent ways of knowing, like seeking...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/85",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Climate Change",
+                "Dread Pirate Roberts",
+                "Gulf of Mexico"
+            ]
+        },
+        {
+            "issue_id": "c10761b7-2181-441e-b8e7-bf30ceea438c",
+            "title": "The intertwined pandemics",
+            "issue_number": 15,
+            "published_at": "2021-08-12",
+            "snippet": "...In this framing, saying, \u201cIf only more people <mark>trusted</mark> science\u201d is as productive as saying, \u201cIf only SARS-CoV-2 was less infectious.\u201d In...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/15",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Systems Thinking",
+                "Not Boring"
+            ]
+        },
+        {
+            "issue_id": "7ea6d26b-f3cc-4748-ab1c-42b3ba09eb34",
+            "title": "Iron sharpens iron",
+            "issue_number": 90,
+            "published_at": "2023-03-09",
+            "snippet": "...We expect people to prove that they deserve <mark>trust</mark> before we start to <mark>trust</mark> them. The long-term effects of these mitigations are more...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/90",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Large Language Models",
+                "Machine Learning"
+            ]
+        },
+        {
+            "issue_id": "6a7cbeb0-bd3f-4549-b03c-221acfc89cd4",
+            "title": "Selling the future, holding the present",
+            "issue_number": 187,
+            "published_at": "2025-04-24",
+            "snippet": "...The lead wants to help secure the opportunity while also maintaining <mark>trust</mark> with the client.\nThis is the ongoing tension between steward and seller...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/187",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Attention",
+                "Large Language Models",
+                "Awareness"
+            ]
+        },
+        {
+            "issue_id": "d077d885-7ce7-462a-a1b3-ca6bee744e4b",
+            "title": "The explorers, the miners, and the bridge builders",
+            "issue_number": 33,
+            "published_at": "2022-01-06",
+            "snippet": "...That bridge is ultimately made of <mark>trust</mark>: <mark>trust</mark> that exploiters will see the value in exploration, <mark>trust</mark> that the explorers can reliably hand off...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/33",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Ben Mathes",
+                "Crypto",
+                "Cryptocurrency"
+            ]
+        },
+        {
+            "issue_id": "8969f0ed-1fa5-46fb-afd8-075cc07a6300",
+            "title": "Grounding moments",
+            "issue_number": 169,
+            "published_at": "2024-11-07",
+            "snippet": "...The Low-<mark>Trust</mark> Election (Cooper Lund) \u2014 Argues that, in American politics, the parties have realigned themselves around <mark>trust</mark> in institutions, information, and other people...",
+            "snippet_section": "worth_your_time",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/the-flux-review-ep-169",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "grounding moments",
+                "Mental Models",
+                "South Korea"
+            ]
+        },
+        {
+            "issue_id": "b69f3f10-531f-4d8d-a4f6-ccd6de9df106",
+            "title": "The sticky door",
+            "issue_number": 213,
+            "published_at": "2025-10-30",
+            "snippet": "...You could walk back a rushed feature, but if it damages <mark>trust</mark>, confuses customers, or exhausts your team, that recovery is uphill. Or a...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/213",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Judgment",
+                "Tata Consulting Services"
+            ]
+        },
+        {
+            "issue_id": "5d30c93d-7d2a-4baa-89ec-964fb9ce13b4",
+            "title": "The Geometry of Dissent",
+            "issue_number": 180,
+            "published_at": "2025-03-06",
+            "snippet": "...Skill fed <mark>trust</mark>. <mark>Trust</mark> fed clarity.\nUltimately, this is a story of what happens when you stop trying to be the smartest person in...",
+            "snippet_section": "book",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/180",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Legibility",
+                "Crypto",
+                "Systems Thinking"
+            ]
+        },
+        {
+            "issue_id": "af424275-ee7a-41b5-944f-887b90ec32ef",
+            "title": "The beauty of paying it forward",
+            "issue_number": 243,
+            "published_at": "2026-07-16",
+            "snippet": "...Gifts are able to build <mark>trust</mark> precisely because they keep moving from one hand to the next without the need for expensive, inefficient coordination...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/the-flux-review-ep-243",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Attention",
+                "South Dakota",
+                "Disease Control"
+            ]
+        },
+        {
+            "issue_id": "2e850301-91b7-4134-a3f5-558e60543b0c",
+            "title": "Cascades of change",
+            "issue_number": 59,
+            "published_at": "2022-07-14",
+            "snippet": "...You can play Nicky Case\u2019s excellent The Evolution of <mark>Trust</mark> game to explore how <mark>trust</mark> and other social behaviors like cooperation can wildly...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/59",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Cryptocurrency",
+                "Awareness"
+            ]
+        },
+        {
+            "issue_id": "ad258aec-ef04-4195-8468-bb5ddf29b8f7",
+            "title": "Team Thermodynamics",
+            "issue_number": 232,
+            "published_at": "2026-04-23",
+            "snippet": "...High-<mark>trust</mark> environments enable high-yield energy conversion because psychological safety lets people focus on problems rather than protection. Low-<mark>trust</mark> systems force energy...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/232",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Climate Change",
+                "conveyor belt",
+                "Gulf Stream"
+            ]
+        }
+    ]
+}

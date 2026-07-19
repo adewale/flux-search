@@ -1,0 +1,465 @@
+{
+    "parsed_query": {
+        "free_text": "crypto",
+        "phrases": [],
+        "filters": {}
+    },
+    "applied_filters": [],
+    "total_hits": 95,
+    "year_distribution": {
+        "2021": 24,
+        "2022": 33,
+        "2023": 11,
+        "2024": 10,
+        "2025": 14,
+        "2026": 3
+    },
+    "quarter_distribution": {
+        "2022-Q2": {
+            "postcard": 1,
+            "signposts": 7
+        },
+        "2022-Q1": {
+            "postcard": 2,
+            "signposts": 8,
+            "worth_your_time": 4
+        },
+        "2021-Q3": {
+            "signposts": 8,
+            "worth_your_time": 1,
+            "postcard": 2
+        },
+        "2021-Q4": {
+            "signposts": 8,
+            "worth_your_time": 1
+        },
+        "2025-Q3": {
+            "signposts": 4
+        },
+        "2023-Q1": {
+            "signposts": 2,
+            "worth_your_time": 2
+        },
+        "2022-Q4": {
+            "signposts": 4,
+            "worth_your_time": 2
+        },
+        "2022-Q3": {
+            "postcard": 1,
+            "signposts": 3,
+            "worth_your_time": 1
+        },
+        "2024-Q3": {
+            "worth_your_time": 1
+        },
+        "2024-Q1": {
+            "signposts": 3,
+            "postcard": 1,
+            "worth_your_time": 1
+        },
+        "2025-Q1": {
+            "signposts": 5
+        },
+        "2024-Q4": {
+            "signposts": 1
+        },
+        "2023-Q3": {
+            "signposts": 2
+        },
+        "2021-Q2": {
+            "postcard": 2,
+            "signposts": 2
+        },
+        "2026-Q1": {
+            "lead_essay": 1,
+            "signposts": 2
+        },
+        "2023-Q2": {
+            "signposts": 2,
+            "postcard": 1
+        },
+        "2025-Q4": {
+            "worth_your_time": 1,
+            "signposts": 3
+        },
+        "2024-Q2": {
+            "worth_your_time": 2,
+            "signposts": 1
+        },
+        "2025-Q2": {
+            "signposts": 1
+        },
+        "2023-Q4": {
+            "signposts": 1,
+            "lead_essay": 1
+        }
+    },
+    "section_facets": {
+        "postcard": 10,
+        "signposts": 67,
+        "worth_your_time": 16,
+        "lead_essay": 2
+    },
+    "results": [
+        {
+            "issue_id": "6e63ac9c-0483-4aff-8fa2-c635f8bfd7ac",
+            "title": "Invite them in",
+            "issue_number": 57,
+            "published_at": "2022-06-23",
+            "snippet": "...A sponsored article on PCGamer.com.<img src>Are you in the market for a new gaming PC, but haven\u2019t because <mark>crypto</mark> miners...",
+            "snippet_section": "postcard",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/57",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Awareness",
+                "Climate Change"
+            ]
+        },
+        {
+            "issue_id": "d077d885-7ce7-462a-a1b3-ca6bee744e4b",
+            "title": "The explorers, the miners, and the bridge builders",
+            "issue_number": 33,
+            "published_at": "2022-01-06",
+            "snippet": "...In 90 days, all cryptocurrencies and <mark>crypto</mark> assets would be considered financial securities, eliminating the <mark>crypto</mark> \u201cwash sale\u201d loophole. The US Treasury and IRS...",
+            "snippet_section": "postcard",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/33",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Ben Mathes",
+                "Crypto",
+                "Cryptocurrency"
+            ]
+        },
+        {
+            "issue_id": "7f61409b-9556-4af3-9580-ff29488f581e",
+            "title": "Choose to bear witness",
+            "issue_number": 35,
+            "published_at": "2022-01-20",
+            "snippet": "...You can now get a mortgage by pledging your <mark>crypto</mark> assetsThe <mark>crypto</mark>-wealthy often have trouble buying homes, since <mark>crypto</mark> assets aren\u2019t traditionally...",
+            "snippet_section": "signposts",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/35",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Cryptocurrency",
+                "Climate Change"
+            ]
+        },
+        {
+            "issue_id": "58462d9c-42f9-4cbf-83f3-d760319bfb81",
+            "title": "Scrambling status games with Zoom",
+            "issue_number": 21,
+            "published_at": "2021-09-23",
+            "snippet": "...A <mark>crypto</mark> organization sold NFTs to support a \u201c<mark>crypto</mark> lobbyist\u201d in WashingtonA decentralized <mark>crypto</mark> organization, known as a DAO, sold 10,000 \u201cLobby Lobster...",
+            "snippet_section": "signposts",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/21",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Governance",
+                "Systems Thinking"
+            ]
+        },
+        {
+            "issue_id": "73992d9e-33cc-4053-be43-2071a8a8c7da",
+            "title": "The wonderful power of prediction",
+            "issue_number": 29,
+            "published_at": "2021-11-18",
+            "snippet": "...Now, the web browser Brave has added a built-in <mark>crypto</mark> wallet feature (including the ability to buy with fiat), abstracting away the wallet...",
+            "snippet_section": "signposts",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/29",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Cryptocurrency",
+                "Attention"
+            ]
+        },
+        {
+            "issue_id": "4bac7066-931f-4e6e-aa05-adf580143d45",
+            "title": "Just enough structure",
+            "issue_number": 198,
+            "published_at": "2025-07-17",
+            "snippet": "...There are now <mark>crypto</mark> coins tied to stocks\u2014including those of private companiesStock-tracking tokens are increasingly popular in the <mark>crypto</mark> world; these cryptocurrencies...",
+            "snippet_section": "signposts",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/198",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Attention",
+                "Cryptocurrency"
+            ]
+        },
+        {
+            "issue_id": "fe2929d9-dd29-492f-96c3-ca74cc6a6626",
+            "title": "Opening our lenses",
+            "issue_number": 58,
+            "published_at": "2022-06-30",
+            "snippet": "...This could be catastrophic for the entire <mark>crypto</mark> industry, since critics argue that Tether\u2019s liberal \u201cmoney printer\u201d props up the entire <mark>crypto</mark>-economy...",
+            "snippet_section": "signposts",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/58",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Cryptocurrency",
+                "Web3"
+            ]
+        },
+        {
+            "issue_id": "376b9df5-a385-48bf-9e98-c4eaa107fc2d",
+            "title": "Guides vs. guidebooks vs. maps",
+            "issue_number": 45,
+            "published_at": "2022-03-31",
+            "snippet": "...One enterprising <mark>crypto</mark> trader cashed in on this by taking advantage of flash loans,\u00a0which let you momentarily borrow hugely-valuable <mark>crypto</mark> assets, assuming...",
+            "snippet_section": "signposts",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/45",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "John Boyd",
+                "Crypto",
+                "Legibility"
+            ]
+        },
+        {
+            "issue_id": "f2ac04d1-40e1-4538-b728-000d9f77f21e",
+            "title": "You can\u2019t slay quicksand",
+            "issue_number": 89,
+            "published_at": "2023-03-02",
+            "snippet": "...The victim of a <mark>crypto</mark> heist got a court order to rewrite a smart contract and seize the funds backJump <mark>Crypto</mark>, a <mark>crypto</mark> trading...",
+            "snippet_section": "signposts",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/89",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "donella meadows",
+                "Large Language Models"
+            ]
+        },
+        {
+            "issue_id": "27dd93c0-c632-4ef6-9014-99d28f9471eb",
+            "title": "Evolving opinions",
+            "issue_number": 26,
+            "published_at": "2021-10-28",
+            "snippet": "...For $150, you can buy \u201cfake IDs\u201d for <mark>crypto</mark>-trading platformsMost <mark>crypto</mark> exchanges perform know-your-customer (KYC) checks, which require users to enter...",
+            "snippet_section": "signposts",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/26",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Adult Development Theory",
+                "Cryptocurrency"
+            ]
+        },
+        {
+            "issue_id": "00c038b7-f45e-46c0-8b4a-56d36a8ac573",
+            "title": "The web of belief",
+            "issue_number": 31,
+            "published_at": "2021-12-09",
+            "snippet": "...But that website is a phishing site, and if the victim connects their <mark>crypto</mark> wallet to it, the scammers can drain their account.\nWorth...",
+            "snippet_section": "signposts",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/31",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Web3",
+                "Cryptocurrency"
+            ]
+        },
+        {
+            "issue_id": "b00f6270-e673-4de0-a16d-d84e95302cbd",
+            "title": "When a lens becomes a crutch",
+            "issue_number": 49,
+            "published_at": "2022-04-28",
+            "snippet": "...New companies are emerging to help <mark>crypto</mark> owners with inheritanceUnlike with traditional banking, there\u2019s no built-in way for a <mark>crypto</mark> holder\u2019s...",
+            "snippet_section": "signposts",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/49",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Adult Development Theory",
+                "Crypto",
+                "Cryptocurrency"
+            ]
+        },
+        {
+            "issue_id": "37356bee-4116-4596-8b27-d617c6261ca7",
+            "title": "In search of mental model tooling breakthrough",
+            "issue_number": 74,
+            "published_at": "2022-11-03",
+            "snippet": "...The seller of .coin <mark>crypto</mark>-domains is disabling their functionalityDomain names (like the once-omnipresent \u201c.eth\u201d in Twitter handles) are popular in the <mark>crypto</mark>...",
+            "snippet_section": "signposts",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/74",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Mental Models",
+                "Crypto",
+                "Pace Layers"
+            ]
+        },
+        {
+            "issue_id": "5c9e2e9e-bb38-44fa-8094-7aacd193be6b",
+            "title": "Life at the speed of meaning making",
+            "issue_number": 81,
+            "published_at": "2023-01-05",
+            "snippet": "...The current stock market slump, <mark>crypto</mark> crash, and rise of fraudsters and grifters seem to be feeding into this narrative.\nDesktop GPU sales hit...",
+            "snippet_section": "signposts",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/81",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Attention",
+                "Systems Thinking"
+            ]
+        },
+        {
+            "issue_id": "0151ca45-4899-4cee-820d-74819cc92173",
+            "title": "The rhymes of our times",
+            "issue_number": 23,
+            "published_at": "2021-10-07",
+            "snippet": "...New <mark>crypto</mark> lending services let you borrow money using NFTs as collateralSeveral new decentralized finance startups let people deposit their NFTs, such as the...",
+            "snippet_section": "signposts",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/23",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Crooked Timber",
+                "Cryptocurrency"
+            ]
+        },
+        {
+            "issue_id": "76320acf-2c50-4a61-bac6-4fa4fca7be08",
+            "title": "A loss of lubrication",
+            "issue_number": 36,
+            "published_at": "2022-01-27",
+            "snippet": "...<mark>Crypto</mark> and the Apocalypse (Wrong A Lot) \u2014 Argues that <mark>crypto</mark> isn\u2019t \u201cheaven\u201d or \u201chell\u201d but rather \u201cpurgatory\u201d: our \u201chyperfinancialized\u201d modern society has become...",
+            "snippet_section": "worth_your_time",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/36",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Cryptocurrency",
+                "Spencer Pitman"
+            ]
+        },
+        {
+            "issue_id": "2e850301-91b7-4134-a3f5-558e60543b0c",
+            "title": "Cascades of change",
+            "issue_number": 59,
+            "published_at": "2022-07-14",
+            "snippet": "...So, what is the nature of your problem?\n[Client] About a decade ago, we acquired a number of <mark>crypto</mark> coins which granted access to...",
+            "snippet_section": "postcard",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/59",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Cryptocurrency",
+                "Awareness"
+            ]
+        },
+        {
+            "issue_id": "3700a076-9c10-4134-a180-bddd3034f667",
+            "title": "Assembling a CAR",
+            "issue_number": 155,
+            "published_at": "2024-07-25",
+            "snippet": "...Against Choosing Your Political Allegiances Based on Who Is \u201cPro-<mark>Crypto</mark>\u201d (Vitalik Buterin) \u2014 The Ethereum founder argues that <mark>crypto</mark> companies have a one-dimensional...",
+            "snippet_section": "worth_your_time",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/155",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Seeing Like a State",
+                "vitalik buterin"
+            ]
+        },
+        {
+            "issue_id": "2617b1ce-13aa-4d5d-a7a0-e75602596b25",
+            "title": "Collaborative editing",
+            "issue_number": 50,
+            "published_at": "2022-05-05",
+            "snippet": "...The SEC is on a hiring spree to expand its <mark>crypto</mark>-fraud-fighting unitThe US\u2019s Securities and Exchange Commission, which is tasked with...",
+            "snippet_section": "signposts",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/50",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "Cryptocurrency",
+                "Climate Change"
+            ]
+        },
+        {
+            "issue_id": "17784238-4917-43bc-bfc0-45fdcd121e35",
+            "title": "Doesn\u2019t look like nothin\u2019 to me",
+            "issue_number": 42,
+            "published_at": "2022-03-10",
+            "snippet": "...Multiple prominent <mark>crypto</mark> companies have started enforcing US sanctionsWhile some <mark>crypto</mark>-related firms have resisted calls to ban users in sanctioned countries, others have...",
+            "snippet_section": "signposts",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/42",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "blind spots",
+                "blind spot",
+                "Crypto"
+            ]
+        }
+    ]
+}

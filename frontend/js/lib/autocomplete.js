@@ -8,15 +8,17 @@ export function initAutocomplete(input, dropdownEl, { fetchSuggestions, onSelect
   var activeIndex = -1;
   var suggestions = [];
   var debounceTimer = null;
+  var requestGeneration = 0;
 
   input.addEventListener('input', function () {
     clearTimeout(debounceTimer);
     var q = input.value.trim();
+    var generation = ++requestGeneration;
     if (q.length < 2) {
       hide();
       return;
     }
-    debounceTimer = setTimeout(function () { doFetch(q); }, 200);
+    debounceTimer = setTimeout(function () { doFetch(q, generation); }, 200);
   });
 
   input.addEventListener('keydown', function (e) {
@@ -46,13 +48,15 @@ export function initAutocomplete(input, dropdownEl, { fetchSuggestions, onSelect
     if (!input.contains(e.target) && !dropdownEl.contains(e.target)) hide();
   });
 
-  async function doFetch(q) {
+  async function doFetch(q, generation) {
     try {
-      suggestions = await fetchSuggestions(q);
+      var nextSuggestions = await fetchSuggestions(q);
+      if (generation !== requestGeneration || input.value.trim() !== q) return;
+      suggestions = nextSuggestions;
       if (suggestions.length > 0) show(suggestions);
       else hide();
     } catch (err) {
-      hide();
+      if (generation === requestGeneration) hide();
     }
   }
 
@@ -76,6 +80,9 @@ export function initAutocomplete(input, dropdownEl, { fetchSuggestions, onSelect
   }
 
   function hide() {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+    requestGeneration++;
     dropdownEl.hidden = true;
     dropdownEl.innerHTML = '';
     activeIndex = -1;

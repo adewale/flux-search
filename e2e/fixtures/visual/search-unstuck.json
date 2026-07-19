@@ -1,0 +1,85 @@
+{
+    "parsed_query": {
+        "free_text": "unstuck",
+        "phrases": [],
+        "filters": {}
+    },
+    "applied_filters": [],
+    "total_hits": 3,
+    "year_distribution": {
+        "2021": 1,
+        "2022": 1,
+        "2023": 1
+    },
+    "quarter_distribution": {
+        "2022-Q2": {
+            "lead_essay": 1
+        },
+        "2021-Q3": {
+            "lens": 1
+        },
+        "2023-Q1": {
+            "lead_essay": 1
+        }
+    },
+    "section_facets": {
+        "lead_essay": 2,
+        "lens": 1
+    },
+    "results": [
+        {
+            "issue_id": "55771d8a-c820-408f-909c-2d832b793dce",
+            "title": "How to get unstuck",
+            "issue_number": 55,
+            "published_at": "2022-06-09",
+            "snippet": "Feeling stuck is the worst. We try and try just to find ourselves in the same spot. The team tries valiantly to ship less...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/55",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Attention",
+                "Systems Thinking",
+                "Exploration"
+            ]
+        },
+        {
+            "issue_id": "574eb2e3-fb76-4b94-9af7-6157202b4748",
+            "title": "The Subjectivity in Objective Methods",
+            "issue_number": 20,
+            "published_at": "2021-09-16",
+            "snippet": "...When you are trying to figure out how to get <mark>unstuck</mark>, it can help to use the lens of static vs. dynamic equilibrium.\nDoes...",
+            "snippet_section": "lens",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/20",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Cryptocurrency",
+                "Crypto",
+                "Systems Thinking"
+            ]
+        },
+        {
+            "issue_id": "6ede53c5-05c2-4af8-8bfd-ab7552f01b68",
+            "title": "See the horse",
+            "issue_number": 83,
+            "published_at": "2023-01-19",
+            "snippet": "...Sometimes you get back on the horse, sometimes you get your foot <mark>unstuck</mark> from the stirrup. But you won\u2019t do either if you...",
+            "snippet_section": "lead_essay",
+            "confidence": "medium",
+            "canonical_url": "https://read.fluxcollective.org/p/83",
+            "matched_by": [
+                "fts"
+            ],
+            "topics": [
+                "Crypto",
+                "robin sloan",
+                "Effective Altruism"
+            ]
+        }
+    ]
+}

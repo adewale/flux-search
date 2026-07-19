@@ -17,6 +17,7 @@ export type State = {
 export type Event =
   | { type: 'LOAD'; query: string }
   | { type: 'LATEST_LOADED'; query: string }
+  | { type: 'EDIT' }
   | { type: 'SUBMIT'; query: string }
   | { type: 'EXAMPLE'; query: string }
   | { type: 'FACET'; section: string }

@@ -28,6 +28,7 @@
 //
 // @typedef {{ type: 'LOAD', query: string }
 //          | { type: 'LATEST_LOADED', query: string }
+//          | { type: 'EDIT' }
 //          | { type: 'SUBMIT', query: string }
 //          | { type: 'EXAMPLE', query: string }
 //          | { type: 'FACET', section: string }
@@ -133,6 +134,12 @@ export function reduce(state, event) {
       return state;
     case 'POPSTATE':
       return event.query ? results(event.query) : landing();
+    case 'EDIT':
+      // Raw typing is a draft, not a committed search query. Its only state
+      // effect is to cancel the cold-start latest-issue request so a late
+      // response cannot overwrite what the user typed.
+      if (state.name === 'LANDING_FEATURED') return landing(true);
+      return state;
     case 'SUBMIT':
     case 'EXAMPLE':
       return event.query ? results(event.query) : state;
