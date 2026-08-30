@@ -1,7 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { makeD1 } from './helpers-d1';
-import { makeTopicEmbeddingMessages, handleEnrichmentMessage, type EnrichmentMessage } from '../src/jobs/enrichment-queue';
-import { createPipelineJob, idempotencyKeyForMessage } from '../src/lib/pipeline-jobs';
+import {
+  makeTopicEmbeddingMessages,
+  handleEnrichmentMessage,
+  processEnrichmentQueue,
+  type EnrichmentMessage,
+} from '../src/jobs/enrichment-queue';
+import { claimPipelineJob, createPipelineJob, idempotencyKeyForMessage } from '../src/lib/pipeline-jobs';
 
 function keywordRows(count: number) {
   return Array.from({ length: count }, (_, i) => ({ keyword: `topic-${i + 1}` }));
@@ -81,5 +86,57 @@ describe('enrichment queue helpers', () => {
     const row = await db.prepare('SELECT status, attempts FROM pipeline_jobs WHERE id = ?')
       .bind(message.jobId).first<{ status: string; attempts: number }>();
     expect(row).toEqual({ status: 'succeeded', attempts: 2 });
+  });
+
+  it('retries an active lease and processes the delivery after expiry', async () => {
+    const db = makeD1();
+    const message = makeTopicEmbeddingMessages(keywordRows(1), 'run-lease', 25, {
+      correlationId: 'corr-lease',
+      now: '2026-01-01T00:00:00.000Z',
+    })[0];
+    await db.prepare(`INSERT INTO corpus_topics
+      (keyword, keyword_display, doc_frequency, avg_score, aggregate_score, first_seen, last_seen, ngram_size, updated_at)
+      VALUES ('topic-1', 'topic-1', 1, 1, 1, '2026-01-01', '2026-01-01', 1, '2026-01-01')`).run();
+    await createPipelineJob(db as any, {
+      id: message.jobId,
+      runId: message.runId,
+      kind: message.kind,
+      semanticKey: idempotencyKeyForMessage(message),
+      payload: message,
+      correlationId: message.correlationId,
+      queuedAt: message.queuedAt,
+    });
+    expect((await claimPipelineJob(
+      db as any,
+      message.jobId,
+      1,
+      new Date().toISOString(),
+      'crashed-owner',
+    )).outcome).toBe('claimed');
+
+    const ack = vi.fn();
+    const retry = vi.fn();
+    const delivery = { id: 'redelivery', attempts: 2, body: message, ack, retry };
+    const env = {
+      DB: db as any,
+      AI: { run: async () => ({ data: [[1, 0]] }) },
+    } as any;
+
+    await processEnrichmentQueue({ messages: [delivery] } as any, env);
+    expect(ack).not.toHaveBeenCalled();
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(retry.mock.calls[0][0].delaySeconds).toBeGreaterThan(0);
+
+    await db.prepare(`
+      UPDATE pipeline_jobs SET lease_expires_at = '2000-01-01T00:00:00.000Z'
+      WHERE id = ?
+    `).bind(message.jobId).run();
+    retry.mockClear();
+
+    await processEnrichmentQueue({ messages: [delivery] } as any, env);
+    expect(retry).not.toHaveBeenCalled();
+    expect(ack).toHaveBeenCalledTimes(1);
+    expect((await db.prepare('SELECT status FROM pipeline_jobs WHERE id = ?')
+      .bind(message.jobId).first<{ status: string }>())?.status).toBe('succeeded');
   });
 });
