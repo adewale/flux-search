@@ -4,8 +4,17 @@ export type PipelineJobStatus = 'queued' | 'processing' | 'succeeded' | 'failed'
 
 export const PIPELINE_JOB_LEASE_MS = 15 * 60 * 1000;
 
+export type PipelineJobLeaseCheckpoint = () => Promise<void>;
+
+export class PipelineJobOwnershipLostError extends Error {
+  constructor(jobId: string) {
+    super(`Pipeline job ownership lost: ${jobId}`);
+    this.name = 'PipelineJobOwnershipLostError';
+  }
+}
+
 export type PipelineJobClaim =
-  | { outcome: 'claimed'; token: string }
+  | { outcome: 'claimed'; token: string; tracked?: false }
   | { outcome: 'active'; retryAfterSeconds: number }
   | { outcome: 'terminal' };
 
@@ -116,7 +125,9 @@ export async function claimPipelineJob(
     started_at: string | null;
     queued_at: string;
   }>();
-  if (!current) return { outcome: 'claimed', token: claimToken }; // Legacy/no-row messages remain processable.
+  // Legacy/no-row messages remain processable, but have no durable record to
+  // renew or fence. Callers must skip tracked-job lease handling for them.
+  if (!current) return { outcome: 'claimed', token: claimToken, tracked: false };
   const nowMs = Date.parse(now);
   if (!Number.isFinite(nowMs)) throw new Error(`Invalid pipeline claim timestamp: ${now}`);
   const leaseExpiresAt = new Date(nowMs + leaseMs).toISOString();
@@ -214,6 +225,82 @@ export async function renewPipelineJobLease(
   `).bind(now.toISOString(), leaseExpiresAt, jobId, claimToken)
     .first<{ status: 'processing' }>());
   return updated != null;
+}
+
+/**
+ * Keep an owned job lease live while a long-running operation is in flight.
+ *
+ * The callback receives a checkpoint for use before each durable side effect.
+ * Checkpoints reuse a lease renewed inside the current heartbeat window, then
+ * renew again after elapsed/suspended time; the forced background heartbeat
+ * protects long read/compute phases. This prevents a resumed stale worker from
+ * performing its next mutation without adding a D1 write per materialized row.
+ * A single D1 mutation must still complete within one lease interval, which is
+ * comfortably above D1's per-query execution limits.
+ */
+export async function runWithPipelineJobLease<T>(
+  db: D1Database,
+  jobId: string,
+  claimToken: string,
+  work: (checkpoint: PipelineJobLeaseCheckpoint) => Promise<T>,
+  options: {
+    leaseMs?: number;
+    heartbeatMs?: number;
+    now?: () => Date;
+  } = {},
+): Promise<T> {
+  const leaseMs = options.leaseMs ?? PIPELINE_JOB_LEASE_MS;
+  const heartbeatMs = options.heartbeatMs ?? Math.max(1_000, Math.floor(leaseMs / 3));
+  const now = options.now ?? (() => new Date());
+  if (!Number.isFinite(leaseMs) || leaseMs <= 0) throw new Error('leaseMs must be positive');
+  if (!Number.isFinite(heartbeatMs) || heartbeatMs <= 0 || heartbeatMs >= leaseMs) {
+    throw new Error('heartbeatMs must be positive and shorter than leaseMs');
+  }
+
+  let stopped = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let failure: unknown;
+  let renewalTail: Promise<void> = Promise.resolve();
+  let lastRenewedAtMs = Number.NEGATIVE_INFINITY;
+
+  const renewOwnership = async (force: boolean) => {
+    if (failure) throw failure;
+    const renewal = renewalTail.then(async () => {
+      if (failure) throw failure;
+      const renewalTime = now();
+      if (!force && renewalTime.getTime() - lastRenewedAtMs < heartbeatMs) return;
+      const renewed = await renewPipelineJobLease(db, jobId, claimToken, renewalTime, leaseMs);
+      if (!renewed) {
+        failure = new PipelineJobOwnershipLostError(jobId);
+        throw failure;
+      }
+      lastRenewedAtMs = renewalTime.getTime();
+    });
+    renewalTail = renewal.catch(() => undefined);
+    await renewal;
+    if (failure) throw failure;
+  };
+  const checkpoint: PipelineJobLeaseCheckpoint = () => renewOwnership(false);
+
+  const scheduleHeartbeat = () => {
+    timer = setTimeout(() => {
+      void renewOwnership(true)
+        .catch((err) => { failure ??= err; })
+        .finally(() => {
+          if (!stopped) scheduleHeartbeat();
+        });
+    }, heartbeatMs);
+  };
+
+  await renewOwnership(true);
+  scheduleHeartbeat();
+  try {
+    return await work(checkpoint);
+  } finally {
+    stopped = true;
+    if (timer !== undefined) clearTimeout(timer);
+    await renewalTail;
+  }
 }
 
 /**

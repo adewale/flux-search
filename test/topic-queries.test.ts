@@ -10,10 +10,13 @@ import {
   addToBlocklist,
   buildCorpusTopics,
   buildTopicTimeline,
+  clusterCorpusTopics,
   getCorpusTopics,
   getTopicTimeline,
   getRelatedIssuesByTopic,
+  replaceTopicSimilarities,
 } from '../src/db/topic-queries';
+import { PipelineJobOwnershipLostError } from '../src/lib/pipeline-jobs';
 
 function topic(partial: Partial<ExtractedTopic> & { keyword: string; rank: number }): ExtractedTopic {
   return {
@@ -346,6 +349,127 @@ describe('buildCorpusTopics', () => {
     const stripUpdated = (rows: typeof first) =>
       rows.map(r => ({ ...r, updated_at: '_' }));
     expect(stripUpdated(second)).toEqual(stripUpdated(first));
+  });
+
+  it('does not let a stale rebuild overwrite replacement materialization', async () => {
+    const db = makeD1();
+    const a = await seedIssue(db as any, { issue_number: 1 });
+    const b = await seedIssue(db as any, { issue_number: 2 });
+    await replaceIssueTopics(db as any, a, [topic({ keyword: 'trust', rank: 1 })]);
+    await replaceIssueTopics(db as any, b, [topic({ keyword: 'trust', rank: 1 })]);
+
+    let checkpoints = 0;
+    const staleCheckpoint = async () => {
+      checkpoints++;
+      if (checkpoints === 2) {
+        await buildCorpusTopics(db as any, { minDocFrequency: 2 });
+        throw new PipelineJobOwnershipLostError('stale-finalizer');
+      }
+    };
+
+    await expect(buildCorpusTopics(db as any, {
+      minDocFrequency: 2,
+      checkpoint: staleCheckpoint,
+    })).rejects.toBeInstanceOf(PipelineJobOwnershipLostError);
+
+    const corpus = await getCorpusTopics(db as any);
+    expect(corpus.map(row => [row.keyword, row.doc_frequency])).toEqual([['trust', 2]]);
+  });
+});
+
+describe('clusterCorpusTopics ownership', () => {
+  it('does not double-add a merged frequency when a replacement clusters first', async () => {
+    const db = makeD1();
+    await db.prepare(`
+      INSERT INTO corpus_topics
+        (keyword, keyword_display, doc_frequency, avg_score, aggregate_score, first_seen, last_seen, ngram_size, updated_at)
+      VALUES
+        ('large language models', 'Large Language Models', 3, 0.1, 30, '2026-01-01', '2026-01-01', 3, '2026-01-01'),
+        ('llm', 'LLM', 2, 0.2, 10, '2026-01-01', '2026-01-01', 1, '2026-01-01')
+    `).run();
+
+    let replacementRan = false;
+    const staleCheckpoint = async () => {
+      if (!replacementRan) {
+        replacementRan = true;
+        expect(await clusterCorpusTopics(db as any)).toBe(1);
+        throw new PipelineJobOwnershipLostError('stale-finalizer');
+      }
+    };
+
+    await expect(clusterCorpusTopics(db as any, 0.85, staleCheckpoint))
+      .rejects.toBeInstanceOf(PipelineJobOwnershipLostError);
+
+    const rows = await db.prepare(`
+      SELECT keyword, doc_frequency FROM corpus_topics ORDER BY keyword
+    `).all<{ keyword: string; doc_frequency: number }>();
+    expect(rows.results).toEqual([{ keyword: 'large language models', doc_frequency: 5 }]);
+  });
+
+  it('rolls back the frequency fold when its paired deletion cannot commit', async () => {
+    const db = makeD1();
+    await db.prepare(`
+      INSERT INTO corpus_topics
+        (keyword, keyword_display, doc_frequency, avg_score, aggregate_score, first_seen, last_seen, ngram_size, updated_at)
+      VALUES
+        ('large language models', 'Large Language Models', 3, 0.1, 30, '2026-01-01', '2026-01-01', 3, '2026-01-01'),
+        ('llm', 'LLM', 2, 0.2, 10, '2026-01-01', '2026-01-01', 1, '2026-01-01')
+    `).run();
+
+    const originalBatch = db.batch.bind(db);
+    let injectedFailure = false;
+    const failingDb = {
+      ...db,
+      batch: async (stmts: any[]) => {
+        injectedFailure = true;
+        return originalBatch([
+          ...stmts,
+          db.prepare('INSERT INTO missing_cluster_commit_guard DEFAULT VALUES') as any,
+        ]);
+      },
+    };
+
+    await expect(clusterCorpusTopics(failingDb as any)).rejects.toThrow(/missing_cluster_commit_guard/);
+    expect(injectedFailure).toBe(true);
+    expect((await db.prepare(`
+      SELECT keyword, doc_frequency FROM corpus_topics ORDER BY keyword
+    `).all<{ keyword: string; doc_frequency: number }>()).results).toEqual([
+      { keyword: 'large language models', doc_frequency: 3 },
+      { keyword: 'llm', doc_frequency: 2 },
+    ]);
+
+    expect(await clusterCorpusTopics(db as any)).toBe(1);
+    expect((await db.prepare(`
+      SELECT keyword, doc_frequency FROM corpus_topics ORDER BY keyword
+    `).all<{ keyword: string; doc_frequency: number }>()).results).toEqual([
+      { keyword: 'large language models', doc_frequency: 5 },
+    ]);
+  });
+});
+
+describe('topic similarity ownership', () => {
+  it('does not let a stale similarity batch overwrite replacement rows', async () => {
+    const db = makeD1();
+    const stalePairs = [{
+      keyword_a: 'stale-a', keyword_b: 'stale-b', cosine: 0.9, jaccard: 0.5, blended: 0.7,
+    }];
+    const replacementPairs = [{
+      keyword_a: 'fresh-a', keyword_b: 'fresh-b', cosine: 0.8, jaccard: 0.6, blended: 0.7,
+    }];
+    let checkpoints = 0;
+
+    await expect(replaceTopicSimilarities(db as any, stalePairs, async () => {
+      checkpoints++;
+      if (checkpoints === 2) {
+        await replaceTopicSimilarities(db as any, replacementPairs);
+        throw new PipelineJobOwnershipLostError('stale-embedding-owner');
+      }
+    })).rejects.toBeInstanceOf(PipelineJobOwnershipLostError);
+
+    const rows = await db.prepare(`
+      SELECT keyword_a, keyword_b FROM topic_similarity ORDER BY keyword_a, keyword_b
+    `).all<{ keyword_a: string; keyword_b: string }>();
+    expect(rows.results).toEqual([{ keyword_a: 'fresh-a', keyword_b: 'fresh-b' }]);
   });
 });
 

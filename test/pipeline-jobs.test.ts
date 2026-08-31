@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import fc from 'fast-check';
 import { makeD1 } from './helpers-d1';
 import {
@@ -11,7 +11,9 @@ import {
   idempotencyKeyForMessage,
   listPipelineJobs,
   PIPELINE_JOB_LEASE_MS,
+  PipelineJobOwnershipLostError,
   renewPipelineJobLease,
+  runWithPipelineJobLease,
   succeedPipelineJob,
   succeedPipelineJobAndCompleteRun,
   type PipelineJobStatus,
@@ -187,6 +189,141 @@ describe('pipeline job state', () => {
     })).toBe(true);
     expect((await db.prepare('SELECT status FROM pipeline_runs WHERE id = ?')
       .bind('run-finalizer').first<{ status: string }>())?.status).toBe('completed');
+  });
+
+  it('heartbeats a long-running owner so its lease cannot be reclaimed mid-work', async () => {
+    vi.useFakeTimers();
+    const startedAt = new Date('2026-01-01T00:00:00.000Z');
+    vi.setSystemTime(startedAt);
+    const db = makeD1();
+    await createTestJob(db, 'job-heartbeat');
+    expect(await claimPipelineJob(
+      db as any,
+      'job-heartbeat',
+      1,
+      startedAt.toISOString(),
+      'live-owner',
+      100,
+    )).toEqual({ outcome: 'claimed', token: 'live-owner' });
+
+    let releaseWork!: () => void;
+    let signalStarted!: () => void;
+    const workStarted = new Promise<void>(resolve => { signalStarted = resolve; });
+    const workBlocked = new Promise<void>(resolve => { releaseWork = resolve; });
+    const running = runWithPipelineJobLease(
+      db as any,
+      'job-heartbeat',
+      'live-owner',
+      async (checkpoint) => {
+        signalStarted();
+        await workBlocked;
+        await checkpoint();
+        return 'finished';
+      },
+      { leaseMs: 100, heartbeatMs: 20 },
+    );
+
+    try {
+      await workStarted;
+      await vi.advanceTimersByTimeAsync(300);
+      const replacement = await claimPipelineJob(
+        db as any,
+        'job-heartbeat',
+        2,
+        new Date().toISOString(),
+        'replacement-owner',
+        100,
+      );
+      expect(replacement.outcome).toBe('active');
+      releaseWork();
+      await expect(running).resolves.toBe('finished');
+    } finally {
+      releaseWork();
+      await running.catch(() => undefined);
+      vi.useRealTimers();
+    }
+  });
+
+  it('coalesces per-mutation checkpoints inside the current heartbeat window', async () => {
+    const startedAt = Date.parse('2026-01-01T00:00:00.000Z');
+    let nowMs = startedAt;
+    const db = makeD1();
+    await createTestJob(db, 'job-coalesced-checkpoints');
+    expect(await claimPipelineJob(
+      db as any,
+      'job-coalesced-checkpoints',
+      1,
+      new Date(startedAt).toISOString(),
+      'coalesced-owner',
+      5_000,
+    )).toEqual({ outcome: 'claimed', token: 'coalesced-owner' });
+
+    const prepareSpy = vi.spyOn(db, 'prepare');
+    try {
+      await runWithPipelineJobLease(
+        db as any,
+        'job-coalesced-checkpoints',
+        'coalesced-owner',
+        async (checkpoint) => {
+          for (let i = 0; i < 500; i++) await checkpoint();
+          nowMs += 1_000;
+          await checkpoint();
+        },
+        {
+          leaseMs: 5_000,
+          heartbeatMs: 1_000,
+          now: () => new Date(nowMs),
+        },
+      );
+
+      const renewals = prepareSpy.mock.calls.filter(([sql]) =>
+        sql.includes('SET updated_at = ?, lease_expires_at = ?'));
+      expect(renewals).toHaveLength(2);
+    } finally {
+      prepareSpy.mockRestore();
+    }
+  });
+
+  it('stops stale work at its next checkpoint after a replacement takes ownership', async () => {
+    vi.useFakeTimers();
+    const startedAt = Date.parse('2026-01-01T00:00:00.000Z');
+    vi.setSystemTime(startedAt);
+    const db = makeD1();
+    await createTestJob(db, 'job-overlap');
+    expect(await claimPipelineJob(
+      db as any,
+      'job-overlap',
+      1,
+      new Date(startedAt).toISOString(),
+      'stale-owner',
+      100,
+    )).toEqual({ outcome: 'claimed', token: 'stale-owner' });
+
+    let staleMutationRan = false;
+    try {
+      await expect(runWithPipelineJobLease(
+        db as any,
+        'job-overlap',
+        'stale-owner',
+        async (checkpoint) => {
+          vi.setSystemTime(startedAt + 100);
+          expect(await claimPipelineJob(
+            db as any,
+            'job-overlap',
+            2,
+            new Date().toISOString(),
+            'replacement-owner',
+            100,
+          )).toEqual({ outcome: 'claimed', token: 'replacement-owner' });
+          await checkpoint();
+          staleMutationRan = true;
+        },
+        { leaseMs: 100, heartbeatMs: 90 },
+      )).rejects.toBeInstanceOf(PipelineJobOwnershipLostError);
+      expect(staleMutationRan).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('fails a finalizer job and its run in one owner-fenced batch', async () => {

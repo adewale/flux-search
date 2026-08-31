@@ -11,10 +11,12 @@ import {
   failPipelineJobAndRun,
   failPipelineRunIfPresent,
   idempotencyKeyForMessage,
+  PipelineJobOwnershipLostError,
   recordPipelinePhase,
-  renewPipelineJobLease,
+  runWithPipelineJobLease,
   succeedPipelineJob,
   succeedPipelineJobAndCompleteRun,
+  type PipelineJobLeaseCheckpoint,
 } from '../lib/pipeline-jobs';
 import {
   annotateCorpusTopics,
@@ -93,6 +95,36 @@ function messageJobId(message: EnrichmentMessage): string | null {
 
 function messageCorrelationId(message: EnrichmentMessage): string | null {
   return 'correlationId' in message ? message.correlationId : null;
+}
+
+async function persistMissingPipelineJob(
+  env: Env,
+  message: EnrichmentMessage,
+  jobId: string,
+  runId: string,
+  kind: ReturnType<typeof messageKind>,
+  correlationId: string | null,
+): Promise<void> {
+  const queuedAt = 'queuedAt' in message ? message.queuedAt : new Date().toISOString();
+  const created = await createPipelineJob(env.DB, {
+    id: jobId,
+    runId,
+    kind,
+    semanticKey: idempotencyKeyForMessage(message),
+    payload: message,
+    correlationId: correlationId ?? jobId,
+    queuedAt,
+  });
+  if (created) return;
+
+  // createPipelineJob can report a duplicate after an ambiguous commit or an
+  // exact-ID race. Only continue when this delivery's row is now observable;
+  // a different active semantic-key owner must clear before we retry.
+  const existing = await env.DB.prepare('SELECT id FROM pipeline_jobs WHERE id = ?')
+    .bind(jobId).first<{ id: string }>();
+  if (!existing) {
+    throw new Error('temporarily unavailable: missing pipeline job could not be restored');
+  }
 }
 
 export function makeTopicEmbeddingMessages(
@@ -254,9 +286,15 @@ async function enqueueTopicFinalizeIfReady(env: Env, runId: string, correlationI
   return true;
 }
 
-export async function enqueueCorpusTopicEmbedding(env: Env, runId: string, batchSize = 25): Promise<number> {
+export async function enqueueCorpusTopicEmbedding(
+  env: Env,
+  runId: string,
+  batchSize = 25,
+  checkpoint?: PipelineJobLeaseCheckpoint,
+): Promise<number> {
   if (!env.ENRICHMENT_QUEUE) return 0;
 
+  await checkpoint?.();
   const rows = await env.DB.prepare(`
     SELECT keyword
     FROM corpus_topics
@@ -264,36 +302,74 @@ export async function enqueueCorpusTopicEmbedding(env: Env, runId: string, batch
   `).all<TopicKeywordRow>();
 
   const messages = makeTopicEmbeddingMessages(rows.results, runId, batchSize);
-  const sendable: EmbedCorpusTopicsMessage[] = [];
+  const sendable = new Map<string, EmbedCorpusTopicsMessage>();
   for (const message of messages) {
+    const semanticKey = idempotencyKeyForMessage(message);
+    const readPersisted = async () => {
+      await checkpoint?.();
+      return env.DB.prepare(`
+        SELECT id, status, payload_json
+        FROM pipeline_jobs
+        WHERE run_id = ? AND semantic_key = ? AND kind = 'embed-corpus-topics'
+        ORDER BY queued_at DESC
+        LIMIT 1
+      `).bind(runId, semanticKey).first<{ id: string; status: string; payload_json: string }>();
+    };
+    const queuePersistedIfNeeded = (existing: { id: string; status: string; payload_json: string } | null) => {
+      if (existing && (existing.status === 'queued' || existing.status === 'deferred')) {
+        sendable.set(existing.id, JSON.parse(existing.payload_json) as EmbedCorpusTopicsMessage);
+      }
+      return existing != null;
+    };
+
+    // Same-run terminal/processing rows already represent this materialized
+    // batch. Do not create a duplicate merely because the active-only unique
+    // index released its semantic key after completion.
+    if (queuePersistedIfNeeded(await readPersisted())) continue;
+
+    await checkpoint?.();
     const created = await createPipelineJob(env.DB, {
       id: message.jobId,
       runId,
       kind: message.kind,
-      semanticKey: idempotencyKeyForMessage(message),
+      semanticKey,
       payload: message,
       correlationId: message.correlationId,
       queuedAt: message.queuedAt,
     });
-    if (created) sendable.push(message);
+    if (created) {
+      sendable.set(message.jobId, message);
+      continue;
+    }
+
+    // An insert race may have committed the same-run outbox row. Re-read and
+    // replay only that row; a global active-key conflict from another run is
+    // intentionally left to its existing owner.
+    queuePersistedIfNeeded(await readPersisted());
   }
 
-  for (let i = 0; i < sendable.length; i += 100) {
+  const sendableMessages = [...sendable.values()];
+  for (let i = 0; i < sendableMessages.length; i += 100) {
+    await checkpoint?.();
     await env.ENRICHMENT_QUEUE.sendBatch(
-      sendable.slice(i, i + 100).map(body => ({ body }))
+      sendableMessages.slice(i, i + 100).map(body => ({ body }))
     );
   }
-  return sendable.length;
+  return sendableMessages.length;
 }
 
-async function embedTopicKeywords(env: Env, keywords: string[]): Promise<number> {
+async function embedTopicKeywords(
+  env: Env,
+  keywords: string[],
+  checkpoint?: PipelineJobLeaseCheckpoint,
+): Promise<number> {
   if (keywords.length === 0) return 0;
   const result = await env.AI.run('@cf/baai/bge-base-en-v1.5', { text: keywords });
   if (!('data' in result) || !Array.isArray(result.data)) return 0;
   const embeddings = keywords.map((keyword, i) => ({ keyword, vector: (result.data as number[][])[i] ?? [] }))
     .filter(e => e.vector.length > 0);
-  await replaceTopicEmbeddings(env.DB, embeddings);
-  await rebuildSimilaritiesFromStoredEmbeddings(env.DB, embeddings.map(e => e.keyword));
+  await replaceTopicEmbeddings(env.DB, embeddings, '@cf/baai/bge-base-en-v1.5', checkpoint);
+  await rebuildSimilaritiesFromStoredEmbeddings(env.DB, embeddings.map(e => e.keyword), 0.6, checkpoint);
   return embeddings.length;
 }
 
@@ -315,7 +391,12 @@ async function extractIssueTopicBatch(env: Env, issueIds: string[]): Promise<{ i
   return { issues, suppressed };
 }
 
-async function finalizeTopicRebuild(env: Env, runId: string, expectedExtractJobs: number): Promise<{ issueRows: number; corpusTopics: number; timelineRows: number; clusterMerges: number; topicsSuppressed: number }> {
+async function finalizeTopicRebuild(
+  env: Env,
+  runId: string,
+  expectedExtractJobs: number,
+  checkpoint?: PipelineJobLeaseCheckpoint,
+): Promise<{ issueRows: number; corpusTopics: number; timelineRows: number; clusterMerges: number; topicsSuppressed: number }> {
   const pending = await env.DB.prepare(`
     SELECT COUNT(*) AS c
     FROM pipeline_jobs
@@ -346,13 +427,13 @@ async function finalizeTopicRebuild(env: Env, runId: string, expectedExtractJobs
   for (const [issueId, topics] of crossIssue.byIssue.entries()) {
     const rows = topics.map(t => ({ ...t, stem: stemPhrase(t.keyword) }));
     issueRows += rows.length;
-    await replaceIssueTopics(env.DB, issueId, rows);
+    await replaceIssueTopics(env.DB, issueId, rows, checkpoint);
   }
 
-  const corpusTopics = await buildCorpusTopics(env.DB);
-  const clusterMerges = await clusterCorpusTopics(env.DB);
-  const timelineRows = await buildTopicTimeline(env.DB);
-  await annotateCorpusTopics(env.DB);
+  const corpusTopics = await buildCorpusTopics(env.DB, { checkpoint });
+  const clusterMerges = await clusterCorpusTopics(env.DB, 0.85, checkpoint);
+  const timelineRows = await buildTopicTimeline(env.DB, checkpoint);
+  await annotateCorpusTopics(env.DB, checkpoint);
   return { issueRows, corpusTopics, timelineRows, clusterMerges, topicsSuppressed: suppressed };
 }
 
@@ -368,7 +449,23 @@ export async function handleEnrichmentMessage(
   let claimToken: string | null = null;
 
   if (env && jobId) {
-    const claim = await claimPipelineJob(env.DB, jobId, attempts);
+    let claim = await claimPipelineJob(env.DB, jobId, attempts);
+    if (claim.outcome === 'claimed' && claim.tracked === false) {
+      // Modern queue messages contain enough information to reconstruct a
+      // missing pre-durability row. Persist it before executing so extraction
+      // results can still satisfy the barrier and long work can be leased.
+      await persistMissingPipelineJob(env, message, jobId, runId, kind, correlationId);
+      claim = await claimPipelineJob(
+        env.DB,
+        jobId,
+        attempts,
+        new Date().toISOString(),
+        claim.token,
+      );
+      if (claim.outcome === 'claimed' && claim.tracked === false) {
+        throw new Error('temporarily unavailable: restored pipeline job is not observable');
+      }
+    }
     if (claim.outcome === 'terminal') {
       // Repair the durable finalizer barrier if an extract worker committed
       // success and terminated before publishing the finalizer message.
@@ -414,75 +511,107 @@ export async function handleEnrichmentMessage(
       }
       case 'topic-finalize-rebuild': {
         if (!env || !('expectedExtractJobs' in message)) return { embedded: 0, finalized: false };
-        const finalized = await runStep('topic_finalize_rebuild', () => finalizeTopicRebuild(env, runId, message.expectedExtractJobs));
-        if (jobId && claimToken) {
-          // Materialization above can be long-running. Renew immediately before
-          // publishing downstream work so a replaced owner cannot enqueue it.
-          const renewed = await renewPipelineJobLease(env.DB, jobId, claimToken);
-          if (!renewed) return { embedded: 0, finalized: false };
-        }
-        const queuedEmbeddingBatches = await enqueueCorpusTopicEmbedding(env, runId);
-        const result = { ...finalized.result, queuedEmbeddingBatches };
-        if (jobId && claimToken) {
-          const completed = await succeedPipelineJobAndCompleteRun(env.DB, {
-            jobId,
+        const processFinalizer = async (checkpoint?: PipelineJobLeaseCheckpoint) => {
+          const finalized = await runStep(
+            'topic_finalize_rebuild',
+            () => finalizeTopicRebuild(env, runId, message.expectedExtractJobs, checkpoint),
+          );
+          const queuedEmbeddingBatches = await enqueueCorpusTopicEmbedding(env, runId, 25, checkpoint);
+          const result = { ...finalized.result, queuedEmbeddingBatches };
+          if (jobId && claimToken) {
+            await checkpoint?.();
+            const completed = await succeedPipelineJobAndCompleteRun(env.DB, {
+              jobId,
+              runId,
+              claimToken,
+              result,
+              notes: {
+                run_id: runId,
+                issue_topic_rows: result.issueRows,
+                corpus_topics: result.corpusTopics,
+                timeline_rows: result.timelineRows,
+                cluster_merges: result.clusterMerges,
+                topics_suppressed: result.topicsSuppressed,
+                queued_embedding_batches: result.queuedEmbeddingBatches,
+              },
+            });
+            if (!completed) throw new PipelineJobOwnershipLostError(jobId);
+          }
+          await recordPipelinePhase(env.DB, {
             runId,
-            claimToken,
-            result,
-            notes: {
-              run_id: runId,
-              issue_topic_rows: result.issueRows,
-              corpus_topics: result.corpusTopics,
-              timeline_rows: result.timelineRows,
-              cluster_merges: result.clusterMerges,
-              topics_suppressed: result.topicsSuppressed,
-              queued_embedding_batches: result.queuedEmbeddingBatches,
-            },
+            jobId,
+            phase: 'topic_finalize_rebuild',
+            status: 'succeeded',
+            summary: result,
           });
-          if (!completed) return { embedded: 0, finalized: false };
+          return { embedded: 0, finalized: true } as const;
+        };
+
+        if (jobId && claimToken) {
+          return await runWithPipelineJobLease(
+            env.DB,
+            jobId,
+            claimToken,
+            processFinalizer,
+          );
         }
-        await recordPipelinePhase(env.DB, {
-          runId,
-          jobId,
-          phase: 'topic_finalize_rebuild',
-          status: 'succeeded',
-          summary: result,
-        });
-        return { embedded: 0, finalized: true };
+        return await processFinalizer();
       }
       case 'embed-corpus-topics': {
         if (!('keywords' in message)) return { embedded: 0 };
-        const embedded = await runStep('embed_corpus_topics', async () => {
-          const count = env ? await embedTopicKeywords(env, message.keywords) : message.keywords.length;
-          console.log(JSON.stringify({
-            event: 'topic_enrichment_job',
-            run_id: runId,
-            job_id: jobId,
-            correlation_id: correlationId,
-            kind,
+        const processEmbedding = async (checkpoint?: PipelineJobLeaseCheckpoint) => {
+          const embedded = await runStep('embed_corpus_topics', async () => {
+            const count = env
+              ? await embedTopicKeywords(env, message.keywords, checkpoint)
+              : message.keywords.length;
+            console.log(JSON.stringify({
+              event: 'topic_enrichment_job',
+              run_id: runId,
+              job_id: jobId,
+              correlation_id: correlationId,
+              kind,
+              status: 'succeeded',
+              attempts,
+              batch_size: message.keywords.length,
+              embedded: count,
+              ack: true,
+            }));
+            return count;
+          });
+          if (env && jobId && claimToken) {
+            await checkpoint?.();
+            const completed = await succeedPipelineJob(env.DB, jobId, claimToken, { embedded: embedded.result });
+            if (!completed) throw new PipelineJobOwnershipLostError(jobId);
+          }
+          if (env) await recordPipelinePhase(env.DB, {
+            runId,
+            jobId,
+            phase: 'topic_embedding',
             status: 'succeeded',
-            attempts,
-            batch_size: message.keywords.length,
-            embedded: count,
-            ack: true,
-          }));
-          return count;
-        });
+            summary: { keywords: message.keywords.length, embedded: embedded.result },
+          });
+          return { embedded: embedded.result };
+        };
+
         if (env && jobId && claimToken) {
-          const completed = await succeedPipelineJob(env.DB, jobId, claimToken, { embedded: embedded.result });
-          if (!completed) return { embedded: embedded.result };
+          return await runWithPipelineJobLease(
+            env.DB,
+            jobId,
+            claimToken,
+            processEmbedding,
+          );
         }
-        if (env) await recordPipelinePhase(env.DB, {
-          runId,
-          jobId,
-          phase: 'topic_embedding',
-          status: 'succeeded',
-          summary: { keywords: message.keywords.length, embedded: embedded.result },
-        });
-        return { embedded: embedded.result };
+        return await processEmbedding();
       }
     }
   } catch (err) {
+    // A replacement delivery owns recovery. The stale delivery must stop
+    // mutating durable state and acknowledge rather than fighting the owner.
+    if (err instanceof PipelineJobOwnershipLostError) {
+      return kind === 'topic-finalize-rebuild'
+        ? { embedded: 0, finalized: false }
+        : { embedded: 0 };
+    }
     if (env && jobId && claimToken) {
       if (shouldRetryError(err)) await deferPipelineJob(env.DB, jobId, claimToken, err);
       else {

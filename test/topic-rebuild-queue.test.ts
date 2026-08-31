@@ -48,6 +48,71 @@ describe('queue-backed topic rebuild', () => {
     expect(corpus.results.map(r => r.keyword)).toContain('systems thinking');
   });
 
+  it('materializes a finalizer delivery whose legacy job row is missing', async () => {
+    const db = makeD1();
+    await seedIssue(db, 'legacy-1', 1, 'Systems thinking and crypto shape governance.');
+    await seedIssue(db, 'legacy-2', 2, 'Systems thinking and crypto shape climate change.');
+    await seedIssue(db, 'legacy-3', 3, 'Systems thinking and crypto shape institutions.');
+
+    const sent: EnrichmentMessage[] = [];
+    const env = {
+      DB: db as any,
+      ENRICHMENT_QUEUE: {
+        sendBatch: async (batch: Array<{ body: EnrichmentMessage }>) => {
+          sent.push(...batch.map(item => item.body));
+        },
+      },
+      AI: { run: async (_model: string, input: { text: string[] }) => ({ data: input.text.map(() => [1, 0]) }) },
+    } as any;
+
+    await enqueueTopicRebuild(env, 'run-legacy-finalizer', ['legacy-1', 'legacy-2', 'legacy-3'], 1);
+    const extracts = sent.filter(message => 'kind' in message && message.kind === 'topic-extract-batch');
+    await handleEnrichmentMessage(extracts[0], env);
+    await handleEnrichmentMessage(extracts[1], env);
+    await handleEnrichmentMessage(extracts[2], env);
+    const finalizer = sent.find(message => 'kind' in message && message.kind === 'topic-finalize-rebuild');
+    expect(finalizer).toBeDefined();
+    if (!finalizer || !('jobId' in finalizer)) throw new Error('expected a persisted finalizer message');
+
+    await db.prepare('DELETE FROM pipeline_jobs WHERE id = ?').bind(finalizer.jobId).run();
+    await expect(handleEnrichmentMessage(finalizer, env)).resolves.toEqual({ embedded: 0, finalized: true });
+
+    const corpus = await db.prepare('SELECT keyword FROM corpus_topics ORDER BY keyword')
+      .all<{ keyword: string }>();
+    expect(corpus.results.map(row => row.keyword)).toContain('systems thinking');
+    expect(await db.prepare('SELECT status FROM pipeline_jobs WHERE id = ?')
+      .bind(finalizer.jobId).first()).toEqual({ status: 'succeeded' });
+  });
+
+  it('restores a missing extract row so its result still reaches the barrier', async () => {
+    const db = makeD1();
+    await seedIssue(db, 'legacy-extract', 1, 'Systems thinking shapes governance.');
+    const sent: EnrichmentMessage[] = [];
+    const env = {
+      DB: db as any,
+      ENRICHMENT_QUEUE: {
+        sendBatch: async (batch: Array<{ body: EnrichmentMessage }>) => {
+          sent.push(...batch.map(item => item.body));
+        },
+      },
+    } as any;
+
+    await enqueueTopicRebuild(env, 'run-legacy-extract', ['legacy-extract'], 1);
+    const extract = sent.find(message => 'kind' in message && message.kind === 'topic-extract-batch');
+    expect(extract).toBeDefined();
+    if (!extract || !('jobId' in extract)) throw new Error('expected a persisted extract message');
+
+    await db.prepare('DELETE FROM pipeline_jobs WHERE id = ?').bind(extract.jobId).run();
+    await expect(handleEnrichmentMessage(extract, env)).resolves.toEqual({ embedded: 0, extracted: 1 });
+
+    const restored = await db.prepare(`
+      SELECT status, result_json FROM pipeline_jobs WHERE id = ?
+    `).bind(extract.jobId).first<{ status: string; result_json: string | null }>();
+    expect(restored?.status).toBe('succeeded');
+    expect(JSON.parse(restored?.result_json ?? '{}').issues?.[0]?.issueId).toBe('legacy-extract');
+    expect(sent.some(message => 'kind' in message && message.kind === 'topic-finalize-rebuild')).toBe(true);
+  });
+
   it('replays a persisted finalizer outbox without creating a late duplicate', async () => {
     const db = makeD1();
     await db.prepare(`
