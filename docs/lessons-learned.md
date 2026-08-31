@@ -496,3 +496,20 @@ The Yaket spec still described `POST /admin/rebuild-topics?backfill=true` as a m
 We added `docs/topic-system-status.md` as the current scorecard and `docs/internal-consistency-audit.md` as the reconciliation point. Historical research remains useful, but it now points to the current status rather than competing with it.
 
 **Lesson: when architecture changes, update the docs in the same unit of work.** A passing test suite does not prevent stale docs from sending the next engineer down the wrong path. Treat docs like public API: if behavior changes, the contract must change too.
+
+## What we learned about durable queue ownership
+
+### An atomic claim is an end-to-end protocol, not one conditional update
+
+Changing the old read-then-write claim into a conditional `UPDATE` prevented two workers from claiming the same row, but it did not make the workflow safe. Successive reviews exposed the rest of the protocol:
+
+- a worker can die after claiming, so ownership needs an expiring lease;
+- an early redelivery must retry through lease expiry, not acknowledge and lose the only delivery;
+- a stale worker must be fenced from job, run, and finalizer side effects, not only from the claim row;
+- D1 can commit and then report a retryable transport error, so same-owner terminal transitions must recognize their already-committed state;
+- queue publication can succeed before its response fails, so the finalizer message needs a persisted outbox row that can be resent without duplication;
+- finalizer job and run terminal state must change together, or redelivery must be able to repair a partial legacy state.
+
+**Lesson:** define queue ownership across claim, execution, acknowledgement, and every durable side effect. Use an owner token plus bounded lease, retry active deliveries until they are reclaimable, fence downstream transitions with the same token, make ambiguous outcomes idempotently observable, and persist publish intent before sending. Model crashes, elapsed time, replacement owners, reordered deliveries, and commit-then-error outcomes—not just the happy status sequence.
+
+**Enforcement:** migration `0019_pipeline_job_claim_leases.sql`, the ownership helpers in `src/lib/pipeline-jobs.ts`, and the durable-finalizer flow in `src/jobs/enrichment-queue.ts` implement the protocol. `test/pipeline-jobs.test.ts`, `test/enrichment-queue.test.ts`, and `test/topic-rebuild-queue.test.ts` exercise concurrent claims, expiry and takeover, stale-owner fencing, early redelivery, ambiguous D1 commits, outbox replay, and atomic finalizer/run completion and failure.
