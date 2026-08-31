@@ -496,3 +496,21 @@ The Yaket spec still described `POST /admin/rebuild-topics?backfill=true` as a m
 We added `docs/topic-system-status.md` as the current scorecard and `docs/internal-consistency-audit.md` as the reconciliation point. Historical research remains useful, but it now points to the current status rather than competing with it.
 
 **Lesson: when architecture changes, update the docs in the same unit of work.** A passing test suite does not prevent stale docs from sending the next engineer down the wrong path. Treat docs like public API: if behavior changes, the contract must change too.
+
+## What we learned about durable queue ownership
+
+### An atomic claim is an end-to-end protocol, not one conditional update
+
+Changing the old read-then-write claim into a conditional `UPDATE` prevented two workers from claiming the same row, but it did not make the workflow safe. Successive reviews exposed the rest of the protocol:
+
+- a worker can die after claiming, so ownership needs an expiring lease;
+- an early redelivery must retry through lease expiry, not acknowledge and lose the only delivery;
+- long-running finalizer and embedding work needs a heartbeat plus an owner-token checkpoint before every durable mutation, not only a fence at the terminal update;
+- D1 can commit and then report a retryable transport error, so same-owner terminal transitions must recognize their already-committed state;
+- queue publication can succeed before its response fails, so the finalizer message needs a persisted outbox row that can be resent without duplication;
+- an owner can commit a downstream embedding-job row and lose ownership before publishing it, so a replacement must replay same-run queued/deferred rows while treating processing/terminal rows as already handled;
+- finalizer job and run terminal state must change together, or redelivery must be able to repair a partial legacy state.
+
+**Lesson:** define queue ownership across claim, execution, every durable mutation, downstream publication, terminal state, and acknowledgement. A bounded claim lease needs a heartbeat during long compute/read phases and a lease-validating owner-token checkpoint immediately before each write; otherwise a replacement can take over while the stale worker is still materializing tables. Checkpoints can reuse a lease renewed inside the current heartbeat window, but must renew after elapsed or suspended time so safety does not require a database write per row. Persist publish intent before sending, and make the persisted row replayable because ownership can be lost between row commit and queue publication. Keep multi-statement, non-idempotent mutations atomic where possible. Model crashes, elapsed time, replacement owners, reordered deliveries, and commit-then-error outcomes—not just the happy status sequence.
+
+**Enforcement:** migration `0019_pipeline_job_claim_leases.sql` and `runWithPipelineJobLease` implement the lease protocol. The helper forces background heartbeats while coalescing per-mutation checkpoints within the heartbeat interval. Finalizer and embedding paths thread its checkpoint through issue/corpus/timeline/annotation, embedding, and similarity writes; clustering commits each frequency-fold/delete pair atomically. Embedding-job enqueue first looks up same-run semantic rows, replays persisted queued/deferred payloads, skips processing/terminal rows, and never republishes a conflicting row from another run. Missing modern job rows are reconstructed and claimed before work starts. `test/pipeline-jobs.test.ts`, `test/enrichment-queue.test.ts`, `test/topic-queries.test.ts`, and `test/topic-rebuild-queue.test.ts` exercise heartbeat/takeover timing, checkpoint write coalescing, stale/replacement materialization, atomic clustering, missing-row recovery, and ownership loss between outbox commit and publication.

@@ -2,6 +2,8 @@ import type { ExtractedTopic } from '../lib/topic-extractor';
 import type { CorpusTopicRow, IssueRow, IssueTopicRow, TopicTimelineRow } from './types';
 import { buildTopicSimilarities, type TopicEmbedding } from '../lib/topic-similarity';
 
+export type DurableWriteCheckpoint = () => Promise<void>;
+
 export async function replaceIssueTopics(
   db: D1Database,
   issueId: string,
@@ -14,7 +16,9 @@ export async function replaceIssueTopics(
     eligibility_status?: string | null;
     evidence_json?: string | null;
   }>,
+  checkpoint?: DurableWriteCheckpoint,
 ): Promise<void> {
+  await checkpoint?.();
   await db.prepare('DELETE FROM issue_topics WHERE issue_id = ?').bind(issueId).run();
 
   if (topics.length === 0) return;
@@ -51,6 +55,7 @@ export async function replaceIssueTopics(
     )
   );
 
+  await checkpoint?.();
   await db.batch(stmts);
 }
 
@@ -196,14 +201,16 @@ export async function addToBlocklist(
 
 export async function buildCorpusTopics(
   db: D1Database,
-  opts: { minDocFrequency?: number } = {},
+  opts: { minDocFrequency?: number; checkpoint?: DurableWriteCheckpoint } = {},
 ): Promise<number> {
   // df threshold: flux's corpus is smaller (~240 issues), so the default
   // sits above the previous 2 while staying low enough to keep emerging
   // topics visible — high enough to drop hapaxes and one-off curiosities,
   // low enough to keep emerging topics visible.
   const minDf = opts.minDocFrequency ?? 3;
+  const checkpoint = opts.checkpoint;
 
+  await checkpoint?.();
   await db.prepare('DELETE FROM corpus_topics').run();
 
   const total = await db.prepare("SELECT COUNT(*) AS c FROM issues WHERE status = 'active'")
@@ -213,6 +220,7 @@ export async function buildCorpusTopics(
   // Aggregate by stem when one is recorded so morphological variants
   // ("models" / "model" / "modeling") collapse to a single corpus row.
   // Falls back to the literal keyword when stem is null.
+  await checkpoint?.();
   await db.prepare(`
     INSERT INTO corpus_topics (
       keyword, keyword_display, doc_frequency, avg_score, aggregate_score,
@@ -268,16 +276,19 @@ export async function buildCorpusTopics(
     ) AS cluster
   `).bind(totalIssues, totalIssues, new Date().toISOString(), minDf).run();
 
-  await applyDomainDistinctivenessBoost(db, totalIssues);
-  await applyPublicRedundancyDemotions(db);
-  await pruneNestedCorpusTopicFragments(db);
+  await applyDomainDistinctivenessBoost(db, totalIssues, checkpoint);
+  await applyPublicRedundancyDemotions(db, checkpoint);
+  await pruneNestedCorpusTopicFragments(db, checkpoint);
 
   const result = await db.prepare('SELECT COUNT(*) as c FROM corpus_topics')
     .first<{ c: number }>();
   return result?.c ?? 0;
 }
 
-async function applyPublicRedundancyDemotions(db: D1Database): Promise<void> {
+async function applyPublicRedundancyDemotions(
+  db: D1Database,
+  checkpoint?: DurableWriteCheckpoint,
+): Promise<void> {
   const rows = await db.prepare(
     'SELECT keyword FROM corpus_topics WHERE keyword IN (\'crypto\', \'cryptocurrency\')',
   ).all<{ keyword: string }>();
@@ -286,13 +297,18 @@ async function applyPublicRedundancyDemotions(db: D1Database): Promise<void> {
   // narrower asset/currency label visually duplicate the broader ecosystem
   // label at the very top of public topic lists.
   if (present.has('crypto') && present.has('cryptocurrency')) {
+    await checkpoint?.();
     await db.prepare(
       'UPDATE corpus_topics SET aggregate_score = aggregate_score * 0.25 WHERE keyword = \'cryptocurrency\'',
     ).run();
   }
 }
 
-async function applyDomainDistinctivenessBoost(db: D1Database, totalIssues: number): Promise<void> {
+async function applyDomainDistinctivenessBoost(
+  db: D1Database,
+  totalIssues: number,
+  checkpoint?: DurableWriteCheckpoint,
+): Promise<void> {
   const { computeDomainDistinctivenessBoost, isProtectedDomainTopic } = await import('../lib/domain-distinctiveness');
   const rows = await db.prepare(
     'SELECT keyword, doc_frequency, ngram_size, aggregate_score FROM corpus_topics',
@@ -310,7 +326,10 @@ async function applyDomainDistinctivenessBoost(db: D1Database, totalIssues: numb
       .bind(row.aggregate_score * boost, row.keyword);
   });
 
-  if (stmts.length > 0) await db.batch(stmts);
+  if (stmts.length > 0) {
+    await checkpoint?.();
+    await db.batch(stmts);
+  }
 }
 
 function tokenContains(longer: string, shorter: string): boolean {
@@ -330,7 +349,10 @@ async function issueSetForKeyword(db: D1Database, keyword: string): Promise<Set<
   return new Set(rows.results.map(r => r.issue_id));
 }
 
-async function pruneNestedCorpusTopicFragments(db: D1Database): Promise<number> {
+async function pruneNestedCorpusTopicFragments(
+  db: D1Database,
+  checkpoint?: DurableWriteCheckpoint,
+): Promise<number> {
   const { buildAliasMap } = await import('../lib/known-entities');
   const aliasMap = buildAliasMap();
   const rows = await db.prepare(
@@ -363,6 +385,7 @@ async function pruneNestedCorpusTopicFragments(db: D1Database): Promise<number> 
   }
 
   for (const keyword of toDelete) {
+    await checkpoint?.();
     await db.prepare('DELETE FROM corpus_topics WHERE keyword = ?').bind(keyword).run();
   }
   return toDelete.size;
@@ -385,6 +408,7 @@ async function pruneNestedCorpusTopicFragments(db: D1Database): Promise<number> 
 export async function clusterCorpusTopics(
   db: D1Database,
   threshold = 0.85,
+  checkpoint?: DurableWriteCheckpoint,
 ): Promise<number> {
   const rows = await db.prepare(
     'SELECT keyword, keyword_display, doc_frequency, avg_score FROM corpus_topics',
@@ -437,11 +461,17 @@ export async function clusterCorpusTopics(
   for (const row of list) {
     const canonical = find(row.keyword);
     if (canonical === row.keyword) continue;
-    await db.prepare(
-      `UPDATE corpus_topics SET doc_frequency = doc_frequency + ?
-       WHERE keyword = ?`,
-    ).bind(row.doc_frequency, canonical).run();
-    await db.prepare('DELETE FROM corpus_topics WHERE keyword = ?').bind(row.keyword).run();
+    await checkpoint?.();
+    // The frequency fold and source-row deletion are one logical mutation.
+    // Keeping them in a D1 batch prevents a crashed owner from committing the
+    // increment alone and letting a replacement apply it a second time.
+    await db.batch([
+      db.prepare(
+        `UPDATE corpus_topics SET doc_frequency = doc_frequency + ?
+         WHERE keyword = ?`,
+      ).bind(row.doc_frequency, canonical),
+      db.prepare('DELETE FROM corpus_topics WHERE keyword = ?').bind(row.keyword),
+    ]);
   }
 
   return merges;
@@ -453,7 +483,10 @@ export async function clusterCorpusTopics(
  * in JS with the helpers in topic-quality / topic-burst keeps the
  * logic auditable.
  */
-export async function annotateCorpusTopics(db: D1Database): Promise<void> {
+export async function annotateCorpusTopics(
+  db: D1Database,
+  checkpoint?: DurableWriteCheckpoint,
+): Promise<void> {
   const [
     { computeBurstScore },
     { classifyTopicConfidence },
@@ -512,12 +545,20 @@ export async function annotateCorpusTopics(db: D1Database): Promise<void> {
     ).bind(confidence, burst.burstScore, burst.burstQuarter, r.keyword);
   });
 
-  if (stmts.length > 0) await db.batch(stmts);
+  if (stmts.length > 0) {
+    await checkpoint?.();
+    await db.batch(stmts);
+  }
 }
 
-export async function buildTopicTimeline(db: D1Database): Promise<number> {
+export async function buildTopicTimeline(
+  db: D1Database,
+  checkpoint?: DurableWriteCheckpoint,
+): Promise<number> {
+  await checkpoint?.();
   await db.prepare('DELETE FROM topic_timeline').run();
 
+  await checkpoint?.();
   await db.prepare(`
     INSERT INTO topic_timeline (keyword, year, month, occurrences)
     SELECT t.keyword, i.year, i.month, COUNT(*) AS occurrences
@@ -585,9 +626,11 @@ export async function replaceTopicEmbeddings(
   db: D1Database,
   embeddings: TopicEmbedding[],
   model = '@cf/baai/bge-base-en-v1.5',
+  checkpoint?: DurableWriteCheckpoint,
 ): Promise<void> {
   if (embeddings.length === 0) return;
   const now = new Date().toISOString();
+  await checkpoint?.();
   await db.batch(embeddings.map(e => db.prepare(
     `INSERT OR REPLACE INTO topic_embeddings (keyword, model, vector_json, updated_at)
      VALUES (?, ?, ?, ?)`,
@@ -598,6 +641,7 @@ export async function rebuildSimilaritiesFromStoredEmbeddings(
   db: D1Database,
   changedKeywords: string[] = [],
   alpha = 0.6,
+  checkpoint?: DurableWriteCheckpoint,
 ): Promise<number> {
   const rows = await db.prepare('SELECT keyword, vector_json FROM topic_embeddings')
     .all<{ keyword: string; vector_json: string }>();
@@ -620,13 +664,18 @@ export async function rebuildSimilaritiesFromStoredEmbeddings(
   const pairs = buildTopicSimilarities(embeddings, issueSets, { alpha });
   if (changedKeywords.length > 0) {
     for (const keyword of changedKeywords) {
+      await checkpoint?.();
       await db.prepare('DELETE FROM topic_similarity WHERE keyword_a = ? OR keyword_b = ?')
         .bind(keyword, keyword).run();
     }
     const changed = new Set(changedKeywords);
-    await replaceTopicSimilarities(db, pairs.filter(p => changed.has(p.keyword_a) || changed.has(p.keyword_b)));
+    await replaceTopicSimilarities(
+      db,
+      pairs.filter(p => changed.has(p.keyword_a) || changed.has(p.keyword_b)),
+      checkpoint,
+    );
   } else {
-    await replaceTopicSimilarities(db, pairs);
+    await replaceTopicSimilarities(db, pairs, checkpoint);
   }
   return pairs.length;
 }
@@ -634,7 +683,9 @@ export async function rebuildSimilaritiesFromStoredEmbeddings(
 export async function replaceTopicSimilarities(
   db: D1Database,
   pairs: Array<{ keyword_a: string; keyword_b: string; cosine: number; jaccard: number; blended: number }>,
+  checkpoint?: DurableWriteCheckpoint,
 ): Promise<void> {
+  await checkpoint?.();
   await db.prepare('DELETE FROM topic_similarity').run();
   if (pairs.length === 0) return;
   const updatedAt = new Date().toISOString();
@@ -644,6 +695,7 @@ export async function replaceTopicSimilarities(
        VALUES (?, ?, ?, ?, ?, ?)`,
     ).bind(p.keyword_a, p.keyword_b, p.cosine, p.jaccard, p.blended, updatedAt),
   );
+  await checkpoint?.();
   await db.batch(stmts);
 }
 
