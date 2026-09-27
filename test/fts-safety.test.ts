@@ -6,6 +6,7 @@
  * User input containing these must not crash the search.
  */
 import { describe, it, expect } from 'vitest';
+import fc from 'fast-check';
 import { buildFtsQuery } from '../src/routes/search';
 import { parseQuery } from '../src/lib/query-parser';
 import { searchDb, searchRoute, fakeAi, fakeVectorize } from './helpers-search-route';
@@ -94,6 +95,9 @@ describe('search route FTS5 safety (real FTS5 via node:sqlite)', () => {
     'a&b', 'a<b', 'a>b', '(test)', 'test*',
     'foo:bar', 'http://example.com',
     '"unterminated', 'NEAR(a b)', '^test', '{x}', 'col:', '""',
+    // FTS5 operators and column-filter syntax that survive the character
+    // whitelist: bare AND/OR/NOT and hyphens.
+    'a OR', 'AND', 'NOT', 'x NOT', '-', 'trust -', 'a - b', '-trust', 'self-organizing',
   ];
 
   for (const q of QUERIES) {
@@ -109,6 +113,33 @@ describe('search route FTS5 safety (real FTS5 via node:sqlite)', () => {
     const { status, body } = await searchRoute(await seeded(), "it's trust");
     expect(status).toBe(200);
     expect(body.results.map((r: any) => r.issue_number)).toContain(42);
+  });
+
+  it('hyphenated query finds the hyphenated word', async () => {
+    const db = searchDb();
+    await seedIssue(db, {
+      issue_number: 7, title: 'Emergence',
+      full_text_plain: 'Self-organizing teams need slack.', source_url: 'https://example.com/p/7',
+    });
+    const { status, body } = await searchRoute({ DB: db, AI: fakeAi(), VECTORIZE: fakeVectorize([]) }, 'self-organizing');
+    expect(status).toBe(200);
+    expect(body.results.map((r: any) => r.issue_number)).toEqual([7]);
+  });
+
+  it('PBT: every query becomes a MATCH expression FTS5 accepts', () => {
+    const db = searchDb();
+    const match = db._sqlite.prepare('SELECT rowid FROM issues_fts WHERE issues_fts MATCH ?');
+    const token = fc.oneof(
+      fc.constantFrom('AND', 'OR', 'NOT', 'NEAR', '-', '+', '*', '^', ':', '"', "'", '(', ')', '{', '}', 'a-b', 'trust'),
+      fc.string({ maxLength: 8 }),
+    );
+    fc.assert(
+      fc.property(fc.array(token, { maxLength: 6 }), fc.constantFrom(' ', ''), (tokens, sep) => {
+        const fts = buildFtsQuery(parseQuery(tokens.join(sep)));
+        if (fts) match.all(fts);
+      }),
+      { numRuns: 300 },
+    );
   });
 
   it('non-existent issue number returns 0 results', async () => {
