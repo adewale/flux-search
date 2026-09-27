@@ -5,11 +5,11 @@
  * They catch pipeline ordering bugs, schema inconsistencies, and
  * aggregate mismatches that unit tests miss.
  *
- * Skip if SEARCH_URL is not set (CI without deployment).
+ * Requires SEARCH_URL (see ./live-url.ts); run with `npm run test:live`.
  */
 import { describe, it, expect } from 'vitest';
+import { SEARCH_URL } from './live-url';
 
-const SEARCH_URL = process.env.SEARCH_URL || 'https://flux-search.adewale-883.workers.dev';
 
 const REQUIRED_FIELDS = [
   'parsed_query', 'applied_filters', 'total_hits',
