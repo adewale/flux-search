@@ -82,7 +82,8 @@ npm run corpus:validate   # validates all corpus records
 
 ```bash
 npm run dev           # local dev server (port 8787)
-npm test              # run tests
+npm test              # run unit + corpus tests (offline)
+npm run test:live     # checks against a deployed Worker; requires SEARCH_URL
 npm run typecheck     # generate Worker types and run TypeScript checks
 npm run test:watch    # watch mode
 ```

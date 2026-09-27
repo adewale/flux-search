@@ -1,0 +1,36 @@
+{
+  // Serving config for browser tests (Playwright webServer) in CI and any
+  // unauthenticated environment. Same Worker and static assets as
+  // wrangler.jsonc, with local-only bindings: the remote-only AI and
+  // Vectorize bindings, the rate limiter, queues and crons are omitted
+  // (wrangler cannot start AI/Vectorize without a Cloudflare login, and the
+  // search route degrades to lexical-only without them). D1 is a local
+  // miniflare database with the migrations applied; the specs run here
+  // freeze API data with page.route fixtures.
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "flux-search-e2e",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-01",
+
+  "assets": {
+    "directory": "./frontend",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/health", "/search", "/autocomplete", "/random-quote", "/latest-issue", "/issues/*", "/topics", "/topics/*", "/admin/*"]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "flux-search-e2e-db",
+      "database_id": "00000000-0000-4000-8000-000000000e2e",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  "vars": {
+    "LEXICAL_WEIGHT": "1.0",
+    "SEMANTIC_WEIGHT": "0.55",
+    "RRF_K": "40"
+  }
+}

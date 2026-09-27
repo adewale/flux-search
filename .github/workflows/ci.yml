@@ -20,6 +20,39 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm audit --omit=dev --audit-level=moderate
-      - run: npm run corpus:process
+      # Unit + corpus projects only. Checks of the deployed Worker are in
+      # test/live/ and run from live.yml, never on PRs.
       - run: npm test
       - run: npm run typecheck
+
+  e2e:
+    # Keep this image identical to visual-baselines.yml: Linux screenshot
+    # baselines are only comparable when rendered on the same image.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # Serves this checkout with `wrangler dev` (wrangler.e2e.jsonc) and runs
+      # the specs whose API data is controlled by route fixtures.
+      - run: npm run test:e2e:local
+      - name: Visual regression against committed Linux baselines
+        run: |
+          if compgen -G "e2e/visual-regression.spec.ts-snapshots/*-linux.png" > /dev/null; then
+            # A missing or changed baseline fails; nothing is written.
+            npm run test:visual:local -- --update-snapshots=none
+          else
+            msg="No *-linux.png baselines are committed yet, so visual regression did not run. Run the 'Visual baselines' workflow, review its artifact, and commit the PNGs to e2e/visual-regression.spec.ts-snapshots/."
+            echo "::warning title=Visual baselines not bootstrapped::$msg"
+            echo "### Visual regression skipped: $msg" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: e2e-results
+          path: e2e/screenshots/
+          if-no-files-found: ignore

@@ -64,17 +64,19 @@ The page has two alignment edges: 0px for chrome and ~8px for content. Playwrigh
 - **Red-green TDD** for all features and bug fixes
 - **Property-based testing** (fast-check) for parsers, mathematical invariants, and pipeline consistency
 - **Corpus tests** run against all 234 raw HTML files in `data/raw/` — validates crud removal and content survival
-- **Integration tests** call the live API and assert response invariants (shape, aggregate consistency, pagination stability)
+- **Offline route tests** run the real `/search` handler over node:sqlite FTS5 with Workers AI/Vectorize doubles (`test/helpers-search-route.ts`); `npm test` has no network access (`test/setup/no-network.ts`)
+- **Live tests** (`test/live/`) call a deployed Worker and assert response invariants (shape, aggregate consistency, pagination stability). They are not part of `npm test`: run `SEARCH_URL=https://flux-search.adewale-883.workers.dev npm run test:live` after a deploy; `.github/workflows/live.yml` runs them nightly
 - **Relevance harness** — 13 hand-labeled {query → expected result} cases
-- **Visual regression** — Playwright screenshots compared against baselines
+- **Visual regression** — Playwright screenshots compared against baselines. CI compares against `*-linux.png` baselines rendered by the manual `Visual baselines` workflow (`.github/workflows/visual-baselines.yml`); `*-darwin.png` are for local macOS runs
 
-Run `npx vitest run` for unit/PBT/corpus tests. Run `npx playwright test` for e2e/visual/alignment.
+Run `npx vitest run` for unit/PBT/corpus tests (projects `unit` and `corpus`, same budgets locally and in CI). Run `npx playwright test` for e2e/visual/alignment against production, or `npm run test:e2e:local` / `npm run test:visual:local` to serve this checkout with `wrangler dev` (`wrangler.e2e.jsonc`).
 
 ## Common operations
 
 ```bash
 npm run dev              # local dev server (port 8787)
 npm test                 # Run `npx vitest run` for unit/PBT/corpus tests
+npm run test:live        # deployed-Worker checks; requires SEARCH_URL
 npm run typecheck         # generate Worker types and run TypeScript checks
 npm run corpus:fetch     # download raw HTML from Substack
 npm run corpus:process   # normalize locally
@@ -90,7 +92,9 @@ done
 curl -X POST .../admin/reindex -H "Authorization: Bearer $ADMIN_TOKEN"
 
 # Update visual regression baselines after UI changes:
-npx playwright test e2e/visual-regression.spec.ts --update-snapshots
+npx playwright test e2e/visual-regression.spec.ts --update-snapshots   # darwin, local
+# Linux (what CI compares): run the "Visual baselines" workflow, review the
+# artifact, and commit the *-linux.png files in a PR.
 
 # e2e tests hit the deployed Worker by default; to test local changes:
 PLAYWRIGHT_BASE_URL=http://localhost:8787 npx playwright test
