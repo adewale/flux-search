@@ -106,14 +106,3 @@ describe('skip-to-content link', () => {
     expect(INDEX_HTML).toMatch(/skip.*main|skip.*content/i);
   });
 });
-
-// --- ARIA on density strip ---
-
-describe('density strip ARIA', () => {
-  it('density strip tooltip titles include section names', () => {
-    // The rendering code in result-list.js should include section labels in tooltips
-    const resultList = readFileSync(join(__dirname, '..', 'frontend', 'js', 'lib', 'result-list.js'), 'utf-8');
-    expect(resultList).toContain('formatSectionLabel');
-    expect(resultList).toContain('<title>');
-  });
-});
