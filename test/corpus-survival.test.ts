@@ -66,7 +66,11 @@ describe('corpus survival', () => {
   }
 
   if (files.length === 0) {
-    it.skip('no raw corpus files found', () => {});
+    // data/raw/ is checked in: an empty or missing corpus means a broken
+    // checkout, and skipping here would turn every corpus check green.
+    it('finds the checked-in raw corpus in data/raw/', () => {
+      expect.fail(`no .html files in ${RAW_DIR}`);
+    });
     return;
   }
 
