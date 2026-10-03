@@ -27,17 +27,21 @@ afterEach(() => {
 });
 
 function hrefs(html: string): string[] {
-  return [...html.matchAll(/href="([^"]*)"/g)].map(m => m[1]);
+  const decode = (v: string) => v
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&');
+  return [...html.matchAll(/href="([^"]*)"/g)].map(m => decode(m[1]));
 }
 
 describe('topics page: "Search this topic" link', () => {
-  async function renderDetail(keyword: string) {
+  async function renderDetail(keyword: string, keywordDisplay = keyword.toUpperCase()) {
     const page = await loadPage('../frontend/js/topics-page.js', {
+      html: 'frontend/topics.html',
       pathname: '/topics/' + encodeURIComponent(keyword),
       api: {
         ['/topics/' + encodeURIComponent(keyword)]: {
           keyword,
-          keyword_display: keyword.toUpperCase(),
+          keyword_display: keywordDisplay,
           doc_frequency: 3,
           issues: [],
         },
@@ -65,8 +69,16 @@ describe('topics page: "Search this topic" link', () => {
     expect(parsed.freeText).toBe('');
   });
 
+  it('writes the display name as text, not HTML', async () => {
+    const page = await renderDetail('governance', HOSTILE);
+    expect(page.el('topics-page-title').textContent).toBe(HOSTILE);
+    expect(page.el('topics-page-title').innerHTML).toBe('');
+    expect(page.el('topics-index').hidden).toBe(true);
+  });
+
   it('escapes the keyword on the not-found view', async () => {
     const page = await loadPage('../frontend/js/topics-page.js', {
+      html: 'frontend/topics.html',
       pathname: '/topics/' + encodeURIComponent(HOSTILE),
       api: {},
     });
@@ -80,14 +92,15 @@ describe('topics page: "Search this topic" link', () => {
 describe('issue page: section rendering', () => {
   const section = { type: 'lead_essay', title: HOSTILE, body: 'Intro **bold**\n\n' + HOSTILE };
 
-  async function renderIssue(windowExtras: Record<string, unknown> = {}) {
+  async function loadIssue(windowExtras: Record<string, unknown> = {}) {
     const page = await loadPage('../frontend/js/issue-page.js', {
+      html: 'frontend/issue.html',
       pathname: '/issues/issue/42',
       windowExtras,
       api: {
         '/issues/issue/42/sections': {
           issue_number: 42,
-          title: 'Issue title',
+          title: HOSTILE,
           published_at: '2024-01-06T00:00:00Z',
           canonical_url: 'https://read.fluxcollective.org/p/x',
           sections: [section],
@@ -95,8 +108,23 @@ describe('issue page: section rendering', () => {
       },
     });
     await vi.waitFor(() => expect(page.el('issue-page').hidden).toBe(false));
-    return page.el('section-content').innerHTML;
+    return page;
   }
+
+  async function renderIssue(windowExtras: Record<string, unknown> = {}) {
+    return (await loadIssue(windowExtras)).el('section-content').innerHTML;
+  }
+
+  it('writes the issue title as text and swaps the loading view for the page', async () => {
+    const page = await loadIssue();
+    expect(page.el('issue-title').textContent).toBe(HOSTILE);
+    expect(page.el('issue-title').innerHTML).toBe('');
+    expect(page.el('issue-number-hero').textContent).toBe('#42');
+    // Section tabs use the display label ("Essay"), not the internal type.
+    expect(page.el('section-nav').innerHTML).toContain('data-type="lead_essay">Essay</button>');
+    expect(page.el('issue-loading').hidden).toBe(true);
+    expect(page.el('issue-error').hidden).toBe(true);
+  });
 
   it('escapes crawled HTML with the built-in renderer when no CDN libraries loaded', async () => {
     const html = await renderIssue();
@@ -125,7 +153,7 @@ describe('issue page: section rendering', () => {
 
 describe('density strip tooltips', () => {
   it('name each section with its display label and count', () => {
-    const page = installPageGlobals({ pathname: '/' });
+    const page = installPageGlobals({ html: 'frontend/index.html', pathname: '/' });
     const el = () => new FakeElement();
     renderResults(el(), el(), el(), el(), el(), {
       total_hits: 4,

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { vi } from 'vitest';
 
 /**
@@ -9,11 +10,19 @@ import { vi } from 'vitest';
  * innerHTML/textContent/hidden/href, attributes, and querySelector for the
  * one child element a page decorates. Assertions are on the HTML strings the
  * page assigns, which is the input a real browser would parse.
+ *
+ * Elements come from the page's real HTML file: getElementById returns null
+ * for an id the markup does not define, and `hidden` starts as the markup
+ * sets it. innerHTML and textContent are separate fields, so a test can tell
+ * a text write from an HTML write.
+ *
+ * Not modelled: querySelectorAll returns [], so event handlers wired through
+ * it (issue-page section tabs) never run and are not covered here.
  */
 export class FakeElement {
   innerHTML = '';
   textContent = '';
-  hidden = true;
+  hidden = false;
   href = '';
   offsetHeight = 0;
   style: Record<string, string> = {};
@@ -42,6 +51,8 @@ export class FakeElement {
 }
 
 export interface PageEnv {
+  /** The page's HTML file, e.g. 'frontend/issue.html'; defines its element ids. */
+  html: string;
   pathname: string;
   search?: string;
   hash?: string;
@@ -57,17 +68,24 @@ export interface PageHandle {
   requests: string[];
 }
 
-export function installPageGlobals(env: PageEnv): PageHandle {
+function elementsFromHtml(file: string): Map<string, FakeElement> {
   const elements = new Map<string, FakeElement>();
+  for (const [tag] of readFileSync(file, 'utf8').matchAll(/<[a-z][^>]*\sid="[^"]+"[^>]*>/g)) {
+    const e = new FakeElement();
+    e.hidden = /\shidden(?=[\s>=])/.test(tag);
+    elements.set(tag.match(/\sid="([^"]+)"/)![1], e);
+  }
+  return elements;
+}
+
+export function installPageGlobals(env: PageEnv): PageHandle {
+  const elements = elementsFromHtml(env.html);
   const el = (id: string) => {
-    let e = elements.get(id);
-    if (!e) {
-      e = new FakeElement();
-      elements.set(id, e);
-    }
+    const e = elements.get(id);
+    if (!e) throw new Error(`#${id} is not defined in ${env.html}`);
     return e;
   };
-  const document = { title: '', getElementById: el };
+  const document = { title: '', getElementById: (id: string) => elements.get(id) ?? null };
   const requests: string[] = [];
 
   vi.stubGlobal('window', {
