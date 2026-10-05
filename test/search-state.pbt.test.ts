@@ -62,6 +62,20 @@ const event: fc.Arbitrary<Event> = fc.oneof(
   anyQuery.map((q) => ({ type: 'POPSTATE' as const, query: q })),
 );
 
+// Random traces almost never begin with the cold-start pair (LOAD with an
+// empty query, then LATEST_LOADED), so without this prefix the invariants
+// below never see LANDING_FEATURED → FEATURED_RESULTS or what follows it.
+const coldStart: fc.Arbitrary<Event[]> = issueQuery.map((q) => [
+  { type: 'LOAD' as const, query: '' },
+  { type: 'LATEST_LOADED' as const, query: q },
+]);
+
+function trace(constraints: { minLength?: number; maxLength: number }): fc.Arbitrary<Event[]> {
+  return fc
+    .tuple(fc.oneof(fc.constant([] as Event[]), coldStart), fc.array(event, constraints))
+    .map(([prefix, rest]) => [...prefix, ...rest]);
+}
+
 function runAll(events: Event[]): State {
   const m = createSearchMachine();
   for (const e of events) m.send(e);
@@ -71,7 +85,7 @@ function runAll(events: Event[]): State {
 describe('PBT — search state machine invariants', () => {
   it('I1: DISMISS always empties the query and never auto-loads', () => {
     fc.assert(
-      fc.property(fc.array(event, { maxLength: 20 }), (events) => {
+      fc.property(trace({ maxLength: 20 }), (events) => {
         const s = runAll([...events, { type: 'DISMISS' }]);
         expect(s.query).toBe('');
         expect(s.autoLoadLatest).toBe(false);
@@ -84,7 +98,7 @@ describe('PBT — search state machine invariants', () => {
   it('I2: any state with empty query is a fixed point under DISMISS', () => {
     fc.assert(
       fc.property(
-        fc.array(event, { maxLength: 10 }),
+        trace({ maxLength: 10 }),
         fc.integer({ min: 2, max: 8 }),
         (events, dismisses) => {
           const m = createSearchMachine();
@@ -102,7 +116,7 @@ describe('PBT — search state machine invariants', () => {
 
   it('I3: quoteVisible implies name is not RESULTS', () => {
     fc.assert(
-      fc.property(fc.array(event, { maxLength: 15 }), (events) => {
+      fc.property(trace({ maxLength: 15 }), (events) => {
         const s = runAll(events);
         if (s.quoteVisible) expect(s.name).not.toBe('RESULTS');
       }),
@@ -112,7 +126,7 @@ describe('PBT — search state machine invariants', () => {
 
   it('I4: clearVisible iff query is non-empty', () => {
     fc.assert(
-      fc.property(fc.array(event, { maxLength: 15 }), (events) => {
+      fc.property(trace({ maxLength: 15 }), (events) => {
         const s = runAll(events);
         expect(s.clearVisible).toBe(s.query.length > 0);
       }),
@@ -122,7 +136,7 @@ describe('PBT — search state machine invariants', () => {
 
   it('I5: autoLoadLatest only true in LANDING_FEATURED', () => {
     fc.assert(
-      fc.property(fc.array(event, { maxLength: 15 }), (events) => {
+      fc.property(trace({ maxLength: 15 }), (events) => {
         const s = runAll(events);
         if (s.autoLoadLatest) expect(s.name).toBe('LANDING_FEATURED');
       }),
@@ -133,7 +147,7 @@ describe('PBT — search state machine invariants', () => {
   it('I6: resultsVisible iff name ∈ {RESULTS, BROWSING, FEATURED_RESULTS}', () => {
     const withResults = new Set(['RESULTS', 'BROWSING', 'FEATURED_RESULTS']);
     fc.assert(
-      fc.property(fc.array(event, { maxLength: 15 }), (events) => {
+      fc.property(trace({ maxLength: 15 }), (events) => {
         const s = runAll(events);
         expect(s.resultsVisible).toBe(withResults.has(s.name));
       }),
@@ -143,7 +157,7 @@ describe('PBT — search state machine invariants', () => {
 
   it('I7: query is always a string', () => {
     fc.assert(
-      fc.property(fc.array(event, { maxLength: 15 }), (events) => {
+      fc.property(trace({ maxLength: 15 }), (events) => {
         const s = runAll(events);
         expect(typeof s.query).toBe('string');
       }),
@@ -153,7 +167,7 @@ describe('PBT — search state machine invariants', () => {
 
   it('I8: reducer is pure (same inputs → equal outputs)', () => {
     fc.assert(
-      fc.property(fc.array(event, { maxLength: 10 }), event, (prefix, e) => {
+      fc.property(trace({ maxLength: 10 }), event, (prefix, e) => {
         const base = runAll(prefix);
         const a = reduce(base, e);
         const b = reduce(base, e);
@@ -167,7 +181,7 @@ describe('PBT — search state machine invariants', () => {
     // Equivalently: once the machine has left LANDING_FEATURED, no event
     // can bring it back.
     fc.assert(
-      fc.property(fc.array(event, { minLength: 1, maxLength: 15 }), (events) => {
+      fc.property(trace({ minLength: 1, maxLength: 15 }), (events) => {
         const m = createSearchMachine();
         let hasLeftFeatured = false;
         let wasFeatured = false;
@@ -188,7 +202,7 @@ describe('PBT — search state machine invariants', () => {
 
   it('I10: DISMISS preserves resultsVisible and quoteVisible', () => {
     fc.assert(
-      fc.property(fc.array(event, { maxLength: 15 }), (events) => {
+      fc.property(trace({ maxLength: 15 }), (events) => {
         const m = createSearchMachine();
         for (const e of events) m.send(e);
         const before = m.state;
@@ -231,7 +245,7 @@ describe('PBT — search state machine invariants', () => {
   it('I11: FACET produces a query containing section:<s> exactly once', () => {
     fc.assert(
       fc.property(
-        fc.array(event, { maxLength: 10 }),
+        trace({ maxLength: 10 }),
         section,
         (events, s) => {
           const m = createSearchMachine();

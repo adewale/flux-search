@@ -142,22 +142,12 @@ describe('renderSectionHtml', () => {
   });
 });
 
-// Source-level wiring contracts: the pure helpers above only protect the
-// page if issue-page.js actually routes rendering through them. These
-// assertions fail if the safe path is bypassed again.
-describe('issue page rendering wiring', () => {
-  const issuePageSrc = readFileSync('frontend/js/issue-page.js', 'utf8');
+// The issue page's rendering path (section headings escaped, marked only
+// behind DOMPurify) is exercised by running issue-page.js in
+// test/page-wiring.test.ts. The CDN loader lives in issue.html's inline
+// script, which that test cannot run, so its pairing stays a text check.
+describe('issue page CDN loader', () => {
   const issueHtmlSrc = readFileSync('frontend/issue.html', 'utf8');
-
-  it('builds section content through renderSectionHtml, not raw concatenation', () => {
-    expect(issuePageSrc).toContain('renderSectionHtml(');
-    expect(issuePageSrc).not.toMatch(/section-heading.*\+\s*section\.title/);
-  });
-
-  it('only uses CDN marked when DOMPurify is present to sanitize its output', () => {
-    expect(issuePageSrc).toMatch(/window\.marked\s*&&\s*window\.DOMPurify/);
-    expect(issuePageSrc).toContain('DOMPurify.sanitize(');
-  });
 
   it('loads DOMPurify alongside marked', () => {
     expect(issueHtmlSrc).toContain('dompurify');
