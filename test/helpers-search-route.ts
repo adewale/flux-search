@@ -59,7 +59,8 @@ export function fakeAi(dimensions = 768) {
 export function searchDb(): D1Like {
   const db = makeD1();
   enableFts(db);
-  db.batch = async (stmts: any[]) => Promise.all(stmts.map(s => s.all()));
+  // Shared batch() returns SELECT rows and write receipts atomically; do not
+  // override it with Promise.all(), which loses rollback and write metadata.
   return db;
 }
 

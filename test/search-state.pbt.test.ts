@@ -73,7 +73,9 @@ const coldStart: fc.Arbitrary<Event[]> = issueQuery.map((q) => [
 function trace(constraints: { minLength?: number; maxLength: number }): fc.Arbitrary<Event[]> {
   return fc
     .tuple(fc.oneof(fc.constant([] as Event[]), coldStart), fc.array(event, constraints))
-    .map(([prefix, rest]) => [...prefix, ...rest]);
+    // Exercise cold-start states inside the original trace budget, not in
+    // addition to it. Keep the prefix intact before trimming the random tail.
+    .map(([prefix, rest]) => [...prefix, ...rest].slice(0, constraints.maxLength));
 }
 
 function runAll(events: Event[]): State {

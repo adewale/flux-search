@@ -29,8 +29,9 @@ export default defineConfig({
           name: 'corpus',
           include: ['test/corpus-*.test.ts'],
           setupFiles: ['test/setup/no-network.ts'],
-          // ~2x the slowest corpus test measured under load.
-          testTimeout: 30_000,
+          // Preserve the existing 15 s CI budget; do not raise it to absorb
+          // machine contention or broaden the recurring corpus workload.
+          testTimeout: 15_000,
         },
       },
     ],

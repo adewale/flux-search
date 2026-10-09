@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "engines": {
-    "node": ">=22"
+    "node": ">=22.16.0"
   },
   "scripts": {
     "dev": "wrangler dev",
@@ -38,7 +38,7 @@
   },
   "dependencies": {
     "@ade_oshineye/yaket": "0.5.3",
-    "hono": "^4.12.30"
+    "hono": "^4.13.13"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

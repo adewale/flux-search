@@ -496,3 +496,21 @@ The Yaket spec still described `POST /admin/rebuild-topics?backfill=true` as a m
 We added `docs/topic-system-status.md` as the current scorecard and `docs/internal-consistency-audit.md` as the reconciliation point. Historical research remains useful, but it now points to the current status rather than competing with it.
 
 **Lesson: when architecture changes, update the docs in the same unit of work.** A passing test suite does not prevent stale docs from sending the next engineer down the wrong path. Treat docs like public API: if behavior changes, the contract must change too.
+
+## Verification without expanding the recurring budget (October 2026)
+
+Offline route coverage should cross the production search handler and real SQL,
+not the deployed Worker or a second search implementation. Its D1 adapter must
+return SELECT rows in batch results, retain non-returning write change counts,
+and roll back the whole batch on failure. Replacing batch with Promise.all
+silently loses that transaction contract. Column metadata lets the shared
+adapter select the right execution method without executing statements twice
+or adding SQL queries.
+
+Cold-start property prefixes belong inside the original maximum trace length;
+adding two mandatory events on top of every generated trace increases work
+without increasing its budget on paper. Keep the original corpus timeout and
+existing CI job, remove duplicate corpus processing, and leave deployment and
+visual checks explicitly opt-in. No nightly live, browser, visual or mutation
+campaign was added in this readiness pass. Offline doubles cannot establish
+deployment relevance or production Workers AI/Vectorize behavior.
