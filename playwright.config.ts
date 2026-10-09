@@ -1,8 +1,8 @@
 import { defineConfig } from '@playwright/test';
 
 // PLAYWRIGHT_WEB_SERVER=wrangler serves this checkout with `wrangler dev`
-// (wrangler.e2e.jsonc: local D1, no remote bindings) and tests it. CI uses
-// this for the specs that freeze API data with route fixtures
+// (wrangler.e2e.jsonc: local D1, no remote bindings) and tests it. Use this
+// opt-in mode for specs that freeze API data with route fixtures
 // (`npm run test:e2e:local`). Without it, specs default to the deployed
 // Worker, or to PLAYWRIGHT_BASE_URL (e.g. http://localhost:8787 for a
 // `npm run dev` server).
@@ -36,8 +36,8 @@ export default defineConfig({
       command: 'npx wrangler d1 migrations apply flux-search-e2e-db --local -c wrangler.e2e.jsonc'
         + ' && npx wrangler dev -c wrangler.e2e.jsonc --ip 127.0.0.1 --port 8787',
       url: `${LOCAL_URL}/health`,
-      reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
+      reuseExistingServer: false,
+      timeout: 30_000,
     },
   } : {}),
 });
