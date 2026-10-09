@@ -41,7 +41,7 @@ export function stableKeywordKey(kind: string, keywords: string[]): string {
 export function idempotencyKeyForMessage(message: { kind?: string; type?: string; keywords?: string[]; issueId?: string; contentHash?: string | null; runId?: string; run_id?: string; batchIndex?: number }): string {
   const kind = message.kind ?? message.type;
   if (kind === 'embed-corpus-topics' || kind === 'aggregate-topic-slice') {
-    return stableKeywordKey(kind, message.keywords ?? []);
+    return `${message.runId ?? message.run_id ?? 'legacy'}:${stableKeywordKey(kind, message.keywords ?? [])}`;
   }
   if (kind === 'topic-extract-batch') {
     return `topic-extract-batch:${message.runId ?? message.run_id}:${message.batchIndex ?? 'unknown'}`;
@@ -95,12 +95,12 @@ export async function claimPipelineJob(db: D1Database, jobId: string, attempts: 
   if (!current) return true; // Legacy/no-row messages are still processable.
   if (current.status === 'succeeded') return false;
   if (!['queued', 'deferred', 'processing'].includes(current.status)) return false;
-  await retryD1Write(() => db.prepare(`
+  const claimed = await retryD1Write(() => db.prepare(`
     UPDATE pipeline_jobs
     SET status = 'processing', attempts = ?, attempt_count = ?, started_at = COALESCE(started_at, ?), updated_at = ?, error = NULL, last_error = NULL
-    WHERE id = ?
+    WHERE id = ? AND status IN ('queued', 'deferred', 'processing')
   `).bind(attempts, attempts, now, now, jobId).run());
-  return true;
+  return claimed.meta.changes > 0;
 }
 
 export async function succeedPipelineJob(db: D1Database, jobId: string, result: unknown = null, now = new Date().toISOString()): Promise<void> {
@@ -115,7 +115,7 @@ export async function failPipelineJob(db: D1Database, jobId: string, error: unkn
   await retryD1Write(() => db.prepare(`
     UPDATE pipeline_jobs
     SET status = 'failed', completed_at = ?, finished_at = ?, updated_at = ?, error = ?, last_error = ?, last_error_kind = 'permanent'
-    WHERE id = ?
+    WHERE id = ? AND status != 'succeeded'
   `).bind(now, now, now, String(error), String(error), jobId).run());
 }
 
@@ -133,8 +133,32 @@ export async function deferPipelineJob(db: D1Database, jobId: string, error: unk
   await retryD1Write(() => db.prepare(`
     UPDATE pipeline_jobs
     SET status = 'deferred', error = ?, last_error = ?, last_error_kind = 'transient', updated_at = ?, next_attempt_at = ?
-    WHERE id = ?
+    WHERE id = ? AND status != 'succeeded'
   `).bind(String(error), String(error), now.toISOString(), nextAttemptAt, jobId).run());
+}
+
+/** Retry an explicitly failed send using its persisted ID and payload.
+ * Ordinary queued jobs are not re-sent by every producer. A crash before the
+ * send failure was recorded is handled by the existing operator replay route.
+ * Clearing the marker here is not an exclusive consumer claim.
+ */
+export async function pendingPipelinePayload(
+  db: D1Database, semanticKey: string, runId: string,
+): Promise<unknown | null> {
+  const job = await retryD1Write(() => db.prepare(`
+    UPDATE pipeline_jobs SET last_error_kind = NULL
+    WHERE semantic_key = ? AND run_id = ? AND status = 'queued'
+      AND last_error_kind = 'enqueue'
+    RETURNING payload_json
+  `).bind(semanticKey, runId).first<{ payload_json: string }>());
+  return job ? JSON.parse(job.payload_json) : null;
+}
+
+export async function recordFailedPipelineSend(db: D1Database, jobIds: string[], error: unknown): Promise<void> {
+  await retryD1Write(() => db.prepare(`
+    UPDATE pipeline_jobs SET last_error_kind = 'enqueue', last_error = ?
+    WHERE id IN (SELECT value FROM json_each(?)) AND status = 'queued'
+  `).bind(String(error), JSON.stringify(jobIds)).run());
 }
 
 export async function getPipelineJob(db: D1Database, jobId: string): Promise<PipelineJobRow | null> {

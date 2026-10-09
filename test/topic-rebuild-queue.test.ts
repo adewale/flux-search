@@ -11,8 +11,49 @@ async function seedIssue(db: ReturnType<typeof makeD1>, id: string, n: number, t
 }
 
 describe('queue-backed topic rebuild', () => {
+  it('retries a failed send with the persisted ID and payload, without re-sending ordinary queued jobs', async () => {
+    const db = makeD1();
+    const sent: EnrichmentMessage[] = [];
+    let fail = true;
+    const env = { DB: db, ENRICHMENT_QUEUE: { sendBatch: async (batch: Array<{ body: EnrichmentMessage }>) => {
+      sent.push(...batch.map(entry => entry.body));
+      if (fail) { fail = false; throw new Error('network send acknowledgement lost'); }
+    } } } as any;
+    await expect(enqueueTopicRebuild(env, 'run-send', ['i1'], 1)).rejects.toThrow('acknowledgement lost');
+    const original = structuredClone(sent[0]);
+    expect(await enqueueTopicRebuild(env, 'run-send', ['i1'], 1)).toEqual({ extractJobs: 1, finalizeJobs: 0 });
+    expect(sent).toEqual([original, original]);
+    expect(await enqueueTopicRebuild(env, 'run-send', ['i1'], 1)).toEqual({ extractJobs: 0, finalizeJobs: 0 });
+    expect(sent).toHaveLength(2);
+    expect((await db.prepare('SELECT id FROM pipeline_jobs').all()).results).toEqual([{ id: (original as any).jobId }]);
+  });
+
+  it('repairs a failed finalizer send when the already-succeeded extract is redelivered', async () => {
+    const db = makeD1();
+    const sent: EnrichmentMessage[] = [];
+    let failFinalize = true;
+    const env = { DB: db, ENRICHMENT_QUEUE: { sendBatch: async (batch: Array<{ body: EnrichmentMessage }>) => {
+      sent.push(...batch.map(entry => entry.body));
+      if (failFinalize && (batch[0].body as any).kind === 'topic-finalize-rebuild') {
+        failFinalize = false;
+        throw new Error('network finalizer send failed');
+      }
+    } } } as any;
+    await enqueueTopicRebuild(env, 'run-final-send', ['missing'], 1);
+    const extract = sent[0];
+    await expect(handleEnrichmentMessage(extract, env)).rejects.toThrow('finalizer send failed');
+    expect(await db.prepare('SELECT status FROM pipeline_jobs WHERE id = ?').bind((extract as any).jobId).first())
+      .toEqual({ status: 'succeeded' });
+    const finalizer = structuredClone(sent[1]);
+    await handleEnrichmentMessage(extract, env, 2);
+    expect(sent).toEqual([extract, finalizer, finalizer]);
+    await handleEnrichmentMessage(extract, env, 3);
+    expect(sent).toHaveLength(3);
+  });
+
   it('splits extraction into jobs and finalizes only after batches succeed', async () => {
     const db = makeD1();
+    await db.prepare("INSERT INTO pipeline_runs (id, mode, started_at) VALUES ('run-q', 'topic_rebuild', '2026-01-01')").run();
     await seedIssue(db, 'i1', 1, 'Systems thinking and crypto shape governance.');
     await seedIssue(db, 'i2', 2, 'Systems thinking and crypto shape climate change.');
     await seedIssue(db, 'i3', 3, 'Systems thinking and large language models shape governance.');
@@ -38,9 +79,7 @@ describe('queue-backed topic rebuild', () => {
     await handleEnrichmentMessage(finalize, env, 2);
 
     const run = await db.prepare('SELECT status FROM pipeline_runs WHERE id = ?').bind('run-q').first<{ status: string }>();
-    // In production the admin route creates the run before enqueueing. The
-    // finalizer is still allowed to run in tests without a pre-created row.
-    expect(run).toBeNull();
+    expect(run).toEqual({ status: 'completed' });
 
     const corpus = await db.prepare('SELECT keyword FROM corpus_topics ORDER BY aggregate_score DESC')
       .all<{ keyword: string }>();

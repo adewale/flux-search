@@ -3,6 +3,7 @@ import { runStep, shouldRetryError } from '../lib/topic-rebuild';
 import { extractTopicsMulti, type MultiExtractedTopic } from '../lib/topic-multi-extract';
 import { stemPhrase } from '../lib/porter-stem';
 import { filterTopicsByIssueFrequency } from '../lib/topic-cross-issue-filter';
+import { topicPublicationDatabase } from '../lib/topic-publication';
 import {
   claimPipelineJob,
   createPipelineJob,
@@ -10,6 +11,8 @@ import {
   failPipelineJob,
   failPipelineRunIfPresent,
   idempotencyKeyForMessage,
+  pendingPipelinePayload,
+  recordFailedPipelineSend,
   recordPipelinePhase,
   succeedPipelineJob,
 } from '../lib/pipeline-jobs';
@@ -92,6 +95,23 @@ function messageCorrelationId(message: EnrichmentMessage): string | null {
   return 'correlationId' in message ? message.correlationId : null;
 }
 
+async function sendRecoverably(
+  env: Env, messages: Array<TopicExtractBatchMessage | TopicFinalizeRebuildMessage | EmbedCorpusTopicsMessage>,
+): Promise<void> {
+  if (!env.ENRICHMENT_QUEUE) return;
+  for (let i = 0; i < messages.length; i += 100) {
+    try {
+      await env.ENRICHMENT_QUEUE.sendBatch(messages.slice(i, i + 100).map(body => ({ body })));
+    } catch (error) {
+      // Also preserve jobs whose later batches were never attempted. A lost
+      // send acknowledgement may replay this batch; destination safety still
+      // matters. Successful dispatch adds no database call.
+      await recordFailedPipelineSend(env.DB, messages.slice(i).map(message => message.jobId), error);
+      throw error;
+    }
+  }
+}
+
 export function makeTopicEmbeddingMessages(
   rows: TopicKeywordRow[],
   runId: string,
@@ -125,6 +145,7 @@ export function makeTopicEmbeddingMessages(
 }
 
 export async function enqueueTopicRebuild(env: Env, runId: string, issueIds: string[], batchSize = 10): Promise<{ extractJobs: number; finalizeJobs: number }> {
+  if (!Number.isInteger(batchSize) || batchSize < 1) throw new Error('batchSize must be a positive integer');
   if (!env.ENRICHMENT_QUEUE) return { extractJobs: 0, finalizeJobs: 0 };
   const correlationId = randomId();
   const queuedAt = new Date().toISOString();
@@ -155,10 +176,12 @@ export async function enqueueTopicRebuild(env: Env, runId: string, issueIds: str
       queuedAt,
     });
     if (created) sendable.push(message);
+    else {
+      const pending = await pendingPipelinePayload(env.DB, idempotencyKeyForMessage(message), runId);
+      if (pending) sendable.push(pending as TopicExtractBatchMessage);
+    }
   }
-  for (let i = 0; i < sendable.length; i += 100) {
-    await env.ENRICHMENT_QUEUE.sendBatch(sendable.slice(i, i + 100).map(body => ({ body })));
-  }
+  await sendRecoverably(env, sendable);
   // The finalizer is deliberately not published with the extract jobs.
   // Cloudflare Queues do not guarantee publish order, and a retrying early
   // finalizer can exhaust max_retries/DLQ before slower extracts complete.
@@ -207,8 +230,9 @@ async function enqueueTopicFinalizeIfReady(env: Env, runId: string, correlationI
     correlationId: message.correlationId,
     queuedAt,
   });
-  if (!created) return false;
-  await env.ENRICHMENT_QUEUE.sendBatch([{ body: message }]);
+  const pending = created ? message : await pendingPipelinePayload(env.DB, idempotencyKeyForMessage(message), runId);
+  if (!pending) return false;
+  await sendRecoverably(env, [pending as TopicFinalizeRebuildMessage]);
   return true;
 }
 
@@ -234,24 +258,25 @@ export async function enqueueCorpusTopicEmbedding(env: Env, runId: string, batch
       queuedAt: message.queuedAt,
     });
     if (created) sendable.push(message);
+    else {
+      const pending = await pendingPipelinePayload(env.DB, idempotencyKeyForMessage(message), runId);
+      if (pending) sendable.push(pending as EmbedCorpusTopicsMessage);
+    }
   }
 
-  for (let i = 0; i < sendable.length; i += 100) {
-    await env.ENRICHMENT_QUEUE.sendBatch(
-      sendable.slice(i, i + 100).map(body => ({ body }))
-    );
-  }
+  await sendRecoverably(env, sendable);
   return sendable.length;
 }
 
-async function embedTopicKeywords(env: Env, keywords: string[]): Promise<number> {
+async function embedTopicKeywords(env: Env, keywords: string[], runId: string): Promise<number> {
   if (keywords.length === 0) return 0;
   const result = await env.AI.run('@cf/baai/bge-base-en-v1.5', { text: keywords });
   if (!('data' in result) || !Array.isArray(result.data)) return 0;
   const embeddings = keywords.map((keyword, i) => ({ keyword, vector: (result.data as number[][])[i] ?? [] }))
     .filter(e => e.vector.length > 0);
-  await replaceTopicEmbeddings(env.DB, embeddings);
-  await rebuildSimilaritiesFromStoredEmbeddings(env.DB, embeddings.map(e => e.keyword));
+  const db = topicPublicationDatabase(env.DB, runId);
+  await replaceTopicEmbeddings(db, embeddings);
+  await rebuildSimilaritiesFromStoredEmbeddings(db, embeddings.map(e => e.keyword));
   return embeddings.length;
 }
 
@@ -300,19 +325,20 @@ async function finalizeTopicRebuild(env: Env, runId: string, expectedExtractJobs
   const crossIssue = filterTopicsByIssueFrequency(byIssue, 2);
   suppressed += crossIssue.suppressedCount;
 
+  const publicationDb = topicPublicationDatabase(env.DB, runId);
   let issueRows = 0;
   for (const [issueId, topics] of crossIssue.byIssue.entries()) {
     const rows = topics.map(t => ({ ...t, stem: stemPhrase(t.keyword) }));
     issueRows += rows.length;
-    await replaceIssueTopics(env.DB, issueId, rows);
+    await replaceIssueTopics(publicationDb, issueId, rows);
   }
 
-  const corpusTopics = await buildCorpusTopics(env.DB);
-  const clusterMerges = await clusterCorpusTopics(env.DB);
-  const timelineRows = await buildTopicTimeline(env.DB);
-  await annotateCorpusTopics(env.DB);
+  const corpusTopics = await buildCorpusTopics(publicationDb);
+  const clusterMerges = await clusterCorpusTopics(publicationDb);
+  const timelineRows = await buildTopicTimeline(publicationDb);
+  await annotateCorpusTopics(publicationDb);
   const queuedEmbeddingBatches = await enqueueCorpusTopicEmbedding(env, runId);
-  await env.DB.prepare(`
+  await publicationDb.prepare(`
     UPDATE pipeline_runs SET completed_at = ?, status = 'completed', notes = ? WHERE id = ?
   `).bind(new Date().toISOString(), JSON.stringify({ run_id: runId, issue_topic_rows: issueRows, corpus_topics: corpusTopics, timeline_rows: timelineRows, cluster_merges: clusterMerges, topics_suppressed: suppressed, queued_embedding_batches: queuedEmbeddingBatches }), runId).run();
 
@@ -327,7 +353,12 @@ export async function handleEnrichmentMessage(message: EnrichmentMessage, env?: 
 
   if (env && jobId) {
     const claimed = await claimPipelineJob(env.DB, jobId, attempts);
-    if (!claimed) return { embedded: 0 };
+    if (!claimed) {
+      // The extract may already be durable while its finalizer send failed.
+      // A redelivery still needs to repair that send, not merely ack the row.
+      if (kind === 'topic-extract-batch') await enqueueTopicFinalizeIfReady(env, runId, correlationId);
+      return { embedded: 0 };
+    }
   }
 
   try {
@@ -362,7 +393,7 @@ export async function handleEnrichmentMessage(message: EnrichmentMessage, env?: 
       case 'embed-corpus-topics': {
         if (!('keywords' in message)) return { embedded: 0 };
         const embedded = await runStep('embed_corpus_topics', async () => {
-          const count = env ? await embedTopicKeywords(env, message.keywords) : message.keywords.length;
+          const count = env ? await embedTopicKeywords(env, message.keywords, runId) : message.keywords.length;
           console.log(JSON.stringify({
             event: 'topic_enrichment_job',
             run_id: runId,

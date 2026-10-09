@@ -514,3 +514,17 @@ existing CI job, remove duplicate corpus processing, and leave deployment and
 visual checks explicitly opt-in. No nightly live, browser, visual or mutation
 campaign was added in this readiness pass. Offline doubles cannot establish
 deployment relevance or production Workers AI/Vectorize behavior.
+
+## October 2026: dispatch recovery and publication are different contracts
+
+A persisted job is not proof of queue acceptance. Record explicit send failures
+and resend their persisted ID/payload on producer retry; normal queued rows
+remain deduplicated. Crash ambiguity still uses the existing operator replay.
+
+Fence corpus writes with the latest persisted rebuild generation in the same
+D1 transaction as each effect. A checkpoint before a write is racy, and a
+zero-row guard does not abort a later DELETE. Related delete/insert replacements
+must be transactional, and incremental similarity replay must retain unrelated
+pairs. This does not make the entire multi-stage rebuild atomically visible or
+exclude duplicate paid calls. No lease, heartbeat or new recurring lane is
+needed for these contracts.

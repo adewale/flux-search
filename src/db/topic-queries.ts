@@ -15,10 +15,6 @@ export async function replaceIssueTopics(
     evidence_json?: string | null;
   }>,
 ): Promise<void> {
-  await db.prepare('DELETE FROM issue_topics WHERE issue_id = ?').bind(issueId).run();
-
-  if (topics.length === 0) return;
-
   const stmts = topics.map(t =>
     db.prepare(`
       INSERT INTO issue_topics (
@@ -51,7 +47,7 @@ export async function replaceIssueTopics(
     )
   );
 
-  await db.batch(stmts);
+  await db.batch([db.prepare('DELETE FROM issue_topics WHERE issue_id = ?').bind(issueId), ...stmts]);
 }
 
 export async function getTopicsByIssueId(
@@ -204,8 +200,6 @@ export async function buildCorpusTopics(
   // low enough to keep emerging topics visible.
   const minDf = opts.minDocFrequency ?? 3;
 
-  await db.prepare('DELETE FROM corpus_topics').run();
-
   const total = await db.prepare("SELECT COUNT(*) AS c FROM issues WHERE status = 'active'")
     .first<{ c: number }>();
   const totalIssues = Math.max(1, total?.c ?? 1);
@@ -213,7 +207,7 @@ export async function buildCorpusTopics(
   // Aggregate by stem when one is recorded so morphological variants
   // ("models" / "model" / "modeling") collapse to a single corpus row.
   // Falls back to the literal keyword when stem is null.
-  await db.prepare(`
+  const aggregate = db.prepare(`
     INSERT INTO corpus_topics (
       keyword, keyword_display, doc_frequency, avg_score, aggregate_score,
       distinctiveness, first_seen, last_seen, ngram_size, updated_at,
@@ -266,7 +260,8 @@ export async function buildCorpusTopics(
       GROUP BY cluster_key
       HAVING COUNT(DISTINCT t.issue_id) >= ?
     ) AS cluster
-  `).bind(totalIssues, totalIssues, new Date().toISOString(), minDf).run();
+  `).bind(totalIssues, totalIssues, new Date().toISOString(), minDf);
+  await db.batch([db.prepare('DELETE FROM corpus_topics'), aggregate]);
 
   await applyDomainDistinctivenessBoost(db, totalIssues);
   await applyPublicRedundancyDemotions(db);
@@ -516,16 +511,14 @@ export async function annotateCorpusTopics(db: D1Database): Promise<void> {
 }
 
 export async function buildTopicTimeline(db: D1Database): Promise<number> {
-  await db.prepare('DELETE FROM topic_timeline').run();
-
-  await db.prepare(`
+  await db.batch([db.prepare('DELETE FROM topic_timeline'), db.prepare(`
     INSERT INTO topic_timeline (keyword, year, month, occurrences)
     SELECT t.keyword, i.year, i.month, COUNT(*) AS occurrences
     FROM issue_topics t
     JOIN issues i ON i.id = t.issue_id
     WHERE i.year IS NOT NULL AND i.month IS NOT NULL
     GROUP BY t.keyword, i.year, i.month
-  `).run();
+  `)]);
 
   const result = await db.prepare('SELECT COUNT(*) as c FROM topic_timeline')
     .first<{ c: number }>();
@@ -564,8 +557,6 @@ export async function replacePhraseLexicon(
   db: D1Database,
   entries: Array<{ phrase: string; pmi: number; cooccurrence: number; quality: number }>,
 ): Promise<void> {
-  await db.prepare('DELETE FROM phrase_lexicon').run();
-  if (entries.length === 0) return;
   const updatedAt = new Date().toISOString();
   const stmts = entries.map(e =>
     db.prepare(
@@ -573,7 +564,7 @@ export async function replacePhraseLexicon(
        VALUES (?, ?, ?, ?, ?)`,
     ).bind(e.phrase, e.pmi, e.cooccurrence, e.quality, updatedAt),
   );
-  await db.batch(stmts);
+  await db.batch([db.prepare('DELETE FROM phrase_lexicon'), ...stmts]);
 }
 
 /**
@@ -618,33 +609,29 @@ export async function rebuildSimilaritiesFromStoredEmbeddings(
   }
 
   const pairs = buildTopicSimilarities(embeddings, issueSets, { alpha });
-  if (changedKeywords.length > 0) {
-    for (const keyword of changedKeywords) {
-      await db.prepare('DELETE FROM topic_similarity WHERE keyword_a = ? OR keyword_b = ?')
-        .bind(keyword, keyword).run();
-    }
-    const changed = new Set(changedKeywords);
-    await replaceTopicSimilarities(db, pairs.filter(p => changed.has(p.keyword_a) || changed.has(p.keyword_b)));
-  } else {
-    await replaceTopicSimilarities(db, pairs);
-  }
+  await replaceTopicSimilarities(db, pairs, changedKeywords);
   return pairs.length;
 }
 
 export async function replaceTopicSimilarities(
   db: D1Database,
   pairs: Array<{ keyword_a: string; keyword_b: string; cosine: number; jaccard: number; blended: number }>,
+  changedKeywords: string[] = [],
 ): Promise<void> {
-  await db.prepare('DELETE FROM topic_similarity').run();
-  if (pairs.length === 0) return;
   const updatedAt = new Date().toISOString();
-  const stmts = pairs.map(p =>
+  const changed = new Set(changedKeywords);
+  const stmts = pairs.filter(p => changed.size === 0 || changed.has(p.keyword_a) || changed.has(p.keyword_b)).map(p =>
     db.prepare(
       `INSERT OR REPLACE INTO topic_similarity (keyword_a, keyword_b, cosine, jaccard, blended, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
     ).bind(p.keyword_a, p.keyword_b, p.cosine, p.jaccard, p.blended, updatedAt),
   );
-  await db.batch(stmts);
+  const deletion = changed.size === 0 ? db.prepare('DELETE FROM topic_similarity') : db.prepare(`
+    DELETE FROM topic_similarity
+    WHERE keyword_a IN (SELECT value FROM json_each(?))
+       OR keyword_b IN (SELECT value FROM json_each(?))
+  `).bind(JSON.stringify(changedKeywords), JSON.stringify(changedKeywords));
+  await db.batch([deletion, ...stmts]);
 }
 
 /**
