@@ -9,8 +9,8 @@
  * This is the test we should have written from the start.
  */
 import { describe, it, expect } from 'vitest';
+import { SEARCH_URL } from './live-url';
 
-const SEARCH_URL = process.env.SEARCH_URL || 'https://flux-search.adewale-883.workers.dev';
 
 async function search(q: string) {
   const resp = await fetch(`${SEARCH_URL}/search?q=${encodeURIComponent(q)}&limit=20`);

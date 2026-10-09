@@ -9,13 +9,12 @@
  * to ensure each quality dimension is meaningfully covered.
  */
 import { describe, it, expect } from 'vitest';
+import { SEARCH_URL } from './live-url';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const SEARCH_URL =
-  process.env.SEARCH_URL || 'https://flux-search.adewale-883.workers.dev';
 
 interface SearchResult {
   issue_id: string;

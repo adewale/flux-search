@@ -13,19 +13,26 @@ import { join } from 'node:path';
  */
 export interface D1Like {
   prepare: (sql: string) => D1Stmt;
-  batch: (stmts: D1Stmt[]) => Promise<unknown[]>;
+  batch: (stmts: D1Bound[]) => Promise<D1BatchResult[]>;
   _sqlite: DatabaseSync;
 }
 
-interface D1Stmt {
+interface D1Stmt extends D1Bound {
   bind: (...params: unknown[]) => D1Bound;
   _sql: string;
 }
 
 interface D1Bound {
-  run: () => Promise<{ success: boolean }>;
+  run: () => Promise<{ success: boolean; meta: { changes: number } }>;
   first: <T = unknown>() => Promise<T | null>;
   all: <T = unknown>() => Promise<{ results: T[] }>;
+  _batch: () => D1BatchResult;
+}
+
+interface D1BatchResult {
+  success: boolean;
+  results: unknown[];
+  meta: { changes: number };
 }
 
 const MIGRATIONS_DIR = join(__dirname, '..', 'migrations');
@@ -93,8 +100,8 @@ function wrap(sqlite: DatabaseSync): D1Like {
     const sanitized = params.map(p => p === undefined ? null : p) as any[];
     return {
       run: async () => {
-        sqlite.prepare(sql).run(...sanitized);
-        return { success: true };
+        const result = sqlite.prepare(sql).run(...sanitized);
+        return { success: true, meta: { changes: Number(result.changes) } };
       },
       first: async <T>() => {
         const row = sqlite.prepare(sql).get(...sanitized);
@@ -103,6 +110,16 @@ function wrap(sqlite: DatabaseSync): D1Like {
       all: async <T>() => {
         const rows = sqlite.prepare(sql).all(...sanitized);
         return { results: rows as T[] };
+      },
+      _batch: () => {
+        const statement = sqlite.prepare(sql);
+        // Column metadata does not execute SQL. Read each SELECT once and
+        // execute each non-returning write once, preserving its change count.
+        if (statement.columns().length > 0) {
+          return { success: true, results: statement.all(...sanitized), meta: { changes: 0 } };
+        }
+        const result = statement.run(...sanitized);
+        return { success: true, results: [], meta: { changes: Number(result.changes) } };
       },
     };
   };
@@ -115,18 +132,19 @@ function wrap(sqlite: DatabaseSync): D1Like {
       run: noParams.run,
       first: noParams.first,
       all: noParams.all,
+      _batch: noParams._batch,
     };
   };
 
   return {
     _sqlite: sqlite,
     prepare,
-    batch: async (stmts: Array<{ run: () => Promise<unknown> }>) => {
+    batch: async (stmts: D1Bound[]) => {
       sqlite.exec('BEGIN');
       try {
-        const out: unknown[] = [];
+        const out: D1BatchResult[] = [];
         for (const s of stmts) {
-          out.push(await s.run());
+          out.push(s._batch());
         }
         sqlite.exec('COMMIT');
         return out;

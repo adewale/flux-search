@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "engines": {
-    "node": ">=22"
+    "node": ">=22.16.0"
   },
   "scripts": {
     "dev": "wrangler dev",
@@ -14,6 +14,9 @@
     "db:migrate:remote": "wrangler d1 migrations apply flux-search-db --remote",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:live": "vitest run --config vitest.live.config.ts",
+    "test:e2e:local": "PLAYWRIGHT_WEB_SERVER=wrangler playwright test e2e/search-races.spec.ts",
+    "test:visual:local": "PLAYWRIGHT_WEB_SERVER=wrangler playwright test e2e/visual-regression.spec.ts",
     "corpus:fetch": "bash scripts/fetch-corpus.sh",
     "corpus:process": "tsx scripts/process-corpus.ts",
     "corpus:validate": "tsx scripts/validate-corpus.ts",
@@ -30,11 +33,12 @@
     "db:explain-hot-paths": "node scripts/explain-d1-hot-paths.mjs",
     "build:background-frequency": "node scripts/build-background-frequency.mjs",
     "benchmark:topic-quality": "node scripts/benchmark-topic-quality.mjs",
-    "rollout:topic-quality": "node scripts/topic-quality-rollout.mjs"
+    "rollout:topic-quality": "node scripts/topic-quality-rollout.mjs",
+    "report:ngram-cases": "node scripts/ngram-cases-report.mjs"
   },
   "dependencies": {
     "@ade_oshineye/yaket": "0.5.3",
-    "hono": "^4.12.30"
+    "hono": "^4.13.13"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

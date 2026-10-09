@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Replaced source-text greps of `topics-page.js`, `issue-page.js` and `result-list.js` with `test/page-wiring.test.ts`, which runs the real page modules and asserts the HTML they write: the topic search link round-trips through `parseQuery`, crawled section HTML and titles stay escaped, marked output is only used after DOMPurify sanitizes it, and density tooltips name sections by display label.
+- The search-state property traces now start with the cold-start pair (`LOAD ''`, `LATEST_LOADED`) half the time, so invariants I1–I11 actually explore `FEATURED_RESULTS`.
+- Corpus suites fail instead of skipping when `data/raw/` is empty or missing.
+
 ## 2026-07-19
 
 ### Fixed

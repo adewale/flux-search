@@ -277,6 +277,14 @@ function sanitizeFtsInput(text: string): string {
   return text.replace(/[^\w\s-]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+// After sanitizing, two things can still parse as FTS5 syntax: the bareword
+// operators AND/OR/NOT, and "-" (column-filter syntax, so `self-organizing`
+// fails with "no such column: organizing"). Quote those terms so FTS5 reads
+// them as strings; a hyphenated word becomes the phrase "self organizing".
+function quoteFtsSyntax(term: string): string {
+  return /^(AND|OR|NOT)$/.test(term) || term.includes('-') ? `"${term}"` : term;
+}
+
 export function buildFtsQuery(parsed: ReturnType<typeof parseQuery>): string {
   const parts: string[] = [];
 
@@ -285,7 +293,11 @@ export function buildFtsQuery(parsed: ReturnType<typeof parseQuery>): string {
     parts.push(`"${sanitizeFtsInput(phrase)}"`);
   }
 
-  const freeTerms = sanitizeFtsInput(parsed.freeText);
+  const freeTerms = sanitizeFtsInput(parsed.freeText)
+    .split(' ')
+    .filter(Boolean)
+    .map(quoteFtsSyntax)
+    .join(' ');
   if (freeTerms) {
     parts.push(freeTerms);
   }
