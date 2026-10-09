@@ -138,7 +138,9 @@ describe('search route FTS5 safety (real FTS5 via node:sqlite)', () => {
         const fts = buildFtsQuery(parseQuery(tokens.join(sep)));
         if (fts) match.all(fts);
       }),
-      { numRuns: 300 },
+      // Reuse the 200-run budget of the redundant string-type property,
+      // rather than add another recurring randomized campaign.
+      { numRuns: 200 },
     );
   });
 

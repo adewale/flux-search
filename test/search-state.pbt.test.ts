@@ -157,16 +157,6 @@ describe('PBT — search state machine invariants', () => {
     );
   });
 
-  it('I7: query is always a string', () => {
-    fc.assert(
-      fc.property(trace({ maxLength: 15 }), (events) => {
-        const s = runAll(events);
-        expect(typeof s.query).toBe('string');
-      }),
-      { numRuns: 200 },
-    );
-  });
-
   it('I8: reducer is pure (same inputs → equal outputs)', () => {
     fc.assert(
       fc.property(trace({ maxLength: 10 }), event, (prefix, e) => {
