@@ -11,6 +11,24 @@ async function seedIssue(db: ReturnType<typeof makeD1>, id: string, n: number, t
 }
 
 describe('queue-backed topic rebuild', () => {
+  it('fails a superseded finalizer without changing current publication', async () => {
+    const db = makeD1();
+    await db.prepare("INSERT INTO pipeline_runs (id, mode, started_at) VALUES ('old-finalizer', 'topic_rebuild', 'now')").run();
+    const sent: EnrichmentMessage[] = [];
+    const env = { DB: db, ENRICHMENT_QUEUE: { sendBatch: async (batch: Array<{ body: EnrichmentMessage }>) => {
+      sent.push(...batch.map(entry => entry.body));
+    } } } as any;
+    await enqueueTopicRebuild(env, 'old-finalizer', ['missing'], 1);
+    await handleEnrichmentMessage(sent[0], env);
+    await db.prepare("INSERT INTO pipeline_runs (id, mode, started_at) VALUES ('current-finalizer', 'topic_rebuild', 'now')").run();
+    await db.prepare("INSERT INTO corpus_topics (keyword, keyword_display, doc_frequency, avg_score, aggregate_score, updated_at) VALUES ('current', 'Current', 3, 1, 1, 'now')").run();
+    const finalize = sent.find(message => 'kind' in message && message.kind === 'topic-finalize-rebuild')!;
+    await expect(handleEnrichmentMessage(finalize, env)).rejects.toThrow();
+    expect((await db.prepare('SELECT keyword FROM corpus_topics').all()).results).toEqual([{ keyword: 'current' }]);
+    expect(await db.prepare("SELECT status FROM pipeline_runs WHERE id = 'old-finalizer'").first()).toEqual({ status: 'failed' });
+    expect(await db.prepare("SELECT status FROM pipeline_runs WHERE id = 'current-finalizer'").first()).toEqual({ status: 'running' });
+  });
+
   it('retries a failed send with the persisted ID and payload, without re-sending ordinary queued jobs', async () => {
     const db = makeD1();
     const sent: EnrichmentMessage[] = [];

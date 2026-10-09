@@ -424,7 +424,7 @@ export async function handleEnrichmentMessage(message: EnrichmentMessage, env?: 
       if (shouldRetryError(err)) await deferPipelineJob(env.DB, jobId, err);
       else {
         await failPipelineJob(env.DB, jobId, err);
-        if (kind === 'topic-extract-batch') await failPipelineRunIfPresent(env.DB, runId, err);
+        if (kind === 'topic-extract-batch' || kind === 'topic-finalize-rebuild') await failPipelineRunIfPresent(env.DB, runId, err);
       }
     }
     throw err;
