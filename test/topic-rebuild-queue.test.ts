@@ -11,6 +11,40 @@ async function seedIssue(db: ReturnType<typeof makeD1>, id: string, n: number, t
 }
 
 describe('queue-backed topic rebuild', () => {
+  it.each(['extract', 'embedding'] as const)('dispatches its persisted %s job after losing the INSERT response', async (kind) => {
+    const db = makeD1();
+    await db.prepare(`INSERT INTO corpus_topics
+      (keyword, keyword_display, doc_frequency, avg_score, aggregate_score, updated_at)
+      VALUES ('a', 'A', 1, 1, 1, 'now')`).run();
+    let lost = false;
+    const wrapped = { ...db, prepare: (sql: string) => {
+      const statement = db.prepare(sql);
+      if (!sql.includes('INSERT INTO pipeline_jobs')) return statement;
+      return { ...statement, bind: (...values: unknown[]) => {
+        const bound = statement.bind(...values);
+        return { ...bound, run: async () => {
+          const result = await bound.run();
+          if (!lost) { lost = true; throw new Error('network connection lost'); }
+          return result;
+        } };
+      } };
+    } };
+    const sent: EnrichmentMessage[] = [];
+    const env = { DB: wrapped, ENRICHMENT_QUEUE: { sendBatch: async (batch: Array<{ body: EnrichmentMessage }>) => {
+      sent.push(...batch.map(entry => entry.body));
+    } } } as any;
+    const enqueue = () => kind === 'extract'
+      ? enqueueTopicRebuild(env, 'insert-response', ['i1'], 1)
+      : enqueueCorpusTopicEmbedding(env, 'insert-response', 1);
+    await enqueue();
+    const stored = (await db.prepare('SELECT payload_json FROM pipeline_jobs').all<{ payload_json: string }>())
+      .results.map(row => JSON.parse(row.payload_json));
+    expect(sent).toEqual(stored);
+    expect(sent).toHaveLength(1);
+    await enqueue();
+    expect(sent).toEqual(stored);
+  });
+
   it('fails a superseded finalizer without changing current publication', async () => {
     const db = makeD1();
     await db.prepare("INSERT INTO pipeline_runs (id, mode, started_at) VALUES ('old-finalizer', 'topic_rebuild', 'now')").run();

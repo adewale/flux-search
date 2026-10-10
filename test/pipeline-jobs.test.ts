@@ -22,7 +22,32 @@ describe('pipeline job state', () => {
       correlationId: 'corr-1', queuedAt: '2026-01-01T00:00:00.000Z',
     };
     expect(await createPipelineJob(db as any, { ...base, id: 'job-1' })).toBe(true);
+    expect(await createPipelineJob(db as any, { ...base, id: 'job-1' })).toBe(false);
     expect(await createPipelineJob(db as any, { ...base, id: 'job-2' })).toBe(false);
+  });
+
+  it('does not mistake another producer winning after a transient failure for its own insert', async () => {
+    const db = makeD1();
+    const job = { id: 'ours', runId: 'r', kind: 'topic-extract-batch', semanticKey: 'k',
+      payload: { jobId: 'ours' }, correlationId: 'c', queuedAt: 'now' };
+    let interrupted = false;
+    const wrapped = { ...db, prepare: (sql: string) => {
+      const statement = db.prepare(sql);
+      if (!sql.includes('INSERT INTO pipeline_jobs')) return statement;
+      return { ...statement, bind: (...values: unknown[]) => {
+        const bound = statement.bind(...values);
+        return { ...bound, run: async () => {
+          if (!interrupted) {
+            interrupted = true;
+            await createPipelineJob(db as any, { ...job, id: 'theirs', payload: { jobId: 'theirs' } });
+            throw new Error('network connection lost');
+          }
+          return bound.run();
+        } };
+      } };
+    } };
+    expect(await createPipelineJob(wrapped as any, job)).toBe(false);
+    expect((await db.prepare('SELECT id FROM pipeline_jobs').all()).results).toEqual([{ id: 'theirs' }]);
   });
 
   it('claims, succeeds, fails, and lists jobs', async () => {

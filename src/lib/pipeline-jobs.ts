@@ -1,4 +1,4 @@
-import { retryD1Write } from './d1-retry';
+import { isRetryableD1WriteError, retryD1Write } from './d1-retry';
 
 export type PipelineJobStatus = 'queued' | 'processing' | 'succeeded' | 'failed' | 'deferred';
 
@@ -67,11 +67,13 @@ export async function createPipelineJob(
     queuedAt: string;
   },
 ): Promise<boolean> {
+  let ambiguousInsert = false;
+  const payloadJson = JSON.stringify(job.payload);
   try {
     // Active-key uniqueness does not cover succeeded jobs. Check completion
     // in the INSERT itself, including the run-complete/job-not-yet-complete gap.
     const finalizer = job.kind === 'topic-finalize-rebuild';
-    const result = await retryD1Write(() => db.prepare(`
+    const insert = db.prepare(`
       INSERT INTO pipeline_jobs
         (id, run_id, kind, semantic_key, status, payload_json, attempts, attempt_count, schema_version, correlation_id, queued_at, updated_at)
       SELECT ?, ?, ?, ?, 'queued', ?, 0, 0, 1, ?, ?, ?
@@ -85,15 +87,34 @@ export async function createPipelineJob(
       job.runId,
       job.kind,
       job.semanticKey,
-      JSON.stringify(job.payload),
+      payloadJson,
       job.correlationId,
       job.queuedAt,
       job.queuedAt,
       ...(finalizer ? [job.runId, job.runId] : []),
-    ).run());
+    );
+    const result = await retryD1Write(async () => {
+      try {
+        return await insert.run();
+      } catch (error) {
+        if (isRetryableD1WriteError(error)) ambiguousInsert = true;
+        throw error;
+      }
+    });
     return (result.meta.changes ?? 0) > 0;
   } catch (err) {
-    if (String(err).toLowerCase().includes('unique')) return false;
+    if (String(err).toLowerCase().includes('unique')) {
+      if (!ambiguousInsert) return false;
+      // A retried INSERT can conflict with its own committed write after a
+      // lost response. Only that exact queued job is still ours to dispatch;
+      // a different producer's semantic-key collision remains deduplicated.
+      const ownJob = await retryD1Write(() => db.prepare(`
+        SELECT id FROM pipeline_jobs
+        WHERE id = ? AND run_id = ? AND kind = ? AND semantic_key = ?
+          AND payload_json = ? AND status = 'queued'
+      `).bind(job.id, job.runId, job.kind, job.semanticKey, payloadJson).first());
+      return ownJob != null;
+    }
     throw err;
   }
 }

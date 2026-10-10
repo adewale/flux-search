@@ -519,15 +519,30 @@ deployment relevance or production Workers AI/Vectorize behavior.
 
 A persisted job is not proof of queue acceptance. Record explicit send failures
 and resend their persisted ID/payload on producer retry; normal queued rows
-remain deduplicated. Crash ambiguity still uses the existing operator replay.
+remain deduplicated. If an INSERT commits but its response is lost, its internal
+retry can hit uniqueness for its own row. After a transient insert error, check
+the exact queued ID and intent before deciding to skip dispatch; another
+producer's semantic-key collision is not our successful insert. This adds a
+read only on the ambiguous-error path, not to normal dispatch.
+
+Manual recovery is an accepted contract for process crashes or exhausted
+storage retries, not a defect requiring an outbox or polling service. Existing
+replay routes resend a stored payload without resetting job status; a queued
+unsent row can be replayed, while a failed row needs operator diagnosis and
+deliberate state repair or a fresh rebuild, not blind replay.
 
 Fence corpus writes with the latest persisted rebuild generation in the same
 D1 transaction as each effect. A checkpoint before a write is racy, and a
 zero-row guard does not abort a later DELETE. Related delete/insert replacements
 must be transactional, and incremental similarity replay must retain unrelated
-pairs. This does not make the entire multi-stage rebuild atomically visible or
-exclude duplicate paid calls. No lease, heartbeat or new recurring lane is
-needed for these contracts.
+pairs. The product deliberately publishes progressively during rebuilding: no
+coherent, complete whole-rebuild snapshot is promised. Do not add staging
+tables or a publication-pointer protocol to satisfy a nonexistent requirement.
+Same-generation vector predicates still matter: without them, overlapping
+successful embedding batches can leave permanently missing or stale pairs
+after all jobs finish, not merely mixed-stage results during rebuilding.
+These changes do not exclude duplicate paid calls. No lease, heartbeat or new
+recurring lane is needed for these contracts.
 
 The adversarial follow-up found three boundary mistakes despite green CI:
 
