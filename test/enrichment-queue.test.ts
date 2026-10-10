@@ -55,6 +55,7 @@ describe('enrichment queue helpers', () => {
 
   it('marks durable jobs succeeded after processing', async () => {
     const db = makeD1();
+    await db.prepare("INSERT INTO pipeline_runs (id, mode, started_at) VALUES ('run-1', 'topic_rebuild', '2026-01-01')").run();
     const message = makeTopicEmbeddingMessages(keywordRows(2), 'run-1', 25, {
       correlationId: 'corr-1',
       now: '2026-01-01T00:00:00.000Z',

@@ -514,3 +514,63 @@ existing CI job, remove duplicate corpus processing, and leave deployment and
 visual checks explicitly opt-in. No nightly live, browser, visual or mutation
 campaign was added in this readiness pass. Offline doubles cannot establish
 deployment relevance or production Workers AI/Vectorize behavior.
+
+## October 2026: dispatch recovery and publication are different contracts
+
+A persisted job is not proof of queue acceptance. Record explicit send failures
+and resend their persisted ID/payload on producer retry; normal queued rows
+remain deduplicated. If an INSERT commits but its response is lost, its internal
+retry can hit uniqueness for its own row. After a transient insert error, check
+the exact queued ID and intent before deciding to skip dispatch; another
+producer's semantic-key collision is not our successful insert. This adds a
+read only on the ambiguous-error path, not to normal dispatch.
+
+Manual recovery is an accepted contract for process crashes or exhausted
+storage retries, not a defect requiring an outbox or polling service. Existing
+replay routes resend a stored payload without resetting job status; a queued
+unsent row can be replayed, while a failed row needs operator diagnosis and
+deliberate state repair or a fresh rebuild, not blind replay.
+
+Fence corpus writes with the latest persisted rebuild generation in the same
+D1 transaction as each effect. A checkpoint before a write is racy, and a
+zero-row guard does not abort a later DELETE. Related delete/insert replacements
+must be transactional, and incremental similarity replay must retain unrelated
+pairs. The product deliberately publishes progressively during rebuilding: no
+coherent, complete whole-rebuild snapshot is promised. Do not add staging
+tables or a publication-pointer protocol to satisfy a nonexistent requirement.
+Same-generation vector predicates still matter: without them, overlapping
+successful embedding batches can leave permanently missing or stale pairs
+after all jobs finish, not merely mixed-stage results during rebuilding.
+These changes do not exclude duplicate paid calls. No lease, heartbeat or new
+recurring lane is needed for these contracts.
+
+The adversarial follow-up found three boundary mistakes despite green CI:
+
+- Active-job uniqueness expires when a finalizer succeeds. An extract replay
+  must not create another finalizer and delete already-published embeddings.
+  Suppress insertion at the SQL write, checking both succeeded finalizers and
+  completed runs (publication can finish before job bookkeeping does).
+- A recovery read must not consume its send-failure marker. A later planner
+  error or a committed update with a lost response can otherwise strand the
+  original job. Keep the persisted payload readable until queue acceptance,
+  then clear the marker idempotently. Mark earlier unsent jobs on preparation
+  failure too. Only recovered dispatch needs the cleanup write; ordinary
+  dispatch has no extra RPC. Crashes or unavailable storage still require
+  operator replay, and concurrent repair can still send duplicate copies.
+- Generation fencing cannot distinguish concurrent embedding batches in the
+  same rebuild. Incremental similarity replacement must cover only endpoints
+  in its captured snapshot whose stored vectors still match. Check vector
+  inputs on insertion too, so an older snapshot cannot restore obsolete pairs.
+  Keep removal of observed, current pairs that fall below the threshold.
+  These checks share the existing replacement transaction; they do not retry
+  paid inference merely because a computed pair became stale.
+  Do not bind the entire corpus's vectors as one JSON string: at 134 topics,
+  realistic 768-dimensional vectors can exceed D1's 2 MB string limit. Split
+  the snapshot into byte-bounded parameters inside the same DELETE CTE and
+  respect the 100-binding limit. A SQLite double alone does not enforce those
+  platform limits; the focused capacity control checks actual bound values.
+
+Small offline regressions now exercise terminal extract replay, failed
+preparation in both producers, lost recovery responses, and interleaved
+new-keyword/changed-vector publication. The original generation, rollback and
+unrelated-pair controls remain. No test budgets or recurring lanes were raised.

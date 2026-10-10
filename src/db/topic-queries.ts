@@ -15,10 +15,6 @@ export async function replaceIssueTopics(
     evidence_json?: string | null;
   }>,
 ): Promise<void> {
-  await db.prepare('DELETE FROM issue_topics WHERE issue_id = ?').bind(issueId).run();
-
-  if (topics.length === 0) return;
-
   const stmts = topics.map(t =>
     db.prepare(`
       INSERT INTO issue_topics (
@@ -51,7 +47,7 @@ export async function replaceIssueTopics(
     )
   );
 
-  await db.batch(stmts);
+  await db.batch([db.prepare('DELETE FROM issue_topics WHERE issue_id = ?').bind(issueId), ...stmts]);
 }
 
 export async function getTopicsByIssueId(
@@ -204,8 +200,6 @@ export async function buildCorpusTopics(
   // low enough to keep emerging topics visible.
   const minDf = opts.minDocFrequency ?? 3;
 
-  await db.prepare('DELETE FROM corpus_topics').run();
-
   const total = await db.prepare("SELECT COUNT(*) AS c FROM issues WHERE status = 'active'")
     .first<{ c: number }>();
   const totalIssues = Math.max(1, total?.c ?? 1);
@@ -213,7 +207,7 @@ export async function buildCorpusTopics(
   // Aggregate by stem when one is recorded so morphological variants
   // ("models" / "model" / "modeling") collapse to a single corpus row.
   // Falls back to the literal keyword when stem is null.
-  await db.prepare(`
+  const aggregate = db.prepare(`
     INSERT INTO corpus_topics (
       keyword, keyword_display, doc_frequency, avg_score, aggregate_score,
       distinctiveness, first_seen, last_seen, ngram_size, updated_at,
@@ -266,7 +260,8 @@ export async function buildCorpusTopics(
       GROUP BY cluster_key
       HAVING COUNT(DISTINCT t.issue_id) >= ?
     ) AS cluster
-  `).bind(totalIssues, totalIssues, new Date().toISOString(), minDf).run();
+  `).bind(totalIssues, totalIssues, new Date().toISOString(), minDf);
+  await db.batch([db.prepare('DELETE FROM corpus_topics'), aggregate]);
 
   await applyDomainDistinctivenessBoost(db, totalIssues);
   await applyPublicRedundancyDemotions(db);
@@ -516,16 +511,14 @@ export async function annotateCorpusTopics(db: D1Database): Promise<void> {
 }
 
 export async function buildTopicTimeline(db: D1Database): Promise<number> {
-  await db.prepare('DELETE FROM topic_timeline').run();
-
-  await db.prepare(`
+  await db.batch([db.prepare('DELETE FROM topic_timeline'), db.prepare(`
     INSERT INTO topic_timeline (keyword, year, month, occurrences)
     SELECT t.keyword, i.year, i.month, COUNT(*) AS occurrences
     FROM issue_topics t
     JOIN issues i ON i.id = t.issue_id
     WHERE i.year IS NOT NULL AND i.month IS NOT NULL
     GROUP BY t.keyword, i.year, i.month
-  `).run();
+  `)]);
 
   const result = await db.prepare('SELECT COUNT(*) as c FROM topic_timeline')
     .first<{ c: number }>();
@@ -564,8 +557,6 @@ export async function replacePhraseLexicon(
   db: D1Database,
   entries: Array<{ phrase: string; pmi: number; cooccurrence: number; quality: number }>,
 ): Promise<void> {
-  await db.prepare('DELETE FROM phrase_lexicon').run();
-  if (entries.length === 0) return;
   const updatedAt = new Date().toISOString();
   const stmts = entries.map(e =>
     db.prepare(
@@ -573,7 +564,7 @@ export async function replacePhraseLexicon(
        VALUES (?, ?, ?, ?, ?)`,
     ).bind(e.phrase, e.pmi, e.cooccurrence, e.quality, updatedAt),
   );
-  await db.batch(stmts);
+  await db.batch([db.prepare('DELETE FROM phrase_lexicon'), ...stmts]);
 }
 
 /**
@@ -618,33 +609,80 @@ export async function rebuildSimilaritiesFromStoredEmbeddings(
   }
 
   const pairs = buildTopicSimilarities(embeddings, issueSets, { alpha });
-  if (changedKeywords.length > 0) {
-    for (const keyword of changedKeywords) {
-      await db.prepare('DELETE FROM topic_similarity WHERE keyword_a = ? OR keyword_b = ?')
-        .bind(keyword, keyword).run();
-    }
-    const changed = new Set(changedKeywords);
-    await replaceTopicSimilarities(db, pairs.filter(p => changed.has(p.keyword_a) || changed.has(p.keyword_b)));
-  } else {
-    await replaceTopicSimilarities(db, pairs);
-  }
+  await replaceTopicSimilarities(db, pairs, changedKeywords,
+    changedKeywords.length > 0 ? new Map(rows.results.map(row => [row.keyword, row.vector_json])) : undefined);
   return pairs.length;
 }
 
 export async function replaceTopicSimilarities(
   db: D1Database,
   pairs: Array<{ keyword_a: string; keyword_b: string; cosine: number; jaccard: number; blended: number }>,
+  changedKeywords: string[] = [],
+  embeddingSnapshot?: ReadonlyMap<string, string>,
 ): Promise<void> {
-  await db.prepare('DELETE FROM topic_similarity').run();
-  if (pairs.length === 0) return;
   const updatedAt = new Date().toISOString();
-  const stmts = pairs.map(p =>
-    db.prepare(
-      `INSERT OR REPLACE INTO topic_similarity (keyword_a, keyword_b, cosine, jaccard, blended, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).bind(p.keyword_a, p.keyword_b, p.cosine, p.jaccard, p.blended, updatedAt),
-  );
-  await db.batch(stmts);
+  const changed = new Set(changedKeywords);
+  const stmts = pairs.filter(p => changed.size === 0 || changed.has(p.keyword_a) || changed.has(p.keyword_b)).map(p => {
+    const values = [p.keyword_a, p.keyword_b, p.cosine, p.jaccard, p.blended, updatedAt];
+    if (!embeddingSnapshot) return db.prepare(`
+      INSERT OR REPLACE INTO topic_similarity (keyword_a, keyword_b, cosine, jaccard, blended, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).bind(...values);
+    // The old snapshot must not overwrite a pair computed from newer vectors.
+    return db.prepare(`
+      INSERT OR REPLACE INTO topic_similarity (keyword_a, keyword_b, cosine, jaccard, blended, updated_at)
+      SELECT ?, ?, ?, ?, ?, ?
+      WHERE EXISTS (SELECT 1 FROM topic_embeddings WHERE keyword = ? AND vector_json = ?)
+        AND EXISTS (SELECT 1 FROM topic_embeddings WHERE keyword = ? AND vector_json = ?)
+    `).bind(...values, p.keyword_a, embeddingSnapshot.get(p.keyword_a) ?? null,
+      p.keyword_b, embeddingSnapshot.get(p.keyword_b) ?? null);
+  });
+  let deletion = changed.size === 0 ? db.prepare('DELETE FROM topic_similarity') : db.prepare(`
+    DELETE FROM topic_similarity
+    WHERE keyword_a IN (SELECT value FROM json_each(?))
+       OR keyword_b IN (SELECT value FROM json_each(?))
+  `).bind(JSON.stringify(changedKeywords), JSON.stringify(changedKeywords));
+  if (embeddingSnapshot) {
+    // Limit deletion to endpoints observed AND still current. New keywords
+    // and changed vectors from concurrent same-generation jobs survive.
+    // Below-threshold pairs with current inputs still get removed.
+    // Each D1 string is limited to 2 MB and a statement to 100 bindings.
+    // Split at 1 MB, retaining one DELETE/transaction rather than one query
+    // per pair. Serialize entries once; never concatenate the whole snapshot.
+    const snapshotParameters: string[] = [];
+    const encoder = new TextEncoder();
+    let entries: string[] = [];
+    let bytes = 2;
+    for (const [keyword, vector] of embeddingSnapshot) {
+      const entry = `${JSON.stringify(keyword)}:${JSON.stringify(vector)}`;
+      const size = encoder.encode(entry).byteLength;
+      if (size + 2 > 1_000_000) throw new Error('topic similarity vector exceeds snapshot parameter budget');
+      if (bytes + size + 1 > 1_000_000) {
+        snapshotParameters.push(`{${entries.join(',')}}`);
+        entries = [];
+        bytes = 2;
+      }
+      bytes += size + (entries.length > 0 ? 1 : 0);
+      entries.push(entry);
+    }
+    snapshotParameters.push(`{${entries.join(',')}}`);
+    if (snapshotParameters.length > 97) throw new Error('topic similarity snapshot exceeds D1 parameter budget');
+    deletion = db.prepare(`
+      WITH snapshot AS (
+        ${snapshotParameters.map(() => 'SELECT key, value FROM json_each(?)').join(' UNION ALL ')}
+      ),
+      fresh AS (
+        SELECT e.keyword FROM topic_embeddings e JOIN snapshot
+          ON snapshot.key = e.keyword AND snapshot.value = e.vector_json
+      )
+      DELETE FROM topic_similarity
+      WHERE keyword_a IN (SELECT keyword FROM fresh) AND keyword_b IN (SELECT keyword FROM fresh)
+        AND (? = 0 OR keyword_a IN (SELECT value FROM json_each(?))
+                   OR keyword_b IN (SELECT value FROM json_each(?)))
+    `).bind(...snapshotParameters, changed.size,
+      JSON.stringify(changedKeywords), JSON.stringify(changedKeywords));
+  }
+  await db.batch([deletion, ...stmts]);
 }
 
 /**
