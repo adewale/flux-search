@@ -528,3 +528,34 @@ must be transactional, and incremental similarity replay must retain unrelated
 pairs. This does not make the entire multi-stage rebuild atomically visible or
 exclude duplicate paid calls. No lease, heartbeat or new recurring lane is
 needed for these contracts.
+
+The adversarial follow-up found three boundary mistakes despite green CI:
+
+- Active-job uniqueness expires when a finalizer succeeds. An extract replay
+  must not create another finalizer and delete already-published embeddings.
+  Suppress insertion at the SQL write, checking both succeeded finalizers and
+  completed runs (publication can finish before job bookkeeping does).
+- A recovery read must not consume its send-failure marker. A later planner
+  error or a committed update with a lost response can otherwise strand the
+  original job. Keep the persisted payload readable until queue acceptance,
+  then clear the marker idempotently. Mark earlier unsent jobs on preparation
+  failure too. Only recovered dispatch needs the cleanup write; ordinary
+  dispatch has no extra RPC. Crashes or unavailable storage still require
+  operator replay, and concurrent repair can still send duplicate copies.
+- Generation fencing cannot distinguish concurrent embedding batches in the
+  same rebuild. Incremental similarity replacement must cover only endpoints
+  in its captured snapshot whose stored vectors still match. Check vector
+  inputs on insertion too, so an older snapshot cannot restore obsolete pairs.
+  Keep removal of observed, current pairs that fall below the threshold.
+  These checks share the existing replacement transaction; they do not retry
+  paid inference merely because a computed pair became stale.
+  Do not bind the entire corpus's vectors as one JSON string: at 134 topics,
+  realistic 768-dimensional vectors can exceed D1's 2 MB string limit. Split
+  the snapshot into byte-bounded parameters inside the same DELETE CTE and
+  respect the 100-binding limit. A SQLite double alone does not enforce those
+  platform limits; the focused capacity control checks actual bound values.
+
+Small offline regressions now exercise terminal extract replay, failed
+preparation in both producers, lost recovery responses, and interleaved
+new-keyword/changed-vector publication. The original generation, rollback and
+unrelated-pair controls remain. No test budgets or recurring lanes were raised.

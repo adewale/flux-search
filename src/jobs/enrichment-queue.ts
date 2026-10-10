@@ -6,6 +6,7 @@ import { filterTopicsByIssueFrequency } from '../lib/topic-cross-issue-filter';
 import { topicPublicationDatabase } from '../lib/topic-publication';
 import {
   claimPipelineJob,
+  clearFailedPipelineSend,
   createPipelineJob,
   deferPipelineJob,
   failPipelineJob,
@@ -97,15 +98,22 @@ function messageCorrelationId(message: EnrichmentMessage): string | null {
 
 async function sendRecoverably(
   env: Env, messages: Array<TopicExtractBatchMessage | TopicFinalizeRebuildMessage | EmbedCorpusTopicsMessage>,
+  recovered = new Set<string>(),
 ): Promise<void> {
   if (!env.ENRICHMENT_QUEUE) return;
   for (let i = 0; i < messages.length; i += 100) {
     try {
-      await env.ENRICHMENT_QUEUE.sendBatch(messages.slice(i, i + 100).map(body => ({ body })));
+      const batch = messages.slice(i, i + 100);
+      await env.ENRICHMENT_QUEUE.sendBatch(batch.map(body => ({ body })));
+      if (recovered.size > 0) {
+        const ids = batch.filter(message => recovered.has(message.jobId)).map(message => message.jobId);
+        if (ids.length > 0) await clearFailedPipelineSend(env.DB, ids);
+      }
     } catch (error) {
       // Also preserve jobs whose later batches were never attempted. A lost
       // send acknowledgement may replay this batch; destination safety still
-      // matters. Successful dispatch adds no database call.
+      // matters. Normal dispatch adds no database call; recovered dispatch
+      // clears its marker only after queue acceptance.
       await recordFailedPipelineSend(env.DB, messages.slice(i).map(message => message.jobId), error);
       throw error;
     }
@@ -165,23 +173,32 @@ export async function enqueueTopicRebuild(env: Env, runId: string, issueIds: str
   }
 
   const sendable: TopicExtractBatchMessage[] = [];
-  for (const message of messages) {
-    const created = await createPipelineJob(env.DB, {
-      id: message.jobId,
-      runId,
-      kind: message.kind,
-      semanticKey: idempotencyKeyForMessage(message),
-      payload: message,
-      correlationId,
-      queuedAt,
-    });
-    if (created) sendable.push(message);
-    else {
-      const pending = await pendingPipelinePayload(env.DB, idempotencyKeyForMessage(message), runId);
-      if (pending) sendable.push(pending as TopicExtractBatchMessage);
+  const recovered = new Set<string>();
+  try {
+    for (const message of messages) {
+      const created = await createPipelineJob(env.DB, {
+        id: message.jobId,
+        runId,
+        kind: message.kind,
+        semanticKey: idempotencyKeyForMessage(message),
+        payload: message,
+        correlationId,
+        queuedAt,
+      });
+      if (created) sendable.push(message);
+      else {
+        const pending = await pendingPipelinePayload(env.DB, idempotencyKeyForMessage(message), runId);
+        if (pending) {
+          sendable.push(pending as TopicExtractBatchMessage);
+          recovered.add((pending as TopicExtractBatchMessage).jobId);
+        }
+      }
     }
+  } catch (error) {
+    if (sendable.length > 0) await recordFailedPipelineSend(env.DB, sendable.map(message => message.jobId), error);
+    throw error;
   }
-  await sendRecoverably(env, sendable);
+  await sendRecoverably(env, sendable, recovered);
   // The finalizer is deliberately not published with the extract jobs.
   // Cloudflare Queues do not guarantee publish order, and a retrying early
   // finalizer can exhaust max_retries/DLQ before slower extracts complete.
@@ -232,7 +249,8 @@ async function enqueueTopicFinalizeIfReady(env: Env, runId: string, correlationI
   });
   const pending = created ? message : await pendingPipelinePayload(env.DB, idempotencyKeyForMessage(message), runId);
   if (!pending) return false;
-  await sendRecoverably(env, [pending as TopicFinalizeRebuildMessage]);
+  const persisted = pending as TopicFinalizeRebuildMessage;
+  await sendRecoverably(env, [persisted], new Set(created ? [] : [persisted.jobId]));
   return true;
 }
 
@@ -247,24 +265,33 @@ export async function enqueueCorpusTopicEmbedding(env: Env, runId: string, batch
 
   const messages = makeTopicEmbeddingMessages(rows.results, runId, batchSize);
   const sendable: EmbedCorpusTopicsMessage[] = [];
-  for (const message of messages) {
-    const created = await createPipelineJob(env.DB, {
-      id: message.jobId,
-      runId,
-      kind: message.kind,
-      semanticKey: idempotencyKeyForMessage(message),
-      payload: message,
-      correlationId: message.correlationId,
-      queuedAt: message.queuedAt,
-    });
-    if (created) sendable.push(message);
-    else {
-      const pending = await pendingPipelinePayload(env.DB, idempotencyKeyForMessage(message), runId);
-      if (pending) sendable.push(pending as EmbedCorpusTopicsMessage);
+  const recovered = new Set<string>();
+  try {
+    for (const message of messages) {
+      const created = await createPipelineJob(env.DB, {
+        id: message.jobId,
+        runId,
+        kind: message.kind,
+        semanticKey: idempotencyKeyForMessage(message),
+        payload: message,
+        correlationId: message.correlationId,
+        queuedAt: message.queuedAt,
+      });
+      if (created) sendable.push(message);
+      else {
+        const pending = await pendingPipelinePayload(env.DB, idempotencyKeyForMessage(message), runId);
+        if (pending) {
+          sendable.push(pending as EmbedCorpusTopicsMessage);
+          recovered.add((pending as EmbedCorpusTopicsMessage).jobId);
+        }
+      }
     }
+  } catch (error) {
+    if (sendable.length > 0) await recordFailedPipelineSend(env.DB, sendable.map(message => message.jobId), error);
+    throw error;
   }
 
-  await sendRecoverably(env, sendable);
+  await sendRecoverably(env, sendable, recovered);
   return sendable.length;
 }
 

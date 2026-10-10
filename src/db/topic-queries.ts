@@ -609,7 +609,8 @@ export async function rebuildSimilaritiesFromStoredEmbeddings(
   }
 
   const pairs = buildTopicSimilarities(embeddings, issueSets, { alpha });
-  await replaceTopicSimilarities(db, pairs, changedKeywords);
+  await replaceTopicSimilarities(db, pairs, changedKeywords,
+    changedKeywords.length > 0 ? new Map(rows.results.map(row => [row.keyword, row.vector_json])) : undefined);
   return pairs.length;
 }
 
@@ -617,20 +618,70 @@ export async function replaceTopicSimilarities(
   db: D1Database,
   pairs: Array<{ keyword_a: string; keyword_b: string; cosine: number; jaccard: number; blended: number }>,
   changedKeywords: string[] = [],
+  embeddingSnapshot?: ReadonlyMap<string, string>,
 ): Promise<void> {
   const updatedAt = new Date().toISOString();
   const changed = new Set(changedKeywords);
-  const stmts = pairs.filter(p => changed.size === 0 || changed.has(p.keyword_a) || changed.has(p.keyword_b)).map(p =>
-    db.prepare(
-      `INSERT OR REPLACE INTO topic_similarity (keyword_a, keyword_b, cosine, jaccard, blended, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).bind(p.keyword_a, p.keyword_b, p.cosine, p.jaccard, p.blended, updatedAt),
-  );
-  const deletion = changed.size === 0 ? db.prepare('DELETE FROM topic_similarity') : db.prepare(`
+  const stmts = pairs.filter(p => changed.size === 0 || changed.has(p.keyword_a) || changed.has(p.keyword_b)).map(p => {
+    const values = [p.keyword_a, p.keyword_b, p.cosine, p.jaccard, p.blended, updatedAt];
+    if (!embeddingSnapshot) return db.prepare(`
+      INSERT OR REPLACE INTO topic_similarity (keyword_a, keyword_b, cosine, jaccard, blended, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).bind(...values);
+    // The old snapshot must not overwrite a pair computed from newer vectors.
+    return db.prepare(`
+      INSERT OR REPLACE INTO topic_similarity (keyword_a, keyword_b, cosine, jaccard, blended, updated_at)
+      SELECT ?, ?, ?, ?, ?, ?
+      WHERE EXISTS (SELECT 1 FROM topic_embeddings WHERE keyword = ? AND vector_json = ?)
+        AND EXISTS (SELECT 1 FROM topic_embeddings WHERE keyword = ? AND vector_json = ?)
+    `).bind(...values, p.keyword_a, embeddingSnapshot.get(p.keyword_a) ?? null,
+      p.keyword_b, embeddingSnapshot.get(p.keyword_b) ?? null);
+  });
+  let deletion = changed.size === 0 ? db.prepare('DELETE FROM topic_similarity') : db.prepare(`
     DELETE FROM topic_similarity
     WHERE keyword_a IN (SELECT value FROM json_each(?))
        OR keyword_b IN (SELECT value FROM json_each(?))
   `).bind(JSON.stringify(changedKeywords), JSON.stringify(changedKeywords));
+  if (embeddingSnapshot) {
+    // Limit deletion to endpoints observed AND still current. New keywords
+    // and changed vectors from concurrent same-generation jobs survive.
+    // Below-threshold pairs with current inputs still get removed.
+    // Each D1 string is limited to 2 MB and a statement to 100 bindings.
+    // Split at 1 MB, retaining one DELETE/transaction rather than one query
+    // per pair. Serialize entries once; never concatenate the whole snapshot.
+    const snapshotParameters: string[] = [];
+    const encoder = new TextEncoder();
+    let entries: string[] = [];
+    let bytes = 2;
+    for (const [keyword, vector] of embeddingSnapshot) {
+      const entry = `${JSON.stringify(keyword)}:${JSON.stringify(vector)}`;
+      const size = encoder.encode(entry).byteLength;
+      if (size + 2 > 1_000_000) throw new Error('topic similarity vector exceeds snapshot parameter budget');
+      if (bytes + size + 1 > 1_000_000) {
+        snapshotParameters.push(`{${entries.join(',')}}`);
+        entries = [];
+        bytes = 2;
+      }
+      bytes += size + (entries.length > 0 ? 1 : 0);
+      entries.push(entry);
+    }
+    snapshotParameters.push(`{${entries.join(',')}}`);
+    if (snapshotParameters.length > 97) throw new Error('topic similarity snapshot exceeds D1 parameter budget');
+    deletion = db.prepare(`
+      WITH snapshot AS (
+        ${snapshotParameters.map(() => 'SELECT key, value FROM json_each(?)').join(' UNION ALL ')}
+      ),
+      fresh AS (
+        SELECT e.keyword FROM topic_embeddings e JOIN snapshot
+          ON snapshot.key = e.keyword AND snapshot.value = e.vector_json
+      )
+      DELETE FROM topic_similarity
+      WHERE keyword_a IN (SELECT keyword FROM fresh) AND keyword_b IN (SELECT keyword FROM fresh)
+        AND (? = 0 OR keyword_a IN (SELECT value FROM json_each(?))
+                   OR keyword_b IN (SELECT value FROM json_each(?)))
+    `).bind(...snapshotParameters, changed.size,
+      JSON.stringify(changedKeywords), JSON.stringify(changedKeywords));
+  }
   await db.batch([deletion, ...stmts]);
 }
 

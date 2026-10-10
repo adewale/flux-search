@@ -68,10 +68,18 @@ export async function createPipelineJob(
   },
 ): Promise<boolean> {
   try {
-    await retryD1Write(() => db.prepare(`
+    // Active-key uniqueness does not cover succeeded jobs. Check completion
+    // in the INSERT itself, including the run-complete/job-not-yet-complete gap.
+    const finalizer = job.kind === 'topic-finalize-rebuild';
+    const result = await retryD1Write(() => db.prepare(`
       INSERT INTO pipeline_jobs
         (id, run_id, kind, semantic_key, status, payload_json, attempts, attempt_count, schema_version, correlation_id, queued_at, updated_at)
-      VALUES (?, ?, ?, ?, 'queued', ?, 0, 0, 1, ?, ?, ?)
+      SELECT ?, ?, ?, ?, 'queued', ?, 0, 0, 1, ?, ?, ?
+      ${finalizer ? `WHERE NOT EXISTS (
+        SELECT 1 FROM pipeline_jobs WHERE run_id = ? AND kind = 'topic-finalize-rebuild' AND status = 'succeeded'
+      ) AND NOT EXISTS (
+        SELECT 1 FROM pipeline_runs WHERE id = ? AND status = 'completed'
+      )` : ''}
     `).bind(
       job.id,
       job.runId,
@@ -81,8 +89,9 @@ export async function createPipelineJob(
       job.correlationId,
       job.queuedAt,
       job.queuedAt,
+      ...(finalizer ? [job.runId, job.runId] : []),
     ).run());
-    return true;
+    return (result.meta.changes ?? 0) > 0;
   } catch (err) {
     if (String(err).toLowerCase().includes('unique')) return false;
     throw err;
@@ -140,18 +149,31 @@ export async function deferPipelineJob(db: D1Database, jobId: string, error: unk
 /** Retry an explicitly failed send using its persisted ID and payload.
  * Ordinary queued jobs are not re-sent by every producer. A crash before the
  * send failure was recorded is handled by the existing operator replay route.
- * Clearing the marker here is not an exclusive consumer claim.
+ * Reading is non-consuming: a later planner error or a lost D1 response must
+ * not erase recovery. Only confirmed dispatch clears the marker.
  */
 export async function pendingPipelinePayload(
   db: D1Database, semanticKey: string, runId: string,
 ): Promise<unknown | null> {
   const job = await retryD1Write(() => db.prepare(`
-    UPDATE pipeline_jobs SET last_error_kind = NULL
+    SELECT payload_json FROM pipeline_jobs
     WHERE semantic_key = ? AND run_id = ? AND status = 'queued'
       AND last_error_kind = 'enqueue'
-    RETURNING payload_json
+      AND (kind != 'topic-finalize-rebuild' OR (
+        NOT EXISTS (SELECT 1 FROM pipeline_runs WHERE id = pipeline_jobs.run_id AND status = 'completed')
+        AND NOT EXISTS (SELECT 1 FROM pipeline_jobs finished
+          WHERE finished.run_id = pipeline_jobs.run_id AND finished.kind = 'topic-finalize-rebuild' AND finished.status = 'succeeded')
+      ))
   `).bind(semanticKey, runId).first<{ payload_json: string }>());
   return job ? JSON.parse(job.payload_json) : null;
+}
+
+/** Only used after resending explicitly failed sends, not normal dispatch. */
+export async function clearFailedPipelineSend(db: D1Database, jobIds: string[]): Promise<void> {
+  await retryD1Write(() => db.prepare(`
+    UPDATE pipeline_jobs SET last_error_kind = NULL, last_error = NULL
+    WHERE id IN (SELECT value FROM json_each(?)) AND status = 'queued' AND last_error_kind = 'enqueue'
+  `).bind(JSON.stringify(jobIds)).run());
 }
 
 export async function recordFailedPipelineSend(db: D1Database, jobIds: string[], error: unknown): Promise<void> {

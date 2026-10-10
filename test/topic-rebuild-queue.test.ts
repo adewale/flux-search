@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { makeD1 } from './helpers-d1';
-import { enqueueTopicRebuild, handleEnrichmentMessage, type EnrichmentMessage } from '../src/jobs/enrichment-queue';
+import { enqueueTopicRebuild, enqueueCorpusTopicEmbedding, handleEnrichmentMessage, type EnrichmentMessage } from '../src/jobs/enrichment-queue';
 
 async function seedIssue(db: ReturnType<typeof makeD1>, id: string, n: number, text: string) {
   await db.prepare(`INSERT INTO issues
@@ -69,6 +69,43 @@ describe('queue-backed topic rebuild', () => {
     expect(sent).toHaveLength(3);
   });
 
+  it.each(['extract', 'embedding'] as const)('retains unsent %s jobs across a later planning failure', async (kind) => {
+    const db = makeD1();
+    for (const keyword of ['a', 'b']) await db.prepare(`INSERT INTO corpus_topics
+      (keyword, keyword_display, doc_frequency, avg_score, aggregate_score, updated_at)
+      VALUES (?, ?, 1, 1, 1, 'now')`).bind(keyword, keyword).run();
+    const sent: EnrichmentMessage[] = [];
+    let failSend = true;
+    const env = { DB: db, ENRICHMENT_QUEUE: { sendBatch: async (batch: Array<{ body: EnrichmentMessage }>) => {
+      if (failSend) { failSend = false; throw new Error('network send failed'); }
+      sent.push(...batch.map(entry => entry.body));
+    } } } as any;
+    const enqueue = (target: typeof env) => kind === 'extract'
+      ? enqueueTopicRebuild(target, 'planning', ['i1', 'i2'], 1)
+      : enqueueCorpusTopicEmbedding(target, 'planning', 1);
+    await expect(enqueue(env)).rejects.toThrow('send failed');
+    const originals = (await db.prepare('SELECT payload_json FROM pipeline_jobs ORDER BY rowid').all<{ payload_json: string }>())
+      .results.map(row => JSON.parse(row.payload_json));
+    let inserts = 0;
+    const interrupted = { ...db, prepare: (sql: string) => {
+      const statement = db.prepare(sql);
+      if (!sql.includes('INSERT INTO pipeline_jobs')) return statement;
+      return { ...statement, bind: (...values: unknown[]) => {
+        const bound = statement.bind(...values);
+        return { ...bound, run: async () => {
+          if (++inserts === 2) throw new Error('SQLITE_BUSY');
+          return bound.run();
+        } };
+      } };
+    } };
+    await expect(enqueue({ ...env, DB: interrupted })).rejects.toThrow('SQLITE_BUSY');
+    expect(sent).toEqual([]);
+    await enqueue(env);
+    expect(sent).toEqual(originals);
+    await enqueue(env);
+    expect(sent).toEqual(originals);
+  });
+
   it('splits extraction into jobs and finalizes only after batches succeed', async () => {
     const db = makeD1();
     await db.prepare("INSERT INTO pipeline_runs (id, mode, started_at) VALUES ('run-q', 'topic_rebuild', '2026-01-01')").run();
@@ -77,10 +114,14 @@ describe('queue-backed topic rebuild', () => {
     await seedIssue(db, 'i3', 3, 'Systems thinking and large language models shape governance.');
 
     const sent: EnrichmentMessage[] = [];
+    let aiCalls = 0;
     const env = {
       DB: db as any,
       ENRICHMENT_QUEUE: { sendBatch: async (batch: Array<{ body: EnrichmentMessage }>) => { sent.push(...batch.map(b => b.body)); } },
-      AI: { run: async (_model: string, input: { text: string[] }) => ({ data: input.text.map((_, i) => [i + 1, 0]) }) },
+      AI: { run: async (_model: string, input: { text: string[] }) => {
+        aiCalls++;
+        return { data: input.text.map((_, i) => [i + 1, 0]) };
+      } },
     } as any;
 
     const queued = await enqueueTopicRebuild(env, 'run-q', ['i1', 'i2', 'i3'], 2);
@@ -102,5 +143,16 @@ describe('queue-backed topic rebuild', () => {
     const corpus = await db.prepare('SELECT keyword FROM corpus_topics ORDER BY aggregate_score DESC')
       .all<{ keyword: string }>();
     expect(corpus.results.map(r => r.keyword)).toContain('systems thinking');
+
+    for (const message of sent.filter(m => 'kind' in m && m.kind === 'embed-corpus-topics')) {
+      await handleEnrichmentMessage(message, env);
+    }
+    const embeddings = (await db.prepare('SELECT * FROM topic_embeddings ORDER BY keyword').all()).results;
+    expect(embeddings.length).toBeGreaterThan(0);
+    const dispatches = structuredClone(sent);
+    for (const extract of extracts) await handleEnrichmentMessage(extract, env, 3);
+    expect(sent).toEqual(dispatches);
+    expect((await db.prepare('SELECT * FROM topic_embeddings ORDER BY keyword').all()).results).toEqual(embeddings);
+    expect(aiCalls).toBe(1);
   });
 });
