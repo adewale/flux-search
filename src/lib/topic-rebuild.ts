@@ -15,6 +15,7 @@ import {
 } from '../db/topic-queries';
 import { buildTopicSimilarities } from './topic-similarity';
 import type { EmbedFn } from './topic-embed';
+import { topicPublicationDatabase } from './topic-publication';
 
 export interface PipelineStepResult<T> {
   name: string;
@@ -86,11 +87,13 @@ export async function rebuildAllTopics(
   opts: RebuildOptions = {},
 ): Promise<RebuildStats> {
   const startedAt = Date.now();
+  const stateDb = db;
   const runId = crypto.randomUUID();
   await db.prepare(`
     INSERT INTO pipeline_runs (id, mode, started_at, status, notes)
     VALUES (?, ?, ?, 'running', NULL)
   `).bind(runId, 'topic_rebuild', new Date().toISOString()).run();
+  db = topicPublicationDatabase(db, runId);
 
   try {
     const issues = (await runStep('load_active_issues', () => db.prepare(
@@ -220,7 +223,7 @@ export async function rebuildAllTopics(
     }));
     return stats;
   } catch (err) {
-    await db.prepare(`
+    await stateDb.prepare(`
       UPDATE pipeline_runs SET completed_at = ?, status = 'failed', notes = ? WHERE id = ?
     `).bind(new Date().toISOString(), String(err), runId).run();
     throw err;

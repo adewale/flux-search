@@ -8,7 +8,8 @@ import { annotateCorpusTopics, buildCorpusTopics, buildTopicTimeline, clusterCor
 import { buildPhraseLexicon } from '../lib/pmi-lexicon';
 import { extractTopicsMulti } from '../lib/topic-multi-extract';
 import { enqueueCorpusTopicEmbedding, enqueueTopicRebuild, type EnrichmentMessage } from '../jobs/enrichment-queue';
-import { getPipelineJob, listPipelineJobs } from '../lib/pipeline-jobs';
+import { failPipelineRunIfPresent, getPipelineJob, listPipelineJobs } from '../lib/pipeline-jobs';
+import { topicPublicationDatabase } from '../lib/topic-publication';
 
 export const adminRoutes = new Hono<{ Bindings: Env }>();
 
@@ -77,7 +78,7 @@ adminRoutes.post('/rebuild-topics', async (c) => {
     ORDER BY published_at, issue_number
   `).all<{ id: string; full_text_plain: string | null }>();
   const lexicon = buildPhraseLexicon(issues.results.map(i => i.full_text_plain ?? '').filter(Boolean));
-  await replacePhraseLexicon(c.env.DB, lexicon);
+  await replacePhraseLexicon(topicPublicationDatabase(c.env.DB, runId), lexicon);
 
   const batchSize = Math.min(25, Math.max(1, parseInt(c.req.query('batchSize') || '10') || 10));
   const queued = await enqueueTopicRebuild(c.env, runId, issues.results.map(i => i.id), batchSize);
@@ -93,12 +94,25 @@ adminRoutes.post('/rebuild-topics', async (c) => {
 });
 
 adminRoutes.post('/rebuild-topic-aggregates', async (c) => {
-  const corpus_topics = await buildCorpusTopics(c.env.DB);
-  const cluster_merges = await clusterCorpusTopics(c.env.DB);
-  const timeline_rows = await buildTopicTimeline(c.env.DB);
-  await annotateCorpusTopics(c.env.DB);
-  const queued_embedding_batches = await enqueueCorpusTopicEmbedding(c.env, crypto.randomUUID());
+  const runId = crypto.randomUUID();
+  await c.env.DB.prepare(`
+    INSERT INTO pipeline_runs (id, mode, started_at, status, notes)
+    VALUES (?, 'topic_rebuild', ?, 'running', '{"mode":"aggregate_only"}')
+  `).bind(runId, new Date().toISOString()).run();
+  try {
+  const db = topicPublicationDatabase(c.env.DB, runId);
+  const corpus_topics = await buildCorpusTopics(db);
+  const cluster_merges = await clusterCorpusTopics(db);
+  const timeline_rows = await buildTopicTimeline(db);
+  await annotateCorpusTopics(db);
+  const queued_embedding_batches = await enqueueCorpusTopicEmbedding(c.env, runId);
+  await db.prepare("UPDATE pipeline_runs SET status = 'completed', completed_at = ? WHERE id = ?")
+    .bind(new Date().toISOString(), runId).run();
   return c.json({ corpus_topics, cluster_merges, timeline_rows, queued_embedding_batches });
+  } catch (error) {
+    await failPipelineRunIfPresent(c.env.DB, runId, error);
+    throw error;
+  }
 });
 
 adminRoutes.get('/pipeline-runs', async (c) => {
