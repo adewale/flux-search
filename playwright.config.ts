@@ -14,6 +14,8 @@ export default defineConfig({
   timeout: 30000,
   forbidOnly: !!process.env.CI,
   use: {
+    launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+      ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH } : {},
     baseURL: process.env.PLAYWRIGHT_BASE_URL
       || (localServer ? LOCAL_URL : 'https://flux-search.adewale-883.workers.dev'),
     screenshot: 'on',

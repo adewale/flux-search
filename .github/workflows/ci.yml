@@ -22,3 +22,7 @@ jobs:
       # Offline tests use existing corpus fixtures; live checks remain opt-in.
       - run: npm test
       - run: npm run typecheck
+      - name: Install browser for rendered layout contracts
+        run: npx playwright install --with-deps chromium
+      - name: Check article and topics rail in the local Worker
+        run: PLAYWRIGHT_WEB_SERVER=wrangler npx playwright test e2e/issue-rail-layout.spec.ts --project=desktop
